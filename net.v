@@ -12,6 +12,7 @@ Class domain (T : Type) :=
       dinf_zero : T;
       dmeet : T -> T -> T;
       djoin : T -> T -> T;
+      drelu : T -> T;
       dadd : T -> T -> T;
       dmult : D -> T -> T;
       dred : T -> T;
@@ -74,6 +75,15 @@ Definition Djoin (d1 d2 : Dintv) : Dintv :=
   | Dlh l1 h1, Dlh l2 h2 => Dlh (Dmin l1 l2) (Dmax h1 h2)
   end.
 
+Definition Drelu (d : Dintv) : Dintv :=
+  match d with
+  | Dtop => Dpos 0
+  | Dbot => Dbot
+  | Dneg h => Dlh 0 (Dmax 0 h)
+  | Dpos l => Dpos (Dmax 0 l)
+  | Dlh l h => Dlh (Dmax 0 l) (Dmax 0 h)
+  end.
+
 Definition Dadd (d1 d2 : Dintv) : Dintv :=
   match d1, d2 with
   | Dtop, _ => Dtop
@@ -128,7 +138,7 @@ Definition Dreduce (d : Dintv) : Dintv :=
   end.
 
 Instance domain_Dpair : domain Dintv :=
-  mkDomain (Dpos 0) (Dneg 0) Dmeet Djoin Dadd Dmult Dreduce.
+  mkDomain (Dpos 0) (Dneg 0) Dmeet Djoin Drelu Dadd Dmult Dreduce.
 
 (*
 Fixpoint feval_comb (acc : (D * D)) (l : list (weight * (D * D))) : (D * D) :=
@@ -162,17 +172,22 @@ Fixpoint feval (n : net) : (D * D) :=
 Fixpoint feval {T} `{domain T} (n : net) : T :=
   match n with
   | NIn t => dred t
-  | NReLU n' => dred (dmeet dzero_inf (feval n'))
+  | NReLU n' => dred (drelu (feval n'))
   | NComb l =>
     let l' := map (fun p => (fst p, feval (snd p))) l
     in dred (feval_comb (dmeet dzero_inf dinf_zero) l')
   end.
 
 Definition v11 := NIn (Dlh 0 1).
+Compute feval v11.
 Definition v21b := NComb [(1,v11)].
+Compute feval v21b.
 Definition v22b := NComb [(-(1),v11)].
+Compute feval v22b.
 Definition v21f := NReLU v21b.
+Compute feval v21f.
 Definition v22f := NReLU v22b.
+Compute feval v22f.
 Definition v31 := NComb [(1,v21f); (1,v22f)].
 Compute feval v31.
 
