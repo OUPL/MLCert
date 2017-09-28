@@ -140,34 +140,11 @@ Definition Dreduce (d : Dintv) : Dintv :=
 Instance domain_Dpair : domain Dintv :=
   mkDomain (Dpos 0) (Dneg 0) Dmeet Djoin Drelu Dadd Dmult Dreduce.
 
-(*
-Fixpoint feval_comb (acc : (D * D)) (l : list (weight * (D * D))) : (D * D) :=
-  match l with
-  | (w, (lo, hi)) :: l' =>    
-    let acc' :=
-        if Dlt_bool w 0 then (Dred (fst acc + w * hi), Dred (snd acc + w * lo))
-        else (Dred (fst acc + w * lo), Dred (snd acc + w * hi))
-    in feval_comb acc' l'
-  | [] => acc
-  end.
-*)
-
 Fixpoint feval_comb {T} `{domain T} (acc : T) (l : list (weight * T)) : T :=
   match l with
   | (w, t) :: l' => feval_comb (dadd (dmult w t) acc) l'
   | [] => acc
   end.
-
-(*
-Fixpoint feval (n : net) : (D * D) :=
-  match n with
-  | NIn lo hi => (Dred lo, Dred hi)
-  | NReLU n' => (0, snd (feval n'))
-  | NComb l =>
-    let l' := map (fun p => (fst p, feval (snd p))) l
-    in feval_comb (0, 0) l'
-  end.
- *)
 
 Fixpoint feval {T} `{domain T} (n : net) : T :=
   match n with
