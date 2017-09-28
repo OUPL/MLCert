@@ -1,8 +1,13 @@
 Set Implicit Arguments.
+Unset Strict Implicit.
+
+Require Import mathcomp.ssreflect.ssreflect.
+From mathcomp Require Import all_ssreflect.
+From mathcomp Require Import all_algebra.
 
 Require Import List NArith. Import ListNotations.
 
-Require Import dyadic numerics.
+Require Import dyadic numerics vector compile.
 
 Definition weight := D.
 
@@ -140,31 +145,164 @@ Definition Dreduce (d : Dintv) : Dintv :=
 Instance domain_Dpair : domain Dintv :=
   mkDomain (Dpos 0) (Dneg 0) Dmeet Djoin Drelu Dadd Dmult Dreduce.
 
-Fixpoint feval_comb {T} `{domain T} (acc : T) (l : list (weight * T)) : T :=
+(* symbolic execution *)
+
+Fixpoint seval_comb {T} `{domain T} (acc : T) (l : list (weight * T)) : T :=
   match l with
-  | (w, t) :: l' => feval_comb (dadd (dmult w t) acc) l'
+  | (w, t) :: l' => seval_comb (dadd (dmult w t) acc) l'
   | [] => acc
   end.
 
-Fixpoint feval {T} `{domain T} (n : net) : T :=
+Fixpoint seval {T} `{domain T} (n : net) : T :=
   match n with
   | NIn t => dred t
-  | NReLU n' => dred (drelu (feval n'))
+  | NReLU n' => dred (drelu (seval n'))
   | NComb l =>
-    let l' := map (fun p => (fst p, feval (snd p))) l
-    in dred (feval_comb (dmeet dzero_inf dinf_zero) l')
+    let l' := map (fun p => (fst p, seval (snd p))) l
+    in dred (seval_comb (dmeet dzero_inf dinf_zero) l')
   end.
 
 Definition v11 := NIn (Dlh 0 1).
-Compute feval v11.
+Compute seval v11.
 Definition v21b := NComb [(1,v11)].
-Compute feval v21b.
+Compute seval v21b.
 Definition v22b := NComb [(-(1),v11)].
-Compute feval v22b.
+Compute seval v22b.
 Definition v21f := NReLU v21b.
-Compute feval v21f.
+Compute seval v21f.
 Definition v22f := NReLU v22b.
-Compute feval v22f.
+Compute seval v22f.
 Definition v31 := NComb [(1,v21f); (1,v22f)].
-Compute feval v31.
+Compute seval v31.
 
+(* concrete execution *)
+
+Instance domain_D : domain D :=
+  mkDomain
+    0 0 (fun x _ => x) (fun x _ => x)
+    (fun x => Dmax 0 x)
+    dyadic.Dadd
+    dyadic.Dmult
+    Dred.
+
+Definition eval (n : net) : D := seval n.
+
+Definition v11' := NIn (Dmake 8 1).
+Compute seval v11'.
+Definition v21b' := NComb [(1,v11')].
+Compute seval v21b'.
+Definition v22b' := NComb [(-(1),v11')].
+Compute seval v22b'.
+Definition v21f' := NReLU v21b'.
+Compute seval v21f'.
+Definition v22f' := NReLU v22b'.
+Compute seval v22f'.
+Definition v31' := NComb [(1,v21f'); (1,v22f')].
+Compute seval v31'.
+
+(* forests of nets *)
+
+(* concrete out *)
+
+(* DPayload *)
+
+(* symbolic out *)
+
+Module DIntvPayload <: PAYLOAD.
+  Definition t := Dintv.
+  Definition t0 := Dbot.
+  Definition eq0 (x : t) :=
+    match x with
+    | Dbot => true
+    | _ => false
+    end.
+  Lemma eq0P (x : t) : reflect (x = t0) (eq0 x).
+  Proof. rewrite /t0; case: x => /=; try solve[constructor => //]. Qed.
+  Definition u := t.
+  Definition u_of_t (x : t) : u := x.
+  Definition t_of_u (y : u) : t := y.
+  Lemma t_of_u_t (x : t) : t_of_u (u_of_t x) = x.
+  Proof. by []. Qed.
+End DIntvPayload.
+
+(* concrete in *)
+
+Module DNetPayload <: PAYLOAD.
+  Definition t := @net D _.
+  Definition t0 := NIn D0.
+  Definition eq0 (x : t) :=
+    match x with
+    | NIn d => if Deq_dec d 0 then true else false
+    | _ => false
+    end.
+  Lemma eq0P (x : t) : reflect (x = t0) (eq0 x).
+  Proof.
+    rewrite /t0; case: x => /=.
+    { move => x; case: (Deq_dec x 0) => /=.
+      { move => ->; constructor => //. }
+      move => H; constructor => // H2; apply: H; inversion H2 => //. }
+    { move => l; constructor => //. }
+    move => l; constructor => //.    
+  Qed.
+  Definition u := t.
+  Definition u_of_t (x : t) : u := x.
+  Definition t_of_u (y : u) : t := y.
+  Lemma t_of_u_t (x : t) : t_of_u (u_of_t x) = x.
+  Proof. by []. Qed.
+End DNetPayload.
+
+(* symbolic in *) 
+
+Module DIntvNetPayload <: PAYLOAD.
+  Definition t := @net Dintv _.
+  Definition t0 := NIn Dbot.
+  Definition eq0 (x : t) :=
+    match x with
+    | NIn Dbot => true
+    | _ => false
+    end.
+  Lemma eq0P (x : t) : reflect (x = t0) (eq0 x).
+  Proof.
+    rewrite /t0; case: x => /=.
+    { case; constructor => //; inversion 1. }
+    { move => n; constructor => //. }
+    move => l; constructor => //.
+  Qed.
+  Definition u := t.
+  Definition u_of_t (x : t) : u := x.
+  Definition t_of_u (y : u) : t := y.
+  Lemma t_of_u_t (x : t) : t_of_u (u_of_t x) = x.
+  Proof. by []. Qed.
+End DIntvNetPayload.
+  
+Module Forest (OUT : BOUND).
+
+(* symbolically execute a forest *)
+  
+Module SYM_NetVec := Vector OUT DIntvNetPayload.
+Module SYM_OutVec := Vector OUT DIntvPayload.
+
+Definition SYM_ix_to_ix (x : SYM_OutVec.Ix.t) : SYM_NetVec.Ix.t :=
+  match x with
+  | SYM_OutVec.Ix.mk _ pf => SYM_NetVec.Ix.mk pf
+  end.
+Coercion SYM_ix_to_ix : SYM_OutVec.Ix.t >-> SYM_NetVec.Ix.t.
+
+Definition seval (v : SYM_NetVec.t) : SYM_OutVec.t :=
+  SYM_OutVec.of_fun (fun ix => seval (SYM_NetVec.get ix v)).
+
+(* concretely execute a forest *)
+  
+Module CONC_NetVec := Vector OUT DNetPayload.
+Module CONC_OutVec := Vector OUT DPayload.
+
+Definition CONC_ix_to_ix (x : CONC_OutVec.Ix.t) : CONC_NetVec.Ix.t :=
+  match x with
+  | CONC_OutVec.Ix.mk _ pf => CONC_NetVec.Ix.mk pf
+  end.
+Coercion CONC_ix_to_ix : CONC_OutVec.Ix.t >-> CONC_NetVec.Ix.t.
+
+Definition eval (v : CONC_NetVec.t) : CONC_OutVec.t :=
+  CONC_OutVec.of_fun (fun ix => DRed.build (eval (CONC_NetVec.get ix v))).
+
+End Forest.
