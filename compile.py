@@ -4,23 +4,20 @@ from fractions import Fraction
 from math import log
 import numpy as np
 
-from tensorflow.contrib.learn.python.learn.datasets.mnist import DataSet
-from tensorflow.examples.tutorials.mnist import input_data
-from tensorflow.examples.tutorials.mnist import mnist
-
 path = sys.argv[1]
 
-EPSILON = 0.05
+EPSILON = 0.01
 
 def load_weights(path):
     with gzip.open(path, 'rb') as f:
         weights = pickle.load(f, encoding='latin1')
     return weights
 
-# Load MNIST data
-def load_data():
-    data_sets = input_data.read_data_sets('./mnist')
-    return data_sets.train, data_sets.validation, data_sets.test
+# Load MNIST images
+def load_images(path):
+    with gzip.open(path, 'rb') as f:
+        images = pickle.load(f, encoding='latin1')
+    return images
 
 NetTag = Enum('NetTag', 'IN RELU COMB')
 class Net(object):
@@ -35,7 +32,8 @@ def float_to_D(f):
     # power of 2 (or very close to one) which is very convenient
     frac = Fraction(f)
     num = frac.numerator
-    if abs(int(log(frac.denominator, 2)) - log(frac.denominator, 2)) > 0.000000001:
+    if abs(int(log(frac.denominator, 2)) - log(frac.denominator, 2)) \
+       > 0.000000001:
         print('fraction denominator not a power of 2.')
     denom = int(log(frac.denominator, 2))
     if denom == 0:
@@ -47,7 +45,8 @@ def float_to_D(f):
 def make_inputs(x):
     # TODO
     return [Net(NetTag.IN,
-                'Dlh (' + float_to_D(i-EPSILON) + ') (' + float_to_D(i+EPSILON) + ')')
+                'Dlh (' + float_to_D(i-EPSILON) + ') ('
+                + float_to_D(i+EPSILON) + ')')
             for i in x]
 
 # Create a hidden layer (with relu=True) or the last layer (relu=False).
@@ -100,10 +99,14 @@ def to_coq(layers):
         layer = layers[i]
         for j in range(len(layer)):
             net = layer[j]
-            out += 'Definition n_' + str(i) + '_' + str(j) + ' := ' + net_to_coq(net) + '.\n'
+            out += 'Definition n_' + str(i) + '_' + str(j) + ' := ' \
+                   + net_to_coq(net) + '.\n'
+    out += 'Definition outputs := ' + \
+           ''.join(['n_' + str(len(layers)-1) + '_' + str(i) + ' :: '
+            for i in range(len(layers[-1]))]) + 'nil.\n'
     return out
 
-train, validation, test = load_data()
+images = load_images('test_images.pkl.gz')
 
 # Load the weights
 W = load_weights(path)
@@ -114,7 +117,7 @@ W = list(filter(lambda w: len(w.shape) > 1, W))
 for w in W: print(w.shape)
 
 # Make all layers
-layers = make(W, test.images[0])
+layers = make(W, images[0])
 
 # Create coq source
 src = to_coq(layers)
