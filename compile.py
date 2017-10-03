@@ -39,13 +39,13 @@ def float_to_D(f):
     if denom == 0:
         num *= 2
         denom += 1
-    return 'Dmake (' + str(num) + ') ' + str(denom)
+    return 'd(' + str(num) + ')' + str(denom)
 
 # Create the input layer
 def make_inputs(x):
     # TODO
     return [Net(NetTag.IN,
-                'Dlh (' + float_to_D(i-EPSILON) + ') ('
+                'lh(' + float_to_D(i-EPSILON) + ')('
                 + float_to_D(i+EPSILON) + ')')
             for i in x]
 
@@ -77,16 +77,16 @@ def make(W, x):
 # Pretty-print a net to Coq
 def net_to_coq(net):
     if net.tag == NetTag.IN:
-        return 'NIn (' + net.data + ')'
+        return 'i(' + net.data + ')'
     elif net.tag == NetTag.RELU:
-        return 'NReLU (' + net_to_coq(net.data) + ')'
+        return 'r(' + net_to_coq(net.data) + ')'
     elif net.tag == NetTag.COMB:
-        out = 'NComb ('
+        out = 'c('
         for i in range(len(net.data)):
             (w, id) = net.data[i]
-            out += '(' + float_to_D(w) + ', ' + id + ')'
-            if i < len(net.data) - 1: out += ' :: '
-        return out + ' :: nil)'
+            out += '(' + float_to_D(w) + ',' + id + ')'
+            if i < len(net.data) - 1: out += '::'
+        return out + '::nil)'
     else:
         print('Error in print_to_coq: unknown net tag.')
         return None
@@ -95,14 +95,19 @@ def net_to_coq(net):
 def to_coq(layers):
     out = 'Require Import dyadic net.\n'
     out += 'Open Scope list_scope.\n'
+    out += 'Notation "\'d\' ( x ) y":=(Dmake x y) (at level 60).\n'
+    out += 'Notation "\'lh\' ( x ) y":=(Dlh x y) (at level 63).\n'        
+    out += 'Notation "\'i\' ( x )":=(NIn x) (at level 65).\n'
+    out += 'Notation "\'r\' ( x )":=(NReLU x) (at level 65).\n'
+    out += 'Notation "\'c\' ( x )":=(NComb x) (at level 65).\n'
     for i in range(len(layers)):
         layer = layers[i]
         for j in range(len(layer)):
             net = layer[j]
-            out += 'Definition n_' + str(i) + '_' + str(j) + ' := ' \
+            out += 'Definition n_' + str(i) + '_' + str(j) + ':=' \
                    + net_to_coq(net) + '.\n'
-    out += 'Definition outputs := ' + \
-           ''.join(['n_' + str(len(layers)-1) + '_' + str(i) + ' :: '
+    out += 'Definition outputs:=' + \
+           ''.join(['n_' + str(len(layers)-1) + '_' + str(i) + '::'
             for i in range(len(layers[-1]))]) + 'nil.\n'
     return out
 
