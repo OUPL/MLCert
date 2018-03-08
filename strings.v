@@ -1,6 +1,8 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
+Require Extraction.
+
 Require Import String Ascii QArith.
 
 Require Import mathcomp.ssreflect.ssreflect.

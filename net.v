@@ -5,28 +5,29 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import List NArith. Import ListNotations.
+Require Import List NArith String. Import ListNotations.
 
 Require Import dyadic numerics vector compile.
 
 Definition weight := D.
 
-Class domain (T : Type) :=
-  mkDomain {
-      dzero_inf : T;
-      dinf_zero : T;
-      dmeet : T -> T -> T;
-      djoin : T -> T -> T;
-      drelu : T -> T;
-      dadd : T -> T -> T;
-      dmult : D -> T -> T;
-      dred : T -> T;
-    }.
+(* the type of nets *)
 
-Inductive net {T} `{domain T} : Type :=
-| NIn : forall t : T,  net
-| NReLU : net -> net
-| NComb : list (weight * net) -> net.
+Module Net (D : BOUND) (T : PAYLOAD).
+  (* D = dimensionality 
+     T = the type of network inputs *)
+
+  Module Env := Vector D T.
+  (* An environment maps variables Ix.t to values of type T *)
+  Definition var := Env.Ix.t.
+  
+  Inductive net : Type :=
+  | NIn : var -> net
+  | NReLU : net -> net
+  | NComb : list (weight * net) -> net.
+End Net.
+
+(* value ranges (a symbolic instantiation) *)
 
 Local Open Scope D_scope.
 
@@ -142,6 +143,18 @@ Definition Dreduce (d : Dintv) : Dintv :=
     else Dlh (Dred l) (Dred h)
   end.
 
+Class domain (T : Type) :=
+  mkDomain {
+      dzero_inf : T;
+      dinf_zero : T;
+      dmeet : T -> T -> T;
+      djoin : T -> T -> T;
+      drelu : T -> T;
+      dadd : T -> T -> T;
+      dmult : D -> T -> T;
+      dred : T -> T;
+    }.
+
 Instance domain_Dpair : domain Dintv :=
   mkDomain (Dpos 0) (Dneg 0) Dmeet Djoin Drelu Dadd Dmult Dreduce.
 
@@ -153,58 +166,18 @@ Fixpoint seval_comb {T} `{domain T} (acc : T) (l : list (weight * T)) : T :=
   | [] => acc
   end.
 
-Fixpoint seval {T} `{domain T} (n : net) : T :=
-  match n with
-  | NIn t => dred t
-  | NReLU n' => dred (drelu (seval n'))
-  | NComb l =>
-    let l' := map (fun p => (fst p, seval (snd p))) l
-    in dred (seval_comb (dmeet dzero_inf dinf_zero) l')
-  end.
-
-Definition v11 := NIn (Dlh 0 1).
-Compute seval v11.
-Definition v21b := NComb [(1,v11)].
-Compute seval v21b.
-Definition v22b := NComb [(-(1),v11)].
-Compute seval v22b.
-Definition v21f := NReLU v21b.
-Compute seval v21f.
-Definition v22f := NReLU v22b.
-Compute seval v22f.
-Definition v31 := NComb [(1,v21f); (1,v22f)].
-Compute seval v31.
-
-(* concrete execution *)
-
-Instance domain_D : domain D :=
-  mkDomain
-    0 0 (fun x _ => x) (fun x _ => x)
-    (fun x => Dmax 0 x)
-    dyadic.Dadd
-    dyadic.Dmult
-    Dred.
-
-Definition eval (n : net) : D := seval n.
-
-Definition v11' := NIn (Dmake 8 1).
-Compute seval v11'.
-Definition v21b' := NComb [(1,v11')].
-Compute seval v21b'.
-Definition v22b' := NComb [(-(1),v11')].
-Compute seval v22b'.
-Definition v21f' := NReLU v21b'.
-Compute seval v21f'.
-Definition v22f' := NReLU v22b'.
-Compute seval v22f'.
-Definition v31' := NComb [(1,v21f'); (1,v22f')].
-Compute seval v31'.
-
-(* forests of nets *)
-
-(* concrete out *)
-
-(* DPayload *)
+Module NetEval (D : BOUND) (T : PAYLOAD).
+  Module NET := Net D T. Include NET.
+           
+  Fixpoint seval `{domain T.t} (rho : NET.Env.t) (n : net) : T.t :=
+    match n with
+    | NIn x => dred (NET.Env.get x rho)
+    | NReLU n' => dred (drelu (seval rho n'))
+    | NComb l =>
+      let l' := map (fun p => (fst p, seval rho (snd p))) l
+      in dred (seval_comb (dmeet dzero_inf dinf_zero) l')
+    end.
+End NetEval.
 
 (* symbolic out *)
 
@@ -225,7 +198,53 @@ Module DIntvPayload <: PAYLOAD.
   Proof. by []. Qed.
 End DIntvPayload.
 
-(* concrete in *)
+Module Test1Symbolic.
+Module Test1Bound <: BOUND.
+  Definition n:nat := 1.
+  Lemma n_gt0 : (0 < n)%nat. by []. Qed.
+End Test1Bound.
+Module Test1 := NetEval Test1Bound DIntvPayload. Import Test1. Import NET.
+Program Definition x : var := @Env.Ix.mk 0 _.
+Definition rho : Env.t := Env.of_fun (fun _ => Dlh 0 1).
+Definition v11 := NIn x.
+(*Compute seval rho v11.*)
+Definition v21b := NComb [(1,v11)].
+(*Compute seval rho v21b.*)
+Definition v22b := NComb [(-(1),v11)].
+(*Compute seval rho v22b.*)
+Definition v21f := NReLU v21b.
+(*Compute seval rho v21f.*)
+Definition v22f := NReLU v22b.
+(*Compute seval rho v22f.*)
+Definition v31 := NComb [(1,v21f); (1,v22f)].
+(*Compute seval rho v31.*)
+End Test1Symbolic.
+
+Instance domain_D : domain D :=
+  mkDomain
+    0 0 (fun x _ => x) (fun x _ => x)
+    (fun x => Dmax 0 x)
+    dyadic.Dadd
+    dyadic.Dmult
+    Dred.
+
+Module Test1Concrete.
+Module Test1Bound <: BOUND.
+  Definition n:nat := 1.
+  Lemma n_gt0 : (0 < n)%nat. by []. Qed.
+End Test1Bound.
+Module Test1 := NetEval Test1Bound DPayload. Import Test1. Import NET.
+Program Definition x : var := @Env.Ix.mk 0 _.
+Definition rho : Env.t := Env.of_fun (fun _ => DRed.build (Dmake 8 1)).
+Definition v11' := NIn x.
+Definition v21b' := NComb [(1,v11')].
+Definition v22b' := NComb [(-(1),v11')].
+Definition v21f' := NReLU v21b'.
+Definition v22f' := NReLU v22b'.
+Definition v31' := NComb [(1,v21f'); (1,v22f')].
+End Test1Concrete.
+
+(* forests of nets *)
 
 Module DNetPayload <: PAYLOAD.
   Definition t := @net D _.
@@ -276,6 +295,7 @@ Module DIntvNetPayload <: PAYLOAD.
 End DIntvNetPayload.
   
 Module Forest (OUT : BOUND).
+  (* OUT = the number of network outputs *)
 
 (* symbolically execute a forest *)
   

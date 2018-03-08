@@ -1076,8 +1076,6 @@ Module DVector (B : BOUND).
       0%DRed.
 End DVector.    
 
-(* D-constraint matrices (TODO: refactor general constructions above) *)
-
 Module DConstraintMatrixPayload (B : BOUND) <: PAYLOAD.
   Module DVec := DVector B. Include DVec.
   Definition label := bool.
@@ -1111,3 +1109,49 @@ Module DConstraintMatrix (NumFeatures : BOUND) (NumConstraints : BOUND).
   Module Constraint := DConstraintMatrixPayload NumFeatures. Include Constraint.
   Module CMatrix := Vector NumConstraints Constraint.
 End DConstraintMatrix.  
+
+Inductive Bit : Type := BI | BO.
+
+Module BitPayload <: PAYLOAD.
+  Definition t := Bit.
+  Definition t0 := BO.
+  Definition eq0 (x : t) :=
+    match x with
+    | BO => true
+    | BI => false
+    end.
+  Lemma eq0P (x : t) : reflect (x = t0) (eq0 x).
+  Proof. by rewrite /t0; case: x; constructor. Qed.
+  Definition u := t.
+  Definition u_of_t (x : t) : u := x.
+  Definition t_of_u (y : u) : t := y.
+  Lemma t_of_u_t (x : t) : t_of_u (u_of_t x) = x.
+  Proof. by []. Qed.
+End BitPayload.
+
+Module BitVectorPayload (B : BOUND) <: PAYLOAD.
+  Module BVec := Vector B BitPayload. Include BVec.
+  Definition t0 : t := BVec.M.empty _.
+  Definition eq0 (v : t) := BVec.M.is_empty v.
+  Lemma eq0P v : reflect (v=t0) (eq0 v).
+  Proof.
+    rewrite /eq0 /BVec.M.is_empty /BVec.M.Raw.is_empty /t0.
+    case: v => x y /=; move: y; case: x => y; constructor => //.     
+    case H: BVec.M.empty => [z w]; inversion H; subst.
+    f_equal; f_equal; apply: proof_irrelevance.
+  Qed.    
+  Definition u := {m : t & {f : BVec.ty & BVec.match_vecs m f}}.
+  Program Definition u_of_t (m : t) : u :=
+    existT _ m _.
+  Next Obligation.
+    set (f := [ffun i : 'I_B.n =>
+               BitPayload.u_of_t (BVec.get (BVec.Ix_of_Ordinal i) m)] : BVec.ty).
+    refine (existT _ f _).
+    by move => i; rewrite /f ffunE BVec.Ix_of_Ordinal_Ix BitPayload.t_of_u_t.
+  Qed.
+  Definition t_of_u (f : u) : t := projT1 f.
+  Lemma t_of_u_t : forall t0 : t, t_of_u (u_of_t t0) = t0.
+  Proof. by []. Qed.
+End BitVectorPayload.
+
+
