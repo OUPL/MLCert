@@ -5,7 +5,8 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import List NArith String. Import ListNotations.
+Require Import List Arith NArith String. Import ListNotations.
+Require Import ProofIrrelevance.
 
 Require Import dyadic numerics vector compile.
 
@@ -21,10 +22,10 @@ Module Net (D : BOUND) (T : PAYLOAD).
   (* An environment maps variables Ix.t to values of type T *)
   Definition var := Env.Ix.t.
   
-  Inductive net : Type :=
-  | NIn : var -> net
-  | NReLU : net -> net
-  | NComb : list (weight * net) -> net.
+  Inductive t : Type :=
+  | NIn : var -> t
+  | NReLU : t -> t
+  | NComb : list (weight * t) -> t.
 End Net.
 
 (* value ranges (a symbolic instantiation) *)
@@ -169,7 +170,7 @@ Fixpoint seval_comb {T} `{domain T} (acc : T) (l : list (weight * T)) : T :=
 Module NetEval (D : BOUND) (T : PAYLOAD).
   Module NET := Net D T. Include NET.
            
-  Fixpoint seval `{domain T.t} (rho : NET.Env.t) (n : net) : T.t :=
+  Fixpoint seval `{domain T.t} (rho : NET.Env.t) (n : NET.t) : T.t :=
     match n with
     | NIn x => dred (NET.Env.get x rho)
     | NReLU n' => dred (drelu (seval rho n'))
@@ -246,83 +247,52 @@ End Test1Concrete.
 
 (* forests of nets *)
 
-Module DNetPayload <: PAYLOAD.
-  Definition t := @net D _.
-  Definition t0 := NIn D0.
-  Definition eq0 (x : t) :=
+Module Forest (D OUT : BOUND) (T : PAYLOAD).
+  (* D = dimensionality of input space 
+     OUT = number of outputs 
+     T = payload *)
+  Module NET := NetEval D T. Import NET.
+  Module NETPayload <: PAYLOAD.
+    Definition t := NET.t.
+    Definition i0 := @NET.Env.Ix.mk 0 D.n_gt0.
+    Definition t0 := NET.NIn i0.
+    Definition eq0 (x : t) :=
+      match x with
+      | NIn y => match y with
+                 | NET.Env.Ix.mk z _ => 
+                     if Nat.eq_dec z 0 then true else false
+                 end
+      | _ => false
+      end.
+    Lemma eq0P (x : t) : reflect (x = t0) (eq0 x).
+    Proof.
+      rewrite /t0; case: x => /=.
+      { case => /= x pf; rewrite /i0.
+        destruct (Nat.eq_dec x 0) eqn:H.
+        { subst; constructor; f_equal. admit. }
+        { admit. }}
+      { move => l; constructor => //. }
+      move => l; constructor => //.
+    Admitted.
+    Definition u := t.
+    Definition u_of_t (x : t) : u := x.
+    Definition t_of_u (y : u) : t := y.
+    Lemma t_of_u_t (x : t) : t_of_u (u_of_t x) = x.
+    Proof. by []. Qed.
+  End NETPayload.
+
+  (* a forest is an OUT-vector of NETs *)
+  Module Forest := Vector OUT NETPayload.
+  Module Output := Vector OUT T.
+
+  (* execute a forest *)
+  Definition Output_ix_to_ix (x : Output.Ix.t) : Forest.Ix.t :=
     match x with
-    | NIn d => if Deq_dec d 0 then true else false
-    | _ => false
+    | Output.Ix.mk _ pf => Forest.Ix.mk pf
     end.
-  Lemma eq0P (x : t) : reflect (x = t0) (eq0 x).
-  Proof.
-    rewrite /t0; case: x => /=.
-    { move => x; case: (Deq_dec x 0) => /=.
-      { move => ->; constructor => //. }
-      move => H; constructor => // H2; apply: H; inversion H2 => //. }
-    { move => l; constructor => //. }
-    move => l; constructor => //.    
-  Qed.
-  Definition u := t.
-  Definition u_of_t (x : t) : u := x.
-  Definition t_of_u (y : u) : t := y.
-  Lemma t_of_u_t (x : t) : t_of_u (u_of_t x) = x.
-  Proof. by []. Qed.
-End DNetPayload.
+  Coercion Output_ix_to_ix : Output.Ix.t >-> Forest.Ix.t.
 
-(* symbolic in *) 
-
-Module DIntvNetPayload <: PAYLOAD.
-  Definition t := @net Dintv _.
-  Definition t0 := NIn Dbot.
-  Definition eq0 (x : t) :=
-    match x with
-    | NIn Dbot => true
-    | _ => false
-    end.
-  Lemma eq0P (x : t) : reflect (x = t0) (eq0 x).
-  Proof.
-    rewrite /t0; case: x => /=.
-    { case; constructor => //; inversion 1. }
-    { move => n; constructor => //. }
-    move => l; constructor => //.
-  Qed.
-  Definition u := t.
-  Definition u_of_t (x : t) : u := x.
-  Definition t_of_u (y : u) : t := y.
-  Lemma t_of_u_t (x : t) : t_of_u (u_of_t x) = x.
-  Proof. by []. Qed.
-End DIntvNetPayload.
-  
-Module Forest (OUT : BOUND).
-  (* OUT = the number of network outputs *)
-
-(* symbolically execute a forest *)
-  
-Module SYM_NetVec := Vector OUT DIntvNetPayload.
-Module SYM_OutVec := Vector OUT DIntvPayload.
-
-Definition SYM_ix_to_ix (x : SYM_OutVec.Ix.t) : SYM_NetVec.Ix.t :=
-  match x with
-  | SYM_OutVec.Ix.mk _ pf => SYM_NetVec.Ix.mk pf
-  end.
-Coercion SYM_ix_to_ix : SYM_OutVec.Ix.t >-> SYM_NetVec.Ix.t.
-
-Definition seval (v : SYM_NetVec.t) : SYM_OutVec.t :=
-  SYM_OutVec.of_fun (fun ix => seval (SYM_NetVec.get ix v)).
-
-(* concretely execute a forest *)
-  
-Module CONC_NetVec := Vector OUT DNetPayload.
-Module CONC_OutVec := Vector OUT DPayload.
-
-Definition CONC_ix_to_ix (x : CONC_OutVec.Ix.t) : CONC_NetVec.Ix.t :=
-  match x with
-  | CONC_OutVec.Ix.mk _ pf => CONC_NetVec.Ix.mk pf
-  end.
-Coercion CONC_ix_to_ix : CONC_OutVec.Ix.t >-> CONC_NetVec.Ix.t.
-
-Definition eval (v : CONC_NetVec.t) : CONC_OutVec.t :=
-  CONC_OutVec.of_fun (fun ix => DRed.build (eval (CONC_NetVec.get ix v))).
-
+  Definition seval `{domain T.t} 
+      (rho : Env.t) (f : Forest.t) : Output.t :=
+    Output.of_fun (fun ix => Forest.NET.seval rho (Forest.get ix f)).
 End Forest.
