@@ -108,6 +108,7 @@ VFILES:=compile.v\
   listlemmas.v\
   maplemmas.v\
   net.v\
+  bitnet.v\
   numerics.v\
   orderedtypes.v\
   strings.v\

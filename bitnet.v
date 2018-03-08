@@ -22,7 +22,8 @@ Module B32 <: BOUND.
   Lemma n_gt0 : 0 < n. Proof. by []. Qed.
 End B32.  
 
-Module BitVec32 := Vector B32 BitPayload. Import BitVec32.
+Module BitVec32Payload := BitVectorPayload B32.
+Module BitVec32 := BitVec32Payload.BVec. Import BitVec32.
 
 Section bitvec32_to_dyadic.
   Lemma sign_pf : is_true (N.to_nat 31 < n). Proof. by []. Qed.
@@ -72,10 +73,11 @@ Section bitvec32_to_dyadic.
              then acc + dyadic_of_significand_bit ix b_ix
              else acc) b 1. (*significand = 1 + interp(bits)*)
       
-  Definition to_dyadic (b : t) :=
-    Dred ((if BitPayload.eq0 (get sign b) then 1 else -(1)) * (*sign bit*)
-          significand b *
-          exponent b).
+  Definition to_dyadic (b : t) : DRed.t :=
+    DRed.build
+      ((if BitPayload.eq0 (get sign b) then 1 else -(1)) * (*sign bit*)
+       significand b *
+       exponent b).
 
   (* examples *)
   Definition bvec_0p15625 : t :=
@@ -105,57 +107,16 @@ Section bitvec32_to_dyadic.
 End bitvec32_to_dyadic.
 (*(*TEST:*) Extraction "test.ml" test_e test_s test.*)
 
-(* A vacuous domain for size-32 bitvectors (NOTE: to interpret 
-   bitnets, we first map to D using to_dyadic above, then interpret 
-   in domain_D as defined in net.v). *)
-Instance vacuous_domain_bitvec32 : domain BitVec32.t :=
-  mkDomain
-    bvec_0p0 bvec_0p0 (fun x _ => x) (fun x _ => x)
-    (fun x => x) (fun x _ => x) (fun _ x => x) (fun x => x).
+(* construct two forests: 
+     1) over BitVec32.t 
+     2) over D 
+   along with a map from 1) to 2). *)
+Module DyadicFloatNet (D OUT : BOUND).
+  (* D = dimensionality 
+     OUT = number of outputs *)
+  Module F := ForestMap D OUT BitVec32Payload DPayload. Import F.
 
-Definition dyadic_of_float32_net (n : 
-
-
-
-(* A forest of size-32 bitvector nets: 
-   -OUT: The number of output nodes *)
-Module Float32Net (OUT : BOUND).
-
-  (* Nets over size-32 bitvectors *)
-  Module Float32NetPayload <: PAYLOAD.
-    Definition t := @net BitVec32.t _.
-  Definition t0 := NIn bvec_0p0.
-  Definition eq0 (x : t) :=
-    match x with
-    | NIn f =>
-      match BitVec32.any (fun _ b => b) f with
-      | None => true
-      | Some _ => false
-      end
-    | _ => false
-    end.
-  Lemma eq0P (x : t) : reflect (x = t0) (eq0 x).
-  Proof. Admitted.
-  Definition u := t.
-  Definition u_of_t (x : t) : u := x.
-  Definition t_of_u (y : u) : t := y.
-  Lemma t_of_u_t (x : t) : t_of_u (u_of_t x) = x.
-  Proof. by []. Qed.
-End Float32NetPayload.
-
-
+  Definition seval (rho : FT.NETEval.Env.t) (f : FT.t) : FU.Output.t :=
+    F.FT_eval to_dyadic rho f.
+End DyadicFloatNet.  
   
-  Module BitNet := Vector OUT B
-Module BIT_NetVec := Vector OUT (BitVectorPayload B).
-Module SYM_OutVec := Vector OUT DIntvPayload.
-
-Definition SYM_ix_to_ix (x : SYM_OutVec.Ix.t) : SYM_NetVec.Ix.t :=
-  match x with
-  | SYM_OutVec.Ix.mk _ pf => SYM_NetVec.Ix.mk pf
-  end.
-Coercion SYM_ix_to_ix : SYM_OutVec.Ix.t >-> SYM_NetVec.Ix.t.
-
-Definition seval (v : SYM_NetVec.t) : SYM_OutVec.t :=
-  SYM_OutVec.of_fun (fun ix => seval (SYM_NetVec.get ix v)).
-
-

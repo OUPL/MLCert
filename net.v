@@ -14,18 +14,18 @@ Definition weight := D.
 
 (* the type of nets *)
 
-Module Net (D : BOUND) (T : PAYLOAD).
+Module Net (D : BOUND) (PARAMS : PAYLOAD).
   (* D = dimensionality 
-     T = the type of network inputs *)
+     PARAMS = the type of network weights/inputs (currently coalesced) *)
 
-  Module Env := Vector D T.
+  Module Env := Vector D PARAMS.
   (* An environment maps variables Ix.t to values of type T *)
   Definition var := Env.Ix.t.
   
   Inductive t : Type :=
   | NIn : var -> t
   | NReLU : t -> t
-  | NComb : list (weight * t) -> t.
+  | NComb : list (PARAMS.t * t) -> t.
 End Net.
 
 (* value ranges (a symbolic instantiation) *)
@@ -129,9 +129,12 @@ Definition Dmult_aux (c : D) (d : Dintv) : Dintv :=
   | Dlh l h => Dlh (c * l) (c * h)
   end.
 
-Definition Dmult (c : D) (d : Dintv) : Dintv :=
-  let d' := Dmult_aux c d in
-  if Dlt_bool c 0 then Dinv d' else d'.
+Definition Dmult (c : Dintv) (d : Dintv) : Dintv :=
+  match c with
+  | Dpos c' => let d' := Dmult_aux c' d in if Dlt_bool c' 0 then Dinv d' else d'
+  | Dneg c' => let d' := Dmult_aux c' d in if Dlt_bool c' 0 then Dinv d' else d'
+  | _ => Dbot
+  end.
 
 Definition Dreduce (d : Dintv) : Dintv :=
   match d with
@@ -152,7 +155,7 @@ Class domain (T : Type) :=
       djoin : T -> T -> T;
       drelu : T -> T;
       dadd : T -> T -> T;
-      dmult : D -> T -> T;
+      dmult : T -> T -> T;
       dred : T -> T;
     }.
 
@@ -161,7 +164,7 @@ Instance domain_Dpair : domain Dintv :=
 
 (* symbolic execution *)
 
-Fixpoint seval_comb {T} `{domain T} (acc : T) (l : list (weight * T)) : T :=
+Fixpoint seval_comb {T} `{domain T} (acc : T) (l : list (T * T)) : T :=
   match l with
   | (w, t) :: l' => seval_comb (dadd (dmult w t) acc) l'
   | [] => acc
@@ -209,15 +212,15 @@ Program Definition x : var := @Env.Ix.mk 0 _.
 Definition rho : Env.t := Env.of_fun (fun _ => Dlh 0 1).
 Definition v11 := NIn x.
 (*Compute seval rho v11.*)
-Definition v21b := NComb [(1,v11)].
+Definition v21b := NComb [(Dpos 1,v11)].
 (*Compute seval rho v21b.*)
-Definition v22b := NComb [(-(1),v11)].
+Definition v22b := NComb [(Dneg 1,v11)].
 (*Compute seval rho v22b.*)
 Definition v21f := NReLU v21b.
 (*Compute seval rho v21f.*)
 Definition v22f := NReLU v22b.
 (*Compute seval rho v22f.*)
-Definition v31 := NComb [(1,v21f); (1,v22f)].
+Definition v31 := NComb [(Dpos 1,v21f); (Dpos 1,v22f)].
 (*Compute seval rho v31.*)
 End Test1Symbolic.
 
@@ -229,6 +232,14 @@ Instance domain_D : domain D :=
     dyadic.Dmult
     Dred.
 
+Instance domain_DRed : domain DRed.t :=
+  mkDomain
+    (DRed.build 0) (DRed.build 0) (fun x _ => x) (fun x _ => x)
+    (fun x => DRed.build (Dmax 0 x))
+    DRed.add
+    DRed.mult
+    (fun x => x).
+
 Module Test1Concrete.
 Module Test1Bound <: BOUND.
   Definition n:nat := 1.
@@ -238,11 +249,11 @@ Module Test1 := NetEval Test1Bound DPayload. Import Test1. Import NET.
 Program Definition x : var := @Env.Ix.mk 0 _.
 Definition rho : Env.t := Env.of_fun (fun _ => DRed.build (Dmake 8 1)).
 Definition v11' := NIn x.
-Definition v21b' := NComb [(1,v11')].
-Definition v22b' := NComb [(-(1),v11')].
+Definition v21b' := NComb [(DRed.build 1,v11')].
+Definition v22b' := NComb [(DRed.build (-(1)),v11')].
 Definition v21f' := NReLU v21b'.
 Definition v22f' := NReLU v22b'.
-Definition v31' := NComb [(1,v21f'); (1,v22f')].
+Definition v31' := NComb [(DRed.build 1,v21f'); (DRed.build 1,v22f')].
 End Test1Concrete.
 
 (* forests of nets *)
@@ -251,16 +262,16 @@ Module Forest (D OUT : BOUND) (T : PAYLOAD).
   (* D = dimensionality of input space 
      OUT = number of outputs 
      T = payload *)
-  Module NET := NetEval D T. Import NET.
+  Module NETEval := NetEval D T. Import NETEval.
   Module NETPayload <: PAYLOAD.
-    Definition t := NET.t.
-    Definition i0 := @NET.Env.Ix.mk 0 D.n_gt0.
+    Definition t := NETEval.t.
+    Definition i0 : NET.var := @NET.Env.Ix.mk 0%N D.n_gt0.
     Definition t0 := NET.NIn i0.
     Definition eq0 (x : t) :=
       match x with
       | NIn y => match y with
                  | NET.Env.Ix.mk z _ => 
-                     if Nat.eq_dec z 0 then true else false
+                     if Nat.eq_dec (N.to_nat z) 0 then true else false
                  end
       | _ => false
       end.
@@ -268,12 +279,15 @@ Module Forest (D OUT : BOUND) (T : PAYLOAD).
     Proof.
       rewrite /t0; case: x => /=.
       { case => /= x pf; rewrite /i0.
-        destruct (Nat.eq_dec x 0) eqn:H.
-        { subst; constructor; f_equal. admit. }
-        { admit. }}
+        destruct (Nat.eq_dec (N.to_nat x) O) eqn:H.
+        { subst; constructor; f_equal; apply/NET.Env.Ix.eqP.
+          rewrite /NET.Env.Ix.eq /=; clear H pf.
+          by case: x e => //= p e; move: (PosN0 p); rewrite e. }
+        { constructor; inversion 1; subst.
+          by simpl in n; elimtype False. }}
       { move => l; constructor => //. }
       move => l; constructor => //.
-    Admitted.
+    Qed.
     Definition u := t.
     Definition u_of_t (x : t) : u := x.
     Definition t_of_u (y : u) : t := y.
@@ -282,7 +296,7 @@ Module Forest (D OUT : BOUND) (T : PAYLOAD).
   End NETPayload.
 
   (* a forest is an OUT-vector of NETs *)
-  Module Forest := Vector OUT NETPayload.
+  Module Forest := Vector OUT NETPayload. Definition t := Forest.t.
   Module Output := Vector OUT T.
 
   (* execute a forest *)
@@ -294,5 +308,49 @@ Module Forest (D OUT : BOUND) (T : PAYLOAD).
 
   Definition seval `{domain T.t} 
       (rho : Env.t) (f : Forest.t) : Output.t :=
-    Output.of_fun (fun ix => Forest.NET.seval rho (Forest.get ix f)).
+    Output.of_fun (fun ix => Forest.NETEval.seval rho (Forest.get ix f)).
 End Forest.
+
+(* map a forest payload from T to U *)
+
+Module ForestMap (D OUT : BOUND) (T U : PAYLOAD).
+  Module FT := Forest D OUT T.
+  Module FU := Forest D OUT U.
+
+  Section forest_map.
+    Variable F : T.t -> U.t.
+
+    Definition FU_ix_to_ix (x : FU.Forest.Ix.t) : FT.Forest.Ix.t :=
+      match x with
+      | FU.Forest.Ix.mk _ pf => FT.Forest.Ix.mk pf
+      end.
+    Coercion FU_ix_to_ix : FU.Forest.Ix.t >-> FT.Forest.Ix.t.
+
+    Definition FT_to_FU_var (x : FT.NETEval.NET.var) : FU.NETEval.NET.var :=
+      match x with
+      | FT.NETEval.NET.Env.Ix.mk _ pf => FU.NETEval.NET.Env.Ix.mk pf
+      end. Coercion FT_to_FU_var : FT.NETEval.NET.var >-> FU.NETEval.NET.var.
+    Definition FU_to_FT_var (x : FU.NETEval.NET.var) : FT.NETEval.NET.var := 
+      match x with
+      | FU.NETEval.NET.Env.Ix.mk _ pf => FT.NETEval.NET.Env.Ix.mk pf
+      end. Coercion FU_to_FT_var : FU.NETEval.NET.var >-> FT.NETEval.NET.var.
+    
+    Fixpoint net_map (n : FT.NETPayload.t) : FU.NETPayload.t :=
+      match n with
+      | FT.NETEval.NIn x => FU.NETEval.NIn x
+      | FT.NETEval.NReLU n' => FU.NETEval.NReLU (net_map n')
+      | FT.NETEval.NComb l => FU.NETEval.NComb (map (fun p => (F p.1, net_map p.2)) l)
+      end.
+    
+    Definition forest_map (f : FT.t) : FU.t :=
+      FU.Forest.of_fun (fun ix => net_map (FT.Forest.get ix f)).
+
+    (* evaluate a T-forest by first mapping to a U-forest, then evaluating *)
+    Definition FT_eval `{domain U.t} (rho : FT.NETEval.Env.t) (f : FT.t) : FU.Output.t :=
+      FU.seval
+        (FU.NETEval.Env.of_fun (fun ix => F (FT.NETEval.Env.get (FU_to_FT_var ix) rho)))
+        (forest_map f).
+  End forest_map.
+End ForestMap.
+
+
