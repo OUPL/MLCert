@@ -41,7 +41,6 @@ Section bitvec32_to_dyadic.
                           end)
     else D0.
                       
-
   Definition Z_of_exponent_bit (ix : Ix.t) (b_ix : Bit) : Z :=
     if b_ix then match ix with Ix.mk n _ =>
                                match (n-23)%N with
@@ -79,28 +78,15 @@ Section bitvec32_to_dyadic.
        significand b *
        exponent b).
 
+  Definition bits_to_bvec (l : list N.t) : t :=
+    BitVec32.of_fun
+      (fun ix => if ListDec.In_dec N.eq_dec (Ix.val ix) l then BI
+                 else BO).
+
   (* examples *)
-  Definition bvec_0p15625 : t :=
-    BitVec32.of_fun
-      (fun ix => if N.eqb (Ix.val ix) 21 then BI
-                 else if N.eqb (Ix.val ix) 25 then BI
-                 else if N.eqb (Ix.val ix) 26 then BI
-                 else if N.eqb (Ix.val ix) 27 then BI                                                          
-                 else if N.eqb (Ix.val ix) 28 then BI
-                 else if N.eqb (Ix.val ix) 29 then BI                                                          
-                      else BO).
-  Definition bvec_1p0 : t :=
-    BitVec32.of_fun
-      (fun ix => if N.eqb (Ix.val ix) 23 then BI                                                
-                 else if N.eqb (Ix.val ix) 24 then BI                                                
-                 else if N.eqb (Ix.val ix) 25 then BI
-                 else if N.eqb (Ix.val ix) 26 then BI
-                 else if N.eqb (Ix.val ix) 27 then BI                                                          
-                 else if N.eqb (Ix.val ix) 28 then BI
-                 else if N.eqb (Ix.val ix) 29 then BI                                                          
-                      else BO).
-  Definition bvec_0p0 : t :=
-    BitVec32.of_fun (fun ix => BO).
+  Definition bvec_0p15625 : t := bits_to_bvec [21%N;25%N;26%N;27%N;28%N;29%N].
+  Definition bvec_1p0 : t := bits_to_bvec [23%N;24%N;25%N;26%N;27%N;28%N;29%N].
+  Definition bvec_0p0 : t := BitVec32.of_fun (fun ix => BO).
   Definition test_e := exponent bvec_0p15625.
   Definition test_s := significand bvec_0p15625.
   Definition test := to_dyadic bvec_0p15625.
