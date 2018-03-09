@@ -9,7 +9,8 @@ path = sys.argv[1]
 
 EPSILON = 0.01
 
-N = 32
+# Number of bits (e.g., 16 or 32) per floating-point parameter
+N = 16
 
 def load_weights(path):
     with gzip.open(path, 'rb') as f:
@@ -102,7 +103,9 @@ def net_to_coq(net):
         return None
 
 # Network preamble
-def the_preamble(D):
+#  D = dimensionality
+#  OUT = number of outputs
+def the_preamble(D, OUT):
     return """
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
@@ -110,17 +113,17 @@ Require Import List. Import ListNotations.
 Require Import NArith.
 Require Import dyadic net bitnet.
 
-Module TheDimensionality.
-Definition n : nat := {}. Lemma n_gt0 : (0 < {})%nat. by []. Qed.
-End TheDimensionality.
-Module TheNet := NetEval TheDimensionality BitVec32Payload.
-Import TheNet. Import NET.
+Module TheDimensionality. Definition n : nat := {}. Lemma n_gt0 : (0 < {})%nat. by []. Qed. End TheDimensionality.
+Module Outputs. Definition n : nat := {}. Lemma n_gt0 : (0 < {})%nat. by []. Qed. End Outputs.
+Module TheNet := DyadicFloat{}Net TheDimensionality Outputs.
+Import TheNet. Import F. Import FT. Import NETEval. Import NET.
+Import DyadicFloat{}. (*for bits_to_bvec*)
 
 Open Scope list_scope.
 Notation "\'i\' ( x )":=(NIn x) (at level 65).
 Notation "\'r\' ( x )":=(NReLU x) (at level 65).
 Notation "\'c\' ( x )":=(NComb x) (at level 65).
-""".format(D, D)
+""".format(D, D, OUT, OUT, N, N)
     
 # Declare inputs
 def declare_inputs(D):
@@ -130,9 +133,9 @@ def declare_inputs(D):
     return out
     
 # Produce the output Coq file
-def to_coq(layers, D):
+def to_coq(layers, D, OUT):
     out = ''
-    out += the_preamble(D)        
+    out += the_preamble(D, OUT)        
     out += declare_inputs(D)
     for i in range(len(layers)):
         layer = layers[i]
@@ -162,7 +165,7 @@ D = len(images[0])
 layers = make(W, D)
 
 # Create coq source
-src = to_coq(layers, D)
+src = to_coq(layers, D, 10)
 
 # Write it to file
 with open("out.v", "w") as f:
