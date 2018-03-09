@@ -20,8 +20,9 @@ Coercion bool_of_Bit : Bit >-> bool.
 (* IEEE 754 convention: 
    - high-order bit is sign bit 
    - next EXPONENT_BITS.n bits are exponent bits 
-   - remaining bits are significand bits *)
-Module DyadicFloat (N : BOUND) (EXPONENT_BITS : BOUND).
+   - remaining bits are significand bits 
+   - OFFSET.n is the exponent bias (15 for 16-bit, 127 for 32-bit) *)
+Module DyadicFloat (N : BOUND) (EXPONENT_BITS : BOUND) (OFFSET : BOUND).
   Module BitVecPayload := BitVectorPayload N.
   Module BitVec := BitVecPayload.BVec. Import BitVec.
   
@@ -70,7 +71,7 @@ Module DyadicFloat (N : BOUND) (EXPONENT_BITS : BOUND).
     | Zneg n => Dmake 1%Z n
     end.
 
-  Definition exponent (b : t) : D := two_pow (exponent_Z b - 127).
+  Definition exponent (b : t) : D := two_pow (exponent_Z b - Z.of_nat OFFSET.n).
   
   Definition significand (b : t) :=
     foldr (fun ix b_ix acc =>
@@ -104,9 +105,13 @@ Module B32 <: BOUND. Definition n := 32. Lemma n_gt0 : 0 < n. Proof. by []. Qed.
 Module B32_EXPONENT_BITS <: BOUND.
   Definition n := 8.
   Lemma n_gt0 : 0 < n. Proof. by []. Qed.
-End B32_EXPONENT_BITS.  
+End B32_EXPONENT_BITS.
+Module B32_OFFSET <: BOUND.
+  Definition n := 127.
+  Lemma n_gt0 : 0 < n. Proof. by []. Qed.
+End B32_OFFSET.
 
-Module DyadicFloat32 := DyadicFloat B32 B32_EXPONENT_BITS. Import DyadicFloat32.
+Module DyadicFloat32 := DyadicFloat B32 B32_EXPONENT_BITS B32_OFFSET. Import DyadicFloat32.
 Module BitVec32Payload := DyadicFloat32.BitVecPayload.
 (*(*TEST:*) Extraction "test.ml" test_e test_s test.*)
 (* construct two forests: 
@@ -127,8 +132,12 @@ Module B16 <: BOUND. Definition n := 16. Lemma n_gt0 : 0 < n. Proof. by []. Qed.
 Module B16_EXPONENT_BITS <: BOUND.
   Definition n := 5.
   Lemma n_gt0 : 0 < n. Proof. by []. Qed.
-End B16_EXPONENT_BITS.  
-Module DyadicFloat16 := DyadicFloat B16 B16_EXPONENT_BITS. Import DyadicFloat16.
+End B16_EXPONENT_BITS.
+Module B16_OFFSET <: BOUND.
+  Definition n := 15.
+  Lemma n_gt0 : 0 < n. Proof. by []. Qed.
+End B16_OFFSET.
+Module DyadicFloat16 := DyadicFloat B16 B16_EXPONENT_BITS B16_OFFSET. Import DyadicFloat16.
 Module BitVec16Payload := DyadicFloat16.BitVecPayload.
 (*(*TEST:*) Extraction "test.ml" test_e test_s test.*)
 Module DyadicFloat16Net (D OUT : BOUND).
