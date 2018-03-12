@@ -10,7 +10,7 @@ path = sys.argv[1]
 EPSILON = 0.01
 
 # Number of bits (e.g., 16 or 32) per floating-point parameter
-N = 32
+N = 16
 
 def load_weights(path):
     with gzip.open(path, 'rb') as f:
@@ -36,11 +36,16 @@ def binary(num):
                  for c in struct.pack('!f', num))
 # END stolen
 
+def float_cast(f):
+    if N == 32: return np.float32(f)
+    elif N == 16: return np.float16(f)
+    else: return f
+
 # # MODEL output of float_to_bin:
 # Definition bvec_1p0 : t := bits_to_bvec [23%N;24%N;25%N;26%N;27%N;28%N;29%N].
 # # Indices record the '1' bits.
 def float_to_bin(f):
-    b = binary(f.item())
+    b = binary(float_cast(f).item())
     l = zip(list(range(N)), [i for i in b])
     # Why does python3 get rid of pattern-matching on tuples in the arguments
     # to lambdas? ARGH
