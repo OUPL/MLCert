@@ -78,14 +78,14 @@ def make_layer(w, k, cur_var=0, relu=False):
 # D is the number of parameters
 def make(W, IN, D):
     input_layer = make_inputs(IN)
+    cur_var = 0        
     hidden_layers = []
-    cur_var = 0
     for i in range(len(W) - 1):
         hidden_layers += [make_layer(W[i], i, cur_var, True)]
         x,y = W[i].shape
         cur_var += x*y
         print('hidden_layer=%d, size=%d' % (i, cur_var))
-    last_layer = make_layer(W[len(W)-1], len(W)-1, 0, False)
+    last_layer = make_layer(W[len(W)-1], len(W)-1, cur_var, False)
     return [input_layer] + hidden_layers + [last_layer]
 
 # Inductive t : Type :=
