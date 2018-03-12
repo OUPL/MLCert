@@ -118,14 +118,17 @@ Module BitVec32Payload := DyadicFloat32.BitVecPayload.
      1) over 32-bit float
      2) over D 
    along with a map from 1) to 2). *)
-Module DyadicFloat32Net (D OUT : BOUND).
-  (* D = dimensionality 
+Module DyadicFloat32Net (IN D OUT : BOUND).
+  (* IN = input dimensionality 
+     D = number of parameters
      OUT = number of outputs *)
-  Module F := ForestMap D OUT BitVec32Payload DPayload. Import F.
-  Definition seval (rho : FT.NETEval.Env.t) (f : FT.t) : FU.Output.t :=
-    F.FT_eval to_dyadic rho f.
+  Module F := ForestMap IN D OUT BitVec32Payload DPayload. Import F.
+  Definition seval
+             (theta : FT.NETEval.ParamEnv.t)
+             (f : FT.t)
+             (rho : FT.NETEval.InputEnv.t) : FU.Output.t :=
+    F.FT_eval to_dyadic theta f rho.
 End DyadicFloat32Net.  
-
 
 (*** 16-Bit FP Networks ***)
 Module B16 <: BOUND. Definition n := 16. Lemma n_gt0 : 0 < n. Proof. by []. Qed. End B16.  
@@ -140,10 +143,14 @@ End B16_OFFSET.
 Module DyadicFloat16 := DyadicFloat B16 B16_EXPONENT_BITS B16_OFFSET. Import DyadicFloat16.
 Module BitVec16Payload := DyadicFloat16.BitVecPayload.
 (*(*TEST:*) Extraction "test.ml" test_e test_s test.*)
-Module DyadicFloat16Net (D OUT : BOUND).
-  (* D = dimensionality 
+Module DyadicFloat16Net (IN D OUT : BOUND).
+  (* IN = input dimensionality 
+     D = number of parameters
      OUT = number of outputs *)
-  Module F := ForestMap D OUT BitVec16Payload DPayload. Import F.
-  Definition seval (rho : FT.NETEval.Env.t) (f : FT.t) : FU.Output.t :=
-    F.FT_eval to_dyadic rho f.
+  Module F := ForestMap IN D OUT BitVec16Payload DPayload. Import F.
+  Definition seval
+             (theta : FT.NETEval.ParamEnv.t)
+             (f : FT.t)
+             (rho : FT.NETEval.InputEnv.t) : FU.Output.t :=
+    F.FT_eval to_dyadic theta f rho.
 End DyadicFloat16Net.  

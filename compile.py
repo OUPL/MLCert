@@ -10,7 +10,7 @@ path = sys.argv[1]
 EPSILON = 0.01
 
 # Number of bits (e.g., 16 or 32) per floating-point parameter
-N = 16
+N = 32
 
 def load_weights(path):
     with gzip.open(path, 'rb') as f:
@@ -55,29 +55,37 @@ def float_to_bin(f):
 
 # Create the input layer
 # NOTE: Need to make sure we define (using Program Definition)
-# all variables in range [0, len(D))
-def make_inputs(D):
-    return [Net(NetTag.IN, 'x_%d' % i) for i in range(D)]
+# all variables in range [0, len(IN))
+def make_inputs(IN):
+    return [Net(NetTag.IN, 'x_%d' % i) for i in range(IN)]
 
 # Create a hidden layer (with relu=True) or the last layer (relu=False).
-def make_layer(w, k, relu=False):
+def make_layer(w, k, cur_var=0, relu=False):
     nets = []
+    x = cur_var
     for j in range(w.shape[1]):
         weights = w[:,j]
-        terms = [(weights[i], 'n_%d_%d' % (k, i))
-                 for i in range(weights.shape[0])]
+        terms = []
+        for i in range(weights.shape[0]):
+            terms += [('x_%d' % x, 'n_%d_%d' % (k, i))]
+            x += 1
         comb = Net(NetTag.COMB, terms)
         nets.append(Net(NetTag.RELU, comb) if relu else comb)
     return nets
 
-def flatten(l): return [item for sublist in l for item in sublist]
-
 # Create all layers and return a list of layers
-# D is the network's input dimensionality
-def make(W, D):
-    input_layer = make_inputs(D)
-    hidden_layers = [make_layer(W[i], i, True) for i in range(len(W)-1)]
-    last_layer = make_layer(W[len(W)-1], len(W)-1, False)
+# IN is the network's input dimensionality
+# D is the number of parameters
+def make(W, IN, D):
+    input_layer = make_inputs(IN)
+    hidden_layers = []
+    cur_var = 0
+    for i in range(len(W) - 1):
+        hidden_layers += [make_layer(W[i], i, cur_var, True)]
+        x,y = W[i].shape
+        cur_var += x*y
+        print('hidden_layer=%d, size=%d' % (i, cur_var))
+    last_layer = make_layer(W[len(W)-1], len(W)-1, 0, False)
     return [input_layer] + hidden_layers + [last_layer]
 
 # Inductive t : Type :=
@@ -94,8 +102,8 @@ def net_to_coq(net):
     elif net.tag == NetTag.COMB:
         out = 'c('
         for i in range(len(net.data)):
-            (w, id) = net.data[i]
-            out += '(' + float_to_bin(w) + ',' + id + ')'
+            (w_id, id) = net.data[i]
+            out += '(' + w_id + ',' + id + ')'
             if i < len(net.data) - 1: out += '::'
         return out + '::nil)'
     else:
@@ -103,19 +111,22 @@ def net_to_coq(net):
         return None
 
 # Network preamble
-#  D = dimensionality
+#  IN = dimensionality of the input space
+#  D = number of parameters
 #  OUT = number of outputs
-def the_preamble(D, OUT):
-    return """
-Require Import mathcomp.ssreflect.ssreflect.
+def the_preamble(IN, D, OUT):
+    return """Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 Require Import List. Import ListNotations. 
 Require Import NArith.
 Require Import dyadic net bitnet.
 
-Module TheDimensionality. Definition n : nat := {}. Lemma n_gt0 : (0 < {})%nat. by []. Qed. End TheDimensionality.
+Module TheDimensionality. Definition n : nat := N.to_nat {}. 
+Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End TheDimensionality.
+Module Params. Definition n : nat := N.to_nat {}. 
+Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End Params.
 Module Outputs. Definition n : nat := {}. Lemma n_gt0 : (0 < {})%nat. by []. Qed. End Outputs.
-Module TheNet := DyadicFloat{}Net TheDimensionality Outputs.
+Module TheNet := DyadicFloat{}Net TheDimensionality Params Outputs.
 Import TheNet. Import F. Import FT. Import NETEval. Import NET.
 Import DyadicFloat{}. (*for bits_to_bvec*)
 
@@ -123,20 +134,46 @@ Open Scope list_scope.
 Notation "\'i\' ( x )":=(NIn x) (at level 65).
 Notation "\'r\' ( x )":=(NReLU x) (at level 65).
 Notation "\'c\' ( x )":=(NComb x) (at level 65).
-""".format(D, D, OUT, OUT, N, N)
+""".format(IN, IN, D, D, OUT, OUT, N, N)
     
-# Declare inputs
-def declare_inputs(D):
+# Declare input and weight variables
+def declare_inputs(IN):
+    out = ''
+    for i in range(IN):
+        out += 'Program Definition x_{} : input_var := @InputEnv.Ix.mk {} _.\n'.format(i, i)
+    return out
+
+def declare_weights(D):
     out = ''
     for i in range(D):
-        out += 'Program Definition x_{} : var := @Env.Ix.mk {} _.\n'.format(i, i)
+        out += 'Program Definition w_{} : param_var := @ParamEnv.Ix.mk {} _.\n'.format(i, i)
     return out
-    
+
+# Definition theta : ParamEnv.t :=
+#   ParamEnv.of_fun (fun i => match i with
+#                             | ParamEnv.Ix.mk i' _ => if N.eqb i' 0 then Dpos 1 else Dneg 1
+#                             end).
+def build_theta(D):
+    out = 'Definition theta := ParamEnv.of_fun (fun i => match i with ParamEnv.Ix.mk i\' _ =>\n'
+    cur_var = 0
+    # Traverse the weights in the same way we do while generate the net
+    for k in range(len(W)):
+        w = W[k]
+        for j in range(w.shape[1]):
+            weights = w[:,j]
+            for i in range(weights.shape[0]):
+                out += 'if N.eqb i %d then %s else\n' % (cur_var, float_to_bin(weights[i]))
+                cur_var += 1
+    out += 'float_to_bin(0.0) end).'            
+    return out
+
 # Produce the output Coq file
-def to_coq(layers, D, OUT):
+def to_coq(layers, IN, D, OUT):
     out = ''
-    out += the_preamble(D, OUT)        
-    out += declare_inputs(D)
+    out += the_preamble(IN, D, OUT)        
+    out += declare_inputs(IN)
+    out += declare_weights(D)
+    out += build_theta(D)
     for i in range(len(layers)):
         layer = layers[i]
         for j in range(len(layer)):
@@ -158,14 +195,21 @@ W = list(filter(lambda w: len(w.shape) > 1, W))
 
 for w in W: print(w.shape)
 
+# Number of params
+D = 0
+for w in W:
+    x,y = w.shape
+    D += x*y
+print("total_size={}".format(D))
+    
 # Dimensionality of the input layer
-D = len(images[0])
+IN = len(images[0])
 
 # Make all layers
-layers = make(W, D)
+layers = make(W, IN, D)
 
 # Create coq source
-src = to_coq(layers, D, 10)
+src = to_coq(layers, IN, D, 10)
 
 # Write it to file
 with open("out.v", "w") as f:
