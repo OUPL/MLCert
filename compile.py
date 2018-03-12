@@ -67,7 +67,7 @@ def make_layer(w, k, cur_var=0, relu=False):
         weights = w[:,j]
         terms = []
         for i in range(weights.shape[0]):
-            terms += [('x_%d' % x, 'n_%d_%d' % (k, i))]
+            terms += [('w_%d' % x, 'n_%d_%d' % (k, i))]
             x += 1
         comb = Net(NetTag.COMB, terms)
         nets.append(Net(NetTag.RELU, comb) if relu else comb)
@@ -154,7 +154,7 @@ def declare_weights(D):
 #                             | ParamEnv.Ix.mk i' _ => if N.eqb i' 0 then Dpos 1 else Dneg 1
 #                             end).
 def build_theta(D):
-    out = 'Definition theta := ParamEnv.of_fun (fun i => match i with ParamEnv.Ix.mk i\' _ =>\n'
+    out = 'Definition theta := ParamEnv.of_fun (fun ix => match ix with ParamEnv.Ix.mk ix\' _ =>\n'
     cur_var = 0
     # Traverse the weights in the same way we do while generate the net
     for k in range(len(W)):
@@ -162,9 +162,9 @@ def build_theta(D):
         for j in range(w.shape[1]):
             weights = w[:,j]
             for i in range(weights.shape[0]):
-                out += 'if N.eqb i %d then %s else\n' % (cur_var, float_to_bin(weights[i]))
+                out += 'if N.eqb ix\' %d then %s else\n' % (cur_var, float_to_bin(weights[i]))
                 cur_var += 1
-    out += 'float_to_bin(0.0) end).'            
+    out += '%s end).\n' % float_to_bin(np.float16(0.0))           
     return out
 
 # Produce the output Coq file
