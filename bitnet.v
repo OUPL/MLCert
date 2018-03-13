@@ -7,7 +7,9 @@ From mathcomp Require Import all_algebra.
 
 Require Import List NArith ZArith. Import ListNotations.
 
-Require Import dyadic numerics vector compile net.
+Require Import OUVerT.dyadic OUVerT.numerics OUVerT.vector OUVerT.compile.
+
+Require Import net.
 
 Definition bool_of_Bit (b : Bit) : bool :=
   match b with
