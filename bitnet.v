@@ -144,6 +144,25 @@ Module DyadicFloat (N : BOUND) (EXPONENT_BITS : BOUND) (OFFSET : BOUND).
   Definition test := to_dyadic bvec32_0p15625.
 End DyadicFloat.
 
+(*I would like to use DPayload as defined in OUVerT/vector.v. However, that 
+  instantiation causes extraction issues.*)
+Module DPayload <: PAYLOAD.
+  Definition t := DRed.t.   
+  Definition t0 := 0%DRed.
+  Definition eq0 (dx : t) :=
+    if Deq_dec dx.(DRed.d) 0 then true else false.
+  Lemma eq0P (dx : t) : reflect (dx=0%DRed) (eq0 dx).
+  Proof.
+    rewrite /eq0; case: (Deq_dec dx.(DRed.d) 0) => a; constructor.
+    { case: dx a => /= d pf H; subst d; unfold DRed.t0.
+      f_equal; apply: proof_irrelevance. }
+    by inversion 1; case: dx H H0 a => d pf; case => H /= _; subst d.
+  Qed.
+  Definition u := t.
+  Definition u_of_t (dx : t) : u := dx.
+  Definition t_of_u (r : u) : t := r.
+  Lemma t_of_u_t : forall t0 : t, t_of_u (u_of_t t0) = t0. Proof. by []. Qed.
+End DPayload.  
 
 (*** 32-Bit FP Networks ***)
 Module B32 <: BOUND. Definition n := 32. Lemma n_gt0 : 0 < n. Proof. by []. Qed. End B32.  
@@ -199,4 +218,7 @@ Module DyadicFloat16Net (IN D OUT : BOUND).
              (f : FT.t)
              (rho : FT.NETEval.InputEnv.t) : FU.Output.t :=
     F.FT_eval to_dyadic theta f rho.
-End DyadicFloat16Net.  
+End DyadicFloat16Net.
+
+
+
