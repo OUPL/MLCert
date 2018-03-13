@@ -5,11 +5,54 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import List NArith ZArith. Import ListNotations.
+Require Import List NArith ZArith ProofIrrelevance. Import ListNotations.
 
 Require Import OUVerT.dyadic OUVerT.numerics OUVerT.vector OUVerT.compile.
 
 Require Import net.
+
+Inductive Bit : Type := BI | BO.
+
+Module BitPayload <: PAYLOAD.
+  Definition t := Bit.
+  Definition t0 := BO.
+  Definition eq0 (x : t) :=
+    match x with
+    | BO => true
+    | BI => false
+    end.
+  Lemma eq0P (x : t) : reflect (x = t0) (eq0 x).
+  Proof. by rewrite /t0; case: x; constructor. Qed.
+  Definition u := t.
+  Definition u_of_t (x : t) : u := x.
+  Definition t_of_u (y : u) : t := y.
+  Lemma t_of_u_t (x : t) : t_of_u (u_of_t x) = x.
+  Proof. by []. Qed.
+End BitPayload.
+
+Module BitVectorPayload (B : BOUND) <: PAYLOAD.
+  Module BVec := Vector B BitPayload. Include BVec.
+  Definition t0 : t := BVec.M.empty _.
+  Definition eq0 (v : t) := BVec.M.is_empty v.
+  Lemma eq0P v : reflect (v=t0) (eq0 v).
+  Proof.
+    rewrite /eq0 /BVec.M.is_empty /BVec.M.Raw.is_empty /t0.
+    case: v => x y /=; move: y; case: x => y; constructor => //.     
+    case H: BVec.M.empty => [z w]; inversion H; subst.
+    f_equal; f_equal; apply: proof_irrelevance.
+  Qed.
+  (*I'd like to be able to let u equal something like: 
+      {m : t & {f : BVec.ty & BVec.match_vecs m f}} 
+    However, this really messes up extraction (even if the sigma type is 
+    made noncomputation). The main issue is that, with the type above, 
+    a bunch of random Ssreflect stuff gets extracted, leading to extracted 
+    OCaml code that doesn't compile :-/.*)
+  Definition u := t.
+  Definition u_of_t (m : t) : u := m.
+  Definition t_of_u (f : u) : t := f.
+  Lemma t_of_u_t : forall t0 : t, t_of_u (u_of_t t0) = t0.
+  Proof. by []. Qed.
+End BitVectorPayload.
 
 Definition bool_of_Bit (b : Bit) : bool :=
   match b with
@@ -131,6 +174,7 @@ Module DyadicFloat32Net (IN D OUT : BOUND).
              (rho : FT.NETEval.InputEnv.t) : FU.Output.t :=
     F.FT_eval to_dyadic theta f rho.
 End DyadicFloat32Net.  
+
 
 (*** 16-Bit FP Networks ***)
 Module B16 <: BOUND. Definition n := 16. Lemma n_gt0 : 0 < n. Proof. by []. Qed. End B16.  
