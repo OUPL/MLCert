@@ -107,6 +107,8 @@ VFILES:=compile.v\
   extrema.v\
   listlemmas.v\
   maplemmas.v\
+  dist.v\
+  bigops.v\
   net.v\
   bitnet.v\
   numerics.v\
