@@ -29,15 +29,26 @@ def binary(num):
                  for c in struct.pack('!f', num))
 # END stolen
 
+# This function stolen from code posted to:
+# https://stackoverflow.com/questions/16444726/binary-representation-of-float-in-python-bits-not-hex
+def binary(num):
+  return ''.join(bin(c).replace('0b', '').rjust(8, '0')
+                 for c in struct.pack('!f', num))
+# END stolen
+
+def float_cast(f):
+    if N == 32: return np.float32(f)
+    elif N == 16: return np.float16(f)
+    else: return f
+
 # # MODEL output of float_to_bin:
 # Definition bvec_1p0 : t := bits_to_bvec [23%N;24%N;25%N;26%N;27%N;28%N;29%N].
 # # Indices record the '1' bits.
 def float_to_bin(f):
-    b = binary(f.item())
+    b = binary(float_cast(f).item())
     l = zip(list(range(N)), [i for i in b])
-    # Just the nonzero indices
     r = map(lambda x: str(x[0]) + '%N', filter(lambda x: x[1] == '1', l))
-    return 'b [' + ';'.join(r) + ']'
+    return '(bits_to_bvec [' + ';'.join(r) + '])'
 
 def flatten(l): return [item for sublist in l for item in sublist]
 
@@ -65,7 +76,7 @@ Notation "'mk' x" := (@InputEnv.Ix.mk x _) (at level 65).
 def declare_inputs(D):
     out = ''
     for i in range(D):
-        out += 'Program Definition x_{} : input_var := mk {}.\n'.format(i, i)
+        out += 'Program Definition x_{} := mk {}.\n'.format(i, i)
     return out
     
 # Produce the output Coq file
@@ -84,10 +95,8 @@ def to_coq(images, labels, D, OUT):
 
 # Load the weights
 train_data = load_data(path)
-# images = train_data.images
-# labels = train_data.labels
-images = train_data.images[:1]
-labels = train_data.labels[:1]
+images = train_data.images[:100]
+labels = train_data.labels[:100]
 
 # print(len(images))
 # print(len(labels))
