@@ -120,7 +120,7 @@ Module DyadicFloat (N : BOUND) (EXPONENT_BITS : BOUND) (OFFSET : BOUND).
   
   Definition significand (b : t) :=
     foldr (fun ix b_ix acc =>
-             if N.ltb (Ix.val ix) 23
+             if N.ltb (Ix.val ix) exponent_start
              then acc + dyadic_of_significand_bit ix b_ix
              else acc) b 1. (*significand = 1 + interp(bits)*)
       
@@ -145,7 +145,7 @@ Module DyadicFloat (N : BOUND) (EXPONENT_BITS : BOUND) (OFFSET : BOUND).
 End DyadicFloat.
 
 (*I would like to use DPayload as defined in OUVerT/vector.v. However, that 
-  instantiation causes extraction issues.*)
+  instantiation causes extraction issues. FIXME: RESOLVED?*)
 Module DPayload <: PAYLOAD.
   Definition t := DRed.t.   
   Definition t0 := 0%DRed.
