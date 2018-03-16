@@ -5,7 +5,7 @@ Require Import List. Import ListNotations.
 Require Import NArith.
 Require Import OUVerT.dyadic.
 
-Require Import net bitnet out data.
+Require Import net bitnet out.
 Import out.TheNet.
 Import TheNet. Import F. Import FT. Import NETEval. Import NET.
 
@@ -14,8 +14,8 @@ Import TheNet. Import F. Import FT. Import NETEval. Import NET.
 (* This hangs *)
 (* Eval compute in (hd_error samples). *)
 
-Import DyadicFloat16. (*for bits_to_bvec*)
-Definition bvec := bits_to_bvec [0%N; 1%N].
+(* Import DyadicFloat16. (*for bits_to_bvec*) *)
+(* Definition bvec := bits_to_bvec [0%N; 1%N]. *)
 (* This doesn't compute properly *)
 (* Eval compute in bvec. *)
 
@@ -216,16 +216,63 @@ List.map (fun (lbl, image) ->
 (* Definition load_batch_0 := load_batch 0. *)
 (* Extraction "extract/batch_test.ml" load_batch_0. *)
 
-Definition compute_loss (sample : nat * InputEnv.t) :=
-  let (lbl, img) := sample in
-  (* let x := TheNet.seval theta n_1_0 img in *) (* TODO *)
-  1.
+(* Definition compute_loss (sample : nat * InputEnv.t) := *)
+(*   let (lbl, img) := sample in *)
+(*   let outs := TheNet.seval theta *)
+(*                            (FT.Forest.of_list *)
+(*                               (combine (Forest.Ix.enumerate_t) outputs)) *)
+(*                            img in *)
+(*   let pred := FU.Output.argmax Dlt_bool outs in *)
+(*   if N.to_nat (FU.Output.Ix.val pred) == lbl then DRed.t0 else DRed.t1. *)
 
-Definition eval_batch (n : nat) :=
-  let batch := load_batch n in
-  let losses := map compute_loss batch in
-  fold_right (fun x acc => x + acc) 0 losses.
+(* Definition eval_batch (n : nat) := *)
+(*   let batch := load_batch n in *)
+(*   let losses := map compute_loss batch in *)
+(*   fold_right (fun x acc => DRed.add x acc) DPayload.t0 losses. *)
 
-Definition eval_batch_0 := eval_batch 0.
+(* Definition eval_batch_0 := eval_batch 0. *)
 
-Extraction "extract/batch_test.ml" eval_batch_0.
+(* Extraction "extract/batch_test.ml" eval_batch_0. *)
+
+
+Import DyadicFloat16. (*for bits_to_bvec*)
+Definition bvec := bits_to_bvec [7%N; 8%N; 9%N; 10%N; 11%N; 12%N; 13%N].
+(* Definition bvec := bits_to_bvec [13%N; 12%N; 11%N; 10%N; 9%N; 8%N; 7%N]. *)
+(* Definition bvec := bits_to_bvec (rev [7%N; 8%N; 9%N; 10%N; 11%N; 12%N; 13%N]). *)
+Definition d_val := to_dyadic bvec.
+Extraction "extract/d_test.ml" d_val.
+
+
+(* Replace d_val in the extracted program with this. *)
+(*
+let rec int_of_positive = function
+  | XI p -> 2 * (int_of_positive p) + 1
+  | XO p -> 2 * (int_of_positive p)
+  | XH -> 1
+let int_of_z = function
+  | Z0 -> 0
+  | Zpos p -> int_of_positive p
+  | Zneg p -> - (int_of_positive p)
+let int_of_d d =
+  float_of_int (int_of_z (num d)) /. (2.0 ** float_of_int (int_of_positive (den d)))
+let rec string_of_positive = function
+  | XI XH -> "XI XH"
+  | XI p -> "XI (" ^ string_of_positive p ^ ")"
+  | XO XH -> "XO XH"
+  | XO p -> "XO (" ^ string_of_positive p ^ ")"
+  | XH -> "XH"
+let string_of_z = function
+  | Z0 -> "Z0"
+  | Zpos XH -> "Zpos XH"
+  | Zpos p -> "Zpos (" ^ string_of_positive p ^ ")"
+  | Zneg XH -> "Zneg XH"
+  | Zneg p -> "Zneg (" ^ string_of_positive p ^ ")"
+let d_val =
+  let x = DyadicFloat16.to_dyadic bvec in
+  print_endline (string_of_z (num x));
+  print_endline (string_of_int (int_of_z (num x)));
+  print_endline (string_of_positive (den x));
+  print_endline (string_of_int (int_of_positive (den x)));
+  print_endline (string_of_float (int_of_d x));
+  x
+*)

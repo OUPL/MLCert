@@ -41,21 +41,30 @@ def float_cast(f):
     elif N == 16: return np.float16(f)
     else: return f
 
-# # MODEL output of float_to_bin:
-# Definition bvec_1p0 : t := bits_to_bvec [23%N;24%N;25%N;26%N;27%N;28%N;29%N].
-# # Indices record the '1' bits.
+# # # MODEL output of float_to_bin:
+# # Definition bvec_1p0 : t := bits_to_bvec [23%N;24%N;25%N;26%N;27%N;28%N;29%N].
+# # # Indices record the '1' bits.
+# def float_to_bin(f):
+#     b = binary(float_cast(f).item())
+#     l = zip(list(range(N)), [i for i in b])
+#     # Why does python3 get rid of pattern-matching on tuples in the arguments
+#     # to lambdas? ARGH
+#     def to_N(i_v):
+#         i, v = i_v
+#         return str(i) + '%N'
+#     def has_onebit(i_v):
+#         i, v = i_v
+#         return v=='1'
+#     r = map(to_N, filter(has_onebit, l)) #just the nonzero indices
+#     return '(bits_to_bvec [' + ';'.join(r) + '])'
+
+# Indices record the '1' bits.
 def float_to_bin(f):
     b = binary(float_cast(f).item())
+    b = b[:N][::-1] # Slice off extra bits and then reverse
     l = zip(list(range(N)), [i for i in b])
-    # Why does python3 get rid of pattern-matching on tuples in the arguments
-    # to lambdas? ARGH
-    def to_N(i_v):
-        i, v = i_v
-        return str(i) + '%N'
-    def has_onebit(i_v):
-        i, v = i_v
-        return v=='1'
-    r = map(to_N, filter(has_onebit, l)) #just the nonzero indices
+    # Just the nonzero indices
+    r = map(lambda p: str(p[0]) + '%N', filter(lambda x: x[1] == '1', l))
     return '(bits_to_bvec [' + ';'.join(r) + '])'
 
 # Create the input layer
