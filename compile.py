@@ -12,6 +12,8 @@ EPSILON = 0.01
 # Number of bits (e.g., 16 or 32) per floating-point parameter
 N = 16
 
+NUM_CLASSES = 1
+
 def load_weights(path):
     with gzip.open(path, 'rb') as f:
         weights = pickle.load(f, encoding='latin1')
@@ -29,17 +31,36 @@ class Net(object):
         self.tag = tag
         self.data = data
 
-# This function stolen from code posted to:
-# https://stackoverflow.com/questions/16444726/binary-representation-of-float-in-python-bits-not-hex
-def binary(num):
-  return ''.join(bin(c).replace('0b', '').rjust(8, '0')
-                 for c in struct.pack('!f', num))
-# END stolen
+# # This function stolen from code posted to:
+# # https://stackoverflow.com/questions/16444726/binary-representation-of-float-in-python-bits-not-hex
+# def binary(num):
+#   return ''.join(bin(c).replace('0b', '').rjust(8, '0')
+#                  for c in struct.pack('!f', num))
+# # END stolen
 
-def float_cast(f):
-    if N == 32: return np.float32(f)
-    elif N == 16: return np.float16(f)
-    else: return f
+# def float_cast(f):
+#     if N == 32: return np.float32(f)
+#     elif N == 16: return np.float16(f)
+#     else: return f
+
+def binary(f):
+    if N == 32:
+        return ''.join(bin(c).replace('0b', '').rjust(8, '0')
+                       for c in struct.pack('!f', np.float32(f).item()))
+    elif N == 16:
+        return str(bin(np.float16(f).view('H'))[2:].zfill(16))
+    else:
+        return None
+
+# Indices record the '1' bits.
+def float_to_bin(f):
+    # b = binary(float_cast(f).item())
+    # b = b[:N][::-1]
+    b = binary(f)[::-1]
+    l = zip(list(range(N)), [i for i in b])
+    # Just the nonzero indices
+    r = map(lambda p: str(p[0]) + '%N', filter(lambda x: x[1] == '1', l))
+    return '(bits_to_bvec [' + ';'.join(r) + '])'
 
 # # # MODEL output of float_to_bin:
 # # Definition bvec_1p0 : t := bits_to_bvec [23%N;24%N;25%N;26%N;27%N;28%N;29%N].
@@ -58,14 +79,14 @@ def float_cast(f):
 #     r = map(to_N, filter(has_onebit, l)) #just the nonzero indices
 #     return '(bits_to_bvec [' + ';'.join(r) + '])'
 
-# Indices record the '1' bits.
-def float_to_bin(f):
-    b = binary(float_cast(f).item())
-    b = b[:N][::-1] # Slice off extra bits and then reverse
-    l = zip(list(range(N)), [i for i in b])
-    # Just the nonzero indices
-    r = map(lambda p: str(p[0]) + '%N', filter(lambda x: x[1] == '1', l))
-    return '(bits_to_bvec [' + ';'.join(r) + '])'
+# # Indices record the '1' bits.
+# def float_to_bin(f):
+#     b = binary(float_cast(f).item())
+#     b = b[:N][::-1] # Slice off extra bits and then reverse
+#     l = zip(list(range(N)), [i for i in b])
+#     # Just the nonzero indices
+#     r = map(lambda p: str(p[0]) + '%N', filter(lambda x: x[1] == '1', l))
+#     return '(bits_to_bvec [' + ';'.join(r) + '])'
 
 # Create the input layer
 # NOTE: Need to make sure we define (using Program Definition)
@@ -82,6 +103,11 @@ def make_layer(w, k, cur_var=0, relu=False):
         terms = []
         for i in range(weights.shape[0]):
             terms += [('w_%d' % x, 'n_%d_%d' % (k, i))]
+    # for j in range(w.shape[0]):
+    #     weights = w[j,:]
+    #     terms = []
+    #     for i in range(weights.shape[0]):
+    #         terms += [('w_%d' % x, 'n_%d_%d' % (k, i))]
             x += 1
         comb = Net(NetTag.COMB, terms)
         nets.append(Net(NetTag.RELU, comb) if relu else comb)
@@ -223,7 +249,7 @@ IN = len(images[0])
 layers = make(W, IN, D)
 
 # Create coq source
-src = to_coq(layers, IN, D, 10)
+src = to_coq(layers, IN, D, NUM_CLASSES)
 
 # Write it to file
 with open("out.v", "w") as f:

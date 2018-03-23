@@ -43,7 +43,7 @@ CAMLFLAGS         := $(COQMF_CAMLFLAGS)
 HASNATDYNLINK     := $(COQMF_HASNATDYNLINK)
 
 Makefile.conf: 
-	coq_makefile net.v bitnet.v -o Makefile
+	coq_makefile net.v out.v bitnet.v -o Makefile
 
 # This file can be created by the user to hook into double colon rules or
 # add any other Makefile code he may need
