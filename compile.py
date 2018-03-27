@@ -12,7 +12,7 @@ EPSILON = 0.01
 # Number of bits (e.g., 16 or 32) per floating-point parameter
 N = 16
 
-NUM_CLASSES = 1
+NUM_CLASSES = 10
 
 def load_weights(path):
     with gzip.open(path, 'rb') as f:
@@ -159,7 +159,7 @@ def the_preamble(IN, D, OUT):
 From mathcomp Require Import all_ssreflect.
 Require Import List. Import ListNotations. 
 Require Import NArith.
-Require Import dyadic net bitnet.
+Require Import OUVerT.dyadic net bitnet.
 
 Module TheDimensionality. Definition n : nat := N.to_nat {}. 
 Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End TheDimensionality.
