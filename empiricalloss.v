@@ -9,6 +9,9 @@ Require Import net bitnet out.
 Import out.TheNet.
 Import TheNet. Import F. Import FT. Import NETEval. Import NET.
 
+(* Number of data batches *)
+Definition num_batches := 1.
+
 (* This simplifies the annoying conflict between list types *)
 Extract Inductive list => list [ "[]" "( :: )" ].
 
@@ -128,11 +131,27 @@ Fixpoint range_aux n :=
   end.
 Definition range n := rev (range_aux n).
 
-Definition num_batches := 10.
-
 (* Just print the total number of correct predictions. *)
 Definition eval_batches := fold_right DRed.add DRed.t0 (map eval_batch (range num_batches)).
-Extraction "extract/batch_test.ml" eval_batches.
+(* Extraction "extract/batch_test.ml" eval_batches. *)
+
+Axiom print_output : DRed.t -> unit.
+Extract Constant print_output =>
+"fun x ->
+let rec int_of_positive = function
+  | XI p -> 2 * (int_of_positive p) + 1
+  | XO p -> 2 * (int_of_positive p)
+  | XH -> 1 in
+let int_of_z = function
+  | Z0 -> 0
+  | Zpos p -> int_of_positive p
+  | Zneg p -> - (int_of_positive p) in
+let float_of_d d =
+  float_of_int (int_of_z (num d)) /. (2.0 ** float_of_int (int_of_positive (den d))) in
+print_endline (string_of_float (float_of_d x))".
+
+Definition result := print_output eval_batches.
+Extraction "extract/batch_test.ml" result.
 
 (* OCaml code for printing the result:
 

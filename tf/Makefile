@@ -1,4 +1,5 @@
 NUM_BATCHES = 10
+NUM_BITS = 32
 
 default: train move
 
@@ -8,10 +9,10 @@ setup: test_images
 all: setup batches train move
 
 train:
-	python3 train.py --dataset emnist
+	python3 train.py --dataset emnist --bits $(NUM_BITS) --max_steps 60000 --decay_step 30000
 
-eval:
-	python3 eval.py --dataset emnist
+eval: # Evaluate on training set
+	python3 eval.py --dataset emnist --bits $(NUM_BITS) --set 2
 
 test_images:
 	python3 make_test_images.py # make test_images.pkl.gz

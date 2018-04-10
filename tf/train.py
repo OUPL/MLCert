@@ -5,11 +5,27 @@ from batch_gen import batch_gen
 from dataset_params import choose_dataset
 from eval import evaluate
 
+FLAGS = None
+
+# set using the function below from the flags parameter
+DTYPE, NP_DTYPE = None, None
+
+def set_dtype():
+    global DTYPE, NP_DTYPE
+    if FLAGS.bits == '32':
+        DTYPE = tf.float32
+        NP_DTYPE = np.float32
+    elif FLAGS.bits == '16':
+        DTYPE = tf.float16
+        NP_DTYPE = np.float16
+    else:
+        print('bits must be 16 or 32')
+        sys.exit(1)
+
+
 def init_session():
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
     sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-    init = tf.global_variables_initializer()
-    sess.run(init)
     return sess
 
 
@@ -20,6 +36,11 @@ def train_model(model, x, y, loss_op, pred_op, train_images, train_labels):
                               FLAGS.decay_step, FLAGS.decay_factor)
 
     sess = init_session()
+    tf.summary.scalar('loss', loss_op)
+    summary_op = tf.summary.merge_all()
+    summary_writer = tf.summary.FileWriter('logs', sess.graph)
+    init = tf.global_variables_initializer()
+    sess.run(init)
     minibatch_gen = batch_gen(FLAGS.batch_size, train_images.shape[0],
                               max_batches=FLAGS.max_steps, replace=True)
 
@@ -31,8 +52,11 @@ def train_model(model, x, y, loss_op, pred_op, train_images, train_labels):
                                      train_labels[minibatch]
 
         feed_dict = {x: batch_images, y: batch_labels}
+        # feed_dict = {x: batch_images.astype(NP_DTYPE), y: batch_labels}
 
-        _, loss_values = sess.run([train_op, loss_op], feed_dict=feed_dict)
+        _, loss_values, summary = sess.run([train_op, loss_op, summary_op],
+                                           feed_dict=feed_dict)
+        summary_writer.add_summary(summary, minibatch_gen.counter)
 
         if minibatch_gen.counter % 1000 == 0:
             cur_time = time.time()
@@ -54,20 +78,21 @@ def main(argv):
     model, save_images, NUM_CLASSES, IMAGE_SIZE, example_shape, load_data \
         = choose_dataset(FLAGS.dataset)
     train_data, _, _ = load_data()
+    set_dtype()
 
     with tf.Graph().as_default():
 
         # Build all the ops
         print("building computation graph...")
-        x = tf.placeholder(tf.float32, example_shape(FLAGS.batch_size))
+        x = tf.placeholder(DTYPE, example_shape(FLAGS.batch_size))
         y = tf.placeholder(tf.int32, shape=(FLAGS.batch_size))
-        logits = model.inference(x)
+        logits = model.inference(x, dtype=DTYPE)
         loss_op = model.loss(logits, y)
         pred_op = model.predictions(logits)
 
         # Go
         train_model(model, x, y, loss_op, pred_op,
-                    train_data.images, train_data.labels)
+                    train_data.images.astype(NP_DTYPE), train_data.labels)
 
 
 if __name__ == '__main__':
@@ -107,12 +132,18 @@ if __name__ == '__main__':
         type=str,
         default='models/default',
         help='Directory to save the weights.'
-    )    
+    )
     parser.add_argument(
         '--dataset',
         type=str,
         default='mnist',
         help='MNIST or EMNIST'
-    )    
+    )
+    parser.add_argument(
+        '--bits',
+        type=str,
+        default='32',
+        help='MNIST or EMNIST'
+    )
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)

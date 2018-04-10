@@ -11,7 +11,8 @@ BATCH_SIZE = 100
 num_batches = int(sys.argv[1])
 
 # with open('emnist/all.pkl', 'rb') as f:
-with open('emnist/test.pkl', 'rb') as f:
+# with open('emnist/test.pkl', 'rb') as f:
+with open('emnist/train.pkl', 'rb') as f:
 # with gzip.open('small/test.pkl.gz', 'rb') as f:
     data = pickle.load(f, encoding='latin1')
 

@@ -1,4 +1,4 @@
-import argparse, sys, pickle
+import argparse, pickle, sys
 import numpy as np
 import tensorflow as tf
 from dataset_params import choose_dataset
@@ -6,12 +6,23 @@ from util import run_batches, save_mnist_images
 
 FLAGS = None
 
+# set using the function below from the flags parameter
+DTYPE = None
+
+def set_dtype():
+    global DTYPE
+    if FLAGS.bits == '32':
+        DTYPE = tf.float32
+    elif FLAGS.bits == '16':
+        DTYPE = tf.float16
+    else:
+        print('bits must be 16 or 32')
+        sys.exit(1)
 
 def init_placeholders(batch_size, example_shape):
-    x = tf.placeholder(tf.float32, example_shape)
+    x = tf.placeholder(DTYPE, example_shape)
     y = tf.placeholder(tf.int32, shape=(batch_size))
     return x, y
-
 
 def init_session():
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
@@ -20,11 +31,15 @@ def init_session():
     sess.run(init)
     return sess
 
-
 def evaluate(sess, x, y, pred_op, images, labels, batch_size):
     preds = run_batches(sess, pred_op, [x], [images], batch_size)
     acc = np.sum(preds == labels) / len(labels)
     print("accuracy: %0.04f" % acc)
+
+def num_correct(sess, x, y, pred_op, images, labels, batch_size):
+    preds = run_batches(sess, pred_op, [x], [images], batch_size)
+    acc = np.sum(preds == labels)
+    print('# correct: ' + str(acc))
 
 def compute_logits(sess, x, logits_op, images, batch_size):
     images = images[:100]
@@ -47,19 +62,23 @@ def main(argv):
     labels = test_data.labels if FLAGS.set == 0 else \
              validation_data.labels if FLAGS.set == 1 else \
              train_data.labels
+    set_dtype()
 
     with tf.Graph().as_default():
         print("building computation graph...")
         x, y = init_placeholders(FLAGS.batch_size,
                                  example_shape(FLAGS.batch_size))
-        logits = model.inference(x)
+        logits = model.inference(x, dtype=DTYPE)
         pred_op = model.predictions(logits)
         sess = init_session()
-        model.load_weights(sess, FLAGS.model_dir)
-
+        model.load_weights(sess, FLAGS.model_dir, dtype=DTYPE)
+        
+        n = 1000
+        num_correct(sess, x, y, pred_op, images[:n], labels[:n],
+                    FLAGS.batch_size)
         evaluate(sess, x, y, pred_op, images, labels, FLAGS.batch_size)
-        compute_logits(sess, x, logits, images, FLAGS.batch_size)
-        compute_predictions(sess, x, pred_op, images, FLAGS.batch_size)
+        # compute_logits(sess, x, logits, images, FLAGS.batch_size)
+        # compute_predictions(sess, x, pred_op, images, FLAGS.batch_size)
 
 
 if __name__ == '__main__':
@@ -93,6 +112,12 @@ if __name__ == '__main__':
         type=str,
         default='mnist',
         help='MNIST or EMNIST'
-    )    
+    )
+    parser.add_argument(
+        '--bits',
+        type=str,
+        default='32',
+        help='MNIST or EMNIST'
+    )
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
