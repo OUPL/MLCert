@@ -4,7 +4,7 @@
 ##   \VV/  #                                                                 ##
 ##    //   #                                                                 ##
 ###############################################################################
-## GNUMakefile for Coq 8.7.1
+## GNUMakefile for Coq 8.7.2
 
 # For debugging purposes (must stay here, don't move below)
 INITIAL_VARS := $(.VARIABLES)
@@ -43,7 +43,7 @@ CAMLFLAGS         := $(COQMF_CAMLFLAGS)
 HASNATDYNLINK     := $(COQMF_HASNATDYNLINK)
 
 Makefile.conf: 
-	coq_makefile net.v out.v bitnet.v -o Makefile
+	coq_makefile net.v out.v bitnet.v kernel.v -o Makefile
 
 # This file can be created by the user to hook into double colon rules or
 # add any other Makefile code he may need
@@ -168,12 +168,13 @@ endif
 
 COQFLAGS?=-q $(OPT) $(COQLIBS) $(OTHERFLAGS)
 COQCHKFLAGS?=-silent -o $(COQLIBS)
-COQDOCFLAGS?=-interpolate -utf8 $(COQLIBS_NOML)
+COQDOCFLAGS?=-interpolate -utf8
+COQDOCLIBS?=$(COQLIBS_NOML)
 
 # The version of Coq being run and the version of coq_makefile that
 # generated this makefile
 COQ_VERSION:=$(shell $(COQC) --print-version | cut -d " " -f 1)
-COQMAKEFILE_VERSION:=8.7.1
+COQMAKEFILE_VERSION:=8.7.2
 
 COQSRCLIBS?= $(foreach d,$(COQ_SRC_SUBDIRS), -I "$(COQLIB)$(d)")
 

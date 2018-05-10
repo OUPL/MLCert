@@ -91,6 +91,12 @@ def load_weights(sess, dir, model_name='m0', dtype=tf.float32):
     filename = dir + '/params.pkl.gz' if dir else 'params.pkl.gz'
     with gzip.open(filename, 'rb') as f:
         weights = pickle.load(f, encoding='latin1')
+
+        # for w in weights[0].flatten(order='F'):
+        #     print(w)
+        # for w in weights[1].flatten(order='F'):
+        #     print(w)
+
         with tf.variable_scope(model_name, reuse=True):
             sizes = [IMAGE_PIXELS] + HIDDEN_SIZES + [NUM_CLASSES]
             if INCLUDE_BIASES:

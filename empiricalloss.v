@@ -1,19 +1,19 @@
-
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 Require Import List. Import ListNotations. 
 Require Import NArith.
 Require Import OUVerT.dyadic.
+Require Import net bitnet out kernel.
 
-Require Import net bitnet out.
-Import out.TheNet.
-Import TheNet. Import F. Import FT. Import NETEval. Import NET.
+Import out.KTranslate. Import TheNet.
+Import F. Import NETEval. Import NET.
 
 (* Number of data batches *)
-Definition num_batches := 1.
+Definition num_batches := 2400.
 
-(* This simplifies the annoying conflict between list types *)
+(* This simplifies the annoying conflict between list types. *)
 Extract Inductive list => list [ "[]" "( :: )" ].
+Extract Inductive unit => unit [ "()" ].
 
 (* Returns the batch as a zipped list of labels and InputEnvs. *)
 Axiom load_batch : nat -> list (N * InputEnv.t).
@@ -93,9 +93,9 @@ let sample_to_n (lbl, parsed_image) =
                    parsed_image) in
 
 let construct_InputEnv (image : (n * (n list)) list) =
-  (TheNet.F.FT.NETEval.NET.InputEnv.of_list
+  (KTranslate.TheNet.F.NETEval.NET.InputEnv.of_list
       (List.map (fun (x, bits) ->
-           Pair (x, (DyadicFloat16.bits_to_bvec bits)))
+           Pair (x, DyadicFloat16.to_dyadic (DyadicFloat16.bits_to_bvec bits)))
          image)) in
 
 let batch = read_file (""batches/batch_"" ^ (string_of_int (int_of_nat n))) in
@@ -110,19 +110,41 @@ List.map (fun (lbl, image) ->
 
 Definition compute_correct (sample : N * InputEnv.t) :=
   let (lbl, img) := sample in
-  let outs := TheNet.seval theta
-                           (FT.Forest.of_list
-                              (combine (Forest.Ix.enumerate_t) (rev outputs)))
-                           img in
-  let pred := FU.Output.argmax Dlt_bool outs in
-  (lbl, pred, if FU.Output.Ix.val pred == lbl then DRed.t1 else DRed.t0).
+  let outs := F.seval theta
+                      (F.Forest.of_list
+                         (combine (Forest.Ix.enumerate_t) (rev outputs)))
+                      img in
+  let pred := Output.argmax Dlt_bool outs in
+  (lbl, pred, if Output.Ix.val pred == lbl then DRed.t1 else DRed.t0).
+
+Axiom print_batch_info : nat -> DRed.t -> DRed.t.
+Extract Constant print_batch_info =>
+"fun n x ->
+  let rec int_of_nat = function
+    | O -> 0
+    | S n -> 1 + int_of_nat n in
+  let rec int_of_positive = function
+    | XI p -> 2 * (int_of_positive p) + 1
+    | XO p -> 2 * (int_of_positive p)
+    | XH -> 1 in
+  let int_of_z = function
+    | Z0 -> 0
+    | Zpos p -> int_of_positive p
+    | Zneg p -> - (int_of_positive p) in
+  let float_of_d d =
+    float_of_int (int_of_z (num d)) /. (2.0 ** float_of_int (int_of_positive (den d))) in
+  print_endline (""batch "" ^ string_of_int (int_of_nat (n)) ^ "" # correct: ""
+                 ^ string_of_float (float_of_d x));
+  x".
 
 Definition eval_batch (n : nat) :=
   let batch := load_batch n in
   (* map compute_correct batch. *)
   let (l, correct) := List.split (map compute_correct batch) in
   let (lbls, preds) := List.split l in
-  fold_right (fun x acc => DRed.add x acc) DPayload.t0 correct.
+  let x := fold_right (fun x acc => DRed.add x acc) DPayload.t0 correct in
+  let y := print_batch_info n x in
+  y.
 
 Fixpoint range_aux n :=
   match n with
@@ -131,12 +153,10 @@ Fixpoint range_aux n :=
   end.
 Definition range n := rev (range_aux n).
 
-(* Just print the total number of correct predictions. *)
 Definition eval_batches := fold_right DRed.add DRed.t0 (map eval_batch (range num_batches)).
-(* Extraction "extract/batch_test.ml" eval_batches. *)
 
-Axiom print_output : DRed.t -> unit.
-Extract Constant print_output =>
+Axiom print_DRed : DRed.t -> unit.
+Extract Constant print_DRed =>
 "fun x ->
 let rec int_of_positive = function
   | XI p -> 2 * (int_of_positive p) + 1
@@ -150,24 +170,36 @@ let float_of_d d =
   float_of_int (int_of_z (num d)) /. (2.0 ** float_of_int (int_of_positive (den d))) in
 print_endline (string_of_float (float_of_d x))".
 
-Definition result := print_output eval_batches.
+
+Definition result := print_DRed eval_batches.
 Extraction "extract/batch_test.ml" result.
 
-(* OCaml code for printing the result:
 
-let rec int_of_positive = function
-  | XI p -> 2 * (int_of_positive p) + 1
-  | XO p -> 2 * (int_of_positive p)
-  | XH -> 1
-let int_of_z = function
-  | Z0 -> 0
-  | Zpos p -> int_of_positive p
-  | Zneg p -> - (int_of_positive p)
-let float_of_d d =
-  float_of_int (int_of_z (num d)) /. (2.0 ** float_of_int (int_of_positive (den d)))
-let eval_batch_0 =
-  let x = eval_batch O in
-  print_endline (string_of_float (float_of_d x));
-  x
+(** Some extra stuff for testing *)
 
-*)
+(* Definition weights := map snd (ParamEnv.to_dense_list theta). *)
+(* Check weights. *)
+(* Definition print_weights := fold_left (fun _ => print_DRed) weights tt. *)
+(* Check print_weights. *)
+(* Extraction "extract/batch_test.ml" print_weights. *)
+
+
+(* Definition load_batch_0 := load_batch 0. *)
+(* Check load_batch_0. *)
+
+(* Definition image := map snd (hd [] (map InputEnv.to_list (map snd load_batch_0))). *)
+(* Definition print_image := fold_left (fun _ => print_DRed) image tt. *)
+(* Check print_image. *)
+(* Extraction "extract/batch_test.ml" print_image. *)
+
+(* Definition image := hd (InputEnv.of_list []) (map snd load_batch_0). *)
+(* Check image. *)
+(* Definition logits := *)
+(*   F.seval theta *)
+(*           (F.Forest.of_list *)
+(*              (combine (F.Forest.Ix.enumerate_t) (rev outputs))) *)
+(*           image. *)
+(* Definition print_logits := fold_left (fun _ => print_DRed) *)
+(*                                      (map snd (Output.to_list logits)) *)
+(*                                      tt. *)
+(* Extraction "extract/batch_test.ml" print_logits. *)
