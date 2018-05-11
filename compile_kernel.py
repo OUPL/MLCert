@@ -1,3 +1,5 @@
+## NOT UPDATED FOR NEW COMPILATION SCHEME
+
 import gzip, pickle, sys
 from enum import Enum
 from fractions import Fraction
