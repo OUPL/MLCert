@@ -25,6 +25,7 @@ def evaluate(sess, x, y, pred_op, images, labels, batch_size):
     preds = run_batches(sess, pred_op, [x], [images], batch_size)
     acc = np.sum(preds == labels) / len(labels)
     print("accuracy: %0.04f" % acc)
+    return acc
 
 def compute_logits(sess, x, logits_op, images, batch_size):
     images = images[:100]

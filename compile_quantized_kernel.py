@@ -8,7 +8,7 @@ import struct
 path = sys.argv[1]
 
 # Number of bits (e.g., 16 or 32) per weight
-N_W = 2
+N_W = 8
 
 # Number of bits for shift and scale values
 N_SS = 16
@@ -63,11 +63,11 @@ Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End TheDimensionality.
 Module Neurons. Definition n : nat := N.to_nat {}.
 Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End Neurons.
 Module Outputs. Definition n : nat := {}. Lemma n_gt0 : (0 < {})%nat. by []. Qed. End Outputs.
-Module B2 <: BOUND. Definition n := 2. Lemma n_gt0 : 0 < n. Proof. by []. Qed. End B2.
-Module B2Payload := BitVectorPayloadC B2.
+Module BLow <: BOUND. Definition n := {}. Lemma n_gt0 : 0 < n. Proof. by []. Qed. End BLow.
+Module BLowPayload := BitVectorPayloadC BLow.
 Import DyadicFloat16.
-Module K := Kernel TheDimensionality Neurons Outputs BitVecPayload B2Payload.
-Module B2PayloadMap <: PayloadMap B2Payload.
+Module K := Kernel TheDimensionality Neurons Outputs BitVecPayload BLowPayload.
+Module BLowPayloadMap <: PayloadMap BLowPayload.
   Definition D2 := dyadic.Dadd D1 D1.
   Definition bit_to_D (b : BitPayload.t) :=
     match b with | BO => D0 | BI => D1 end.
@@ -78,14 +78,14 @@ Module B2PayloadMap <: PayloadMap B2Payload.
                         dyadic.Dmult exp D2))
                    bs (D0, D1)).
   Definition f b :=
-    DRed.build (bits_to_D (map snd (B2Payload.to_dense_list b))).
-End B2PayloadMap.
+    DRed.build (bits_to_D (map snd (BLowPayload.to_dense_list b))).
+End BLowPayloadMap.
 Module B16PayloadMap <: PayloadMap BitVecPayload.
   Definition f := to_dyadic.
 End B16PayloadMap.
 Module KTranslate := Translate TheDimensionality Neurons
-                               Outputs BitVecPayload B2Payload
-                               B16PayloadMap B2PayloadMap K.
+                               Outputs BitVecPayload BLowPayload
+                               B16PayloadMap BLowPayloadMap K.
 Import KTranslate. Import TheNet.
 Import F. Import NETEval. Import NET.
 
@@ -93,7 +93,7 @@ Open Scope list_scope.
 Notation "\'i\' ( x )":=(NIn x) (at level 65).
 Notation "\'r\' ( x )":=(NReLU x) (at level 65).
 Notation "\'c\' ( x )":=(NComb x) (at level 65).
-""".format(IN, IN, NEURONS, NEURONS, OUT, OUT)
+""".format(IN, IN, NEURONS, NEURONS, OUT, OUT, N_W)
 
 def translate_code():
     return 'Definition theta := translate_kernel kernel.\n'
@@ -110,7 +110,7 @@ def to_bit_vector(x, num_bits):
     # print(x)
     l = zip(list(range(num_bits)), [i for i in x][::-1])
     r = map(lambda p: str(p[0]) + '%N', filter(lambda x: x[1] == '1', l))
-    return '(B2Payload.bits_to_bvec [' + ';'.join(r) + '])'
+    return '(BLowPayload.bits_to_bvec [' + ';'.join(r) + '])'
 
 
 # Build a vector using of_fun.
@@ -173,7 +173,7 @@ w0_bits = []
 for i in range(w0.shape[1]):
     w = [x.zfill(N_W) for x in w0[:,i]]
     bvecs = [to_bit_vector(x, N_W) for x in w]
-    vec = build_vector(bvecs, 'K.Layer1Payload.Vec', '(B2Payload.bits_to_bvec [])')
+    vec = build_vector(bvecs, 'K.Layer1Payload.Vec', '(BLowPayload.bits_to_bvec [])')
     w0_bits.append(vec)
 print(np.array(w0_bits).shape)
 w0_vec = build_vector(w0_bits, 'K.Layer1', '(K.Layer1Payload.Vec.of_list [])')
@@ -182,7 +182,7 @@ w1_bits = []
 for i in range(w1.shape[1]):
     w = [x.zfill(N_W) for x in w1[:,i]]
     bvecs = [to_bit_vector(x, N_W) for x in w]
-    vec = build_vector(bvecs, 'K.Layer2Payload.Vec', '(B2Payload.bits_to_bvec [])')
+    vec = build_vector(bvecs, 'K.Layer2Payload.Vec', '(BLowPayload.bits_to_bvec [])')
     w1_bits.append(vec)
 print(np.array(w1_bits).shape)
 w1_vec = build_vector(w1_bits, 'K.Layer2', '(K.Layer2Payload.Vec.of_list [])')

@@ -2,10 +2,9 @@ import numpy as np
 
 
 def quantize(x, min_bound, max_bound, num_bits=8):
-    weights = "{0:b}".format(
+    return  "{0:b}".format(
         int(round((2**(num_bits) - 1) * \
                   (x - min_bound) / (max_bound-min_bound))))
-    return [w.zfill(num_bits) for w in weights]
 
 
 def quantize_ndarray(a, min_bound, max_bound, num_bits=8):
@@ -13,6 +12,7 @@ def quantize_ndarray(a, min_bound, max_bound, num_bits=8):
     b = []
     for x in a.flatten():
         b.append(quantize(x, min_bound, max_bound, num_bits))
+    b = [w.zfill(num_bits) for w in b]
     return np.array(b).reshape(shape)
 
 
@@ -24,12 +24,11 @@ def quantize_ndarray(a, min_bound, max_bound, num_bits=8):
 
 def dequantize(x, min_bound, max_bound, num_bits=8):
     return int(x, 2) * (max_bound-min_bound) / (2**(num_bits) - 1) + min_bound
-    # return int(x, 2)
 
 
 def dequantize_ndarray(a, min_bound, max_bound, num_bits=8):
     shape = a.shape
     b = []
-    for x in a.flatten():
+    for x in np.squeeze(a.flatten()):
         b.append(dequantize(x, min_bound, max_bound, num_bits))
     return np.array(b).reshape(shape)

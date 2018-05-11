@@ -50,8 +50,11 @@ def train_model(model, x, y, loss_op, pred_op, weights, train_images,
         # if minibatch_gen.counter % 10000 == 0:
         if minibatch_gen.counter % 1000 == 0:
             model.save_weights(sess, FLAGS.model_dir, num_bits=FLAGS.bits)
-            evaluate(sess, x, y, pred_op, train_images, train_labels,
-                     FLAGS.batch_size)
+            acc = evaluate(sess, x, y, pred_op, train_images, train_labels,
+                           FLAGS.batch_size)
+            if (acc >= FLAGS.stop):
+                print("Reached stopping accuracy.")
+                return
 
             # vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
             # for var in vars:
@@ -143,6 +146,12 @@ if __name__ == '__main__':
         type=int,
         default=8,
         help='Number of bits for quantization.'
+    )
+    parser.add_argument(
+        '--stop',
+        type=float,
+        default=1.0,
+        help=''
     )
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
