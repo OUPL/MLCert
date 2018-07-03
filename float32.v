@@ -5,6 +5,7 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 
 Require Import List. Import ListNotations.
+Require Import Reals Rpower.
 Require Import Extraction.
 
 (*Axiomatized basic types, together with cardinality proofs*)

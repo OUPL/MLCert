@@ -7,7 +7,7 @@ From mathcomp Require Import all_ssreflect.
 Require Import List. Import ListNotations.
 Require Import Extraction.
 
-Require Import float32.
+Require Import MLCert.float32.
 
 Section LinearClassifier.
   Variable n : nat. (*the dimensionality*)
@@ -102,7 +102,10 @@ Section PerceptronGeneralization.
   (*J is 0-1 loss applied to Perceptron's prediction function*)
   Notation Params := [finType of A * float32_finType].
   Definition J := @loss01 A _ m Params (Learner.predict (Perceptron.Learner n) h).
-  
+
+  Lemma card_Params : INR #|Params| = 2^(n*32 + 32).
+  Proof. by rewrite pow_add card_prod mult_INR float32_card float32_arr_card !pow_INR. Qed.
+    
   Lemma chernoff_bound_loss01_perceptron
       (eps : R) (eps_gt0 : 0 < eps)
       (not_perfectly_learnable : forall p : Params, 0 < expErr d m_gt0 J p < 1)
@@ -112,6 +115,6 @@ Section PerceptronGeneralization.
           | [exists i : 'I_#|eps_Hyp d m_gt0 J eps|,
              let: h := projT1 (enum_val i)
              in Rle_lt_dec eps (Rabs (expErr d m_gt0 J h - empErr J T h))]]
-    <= 2 * INR #|Params| * exp (-2%R * eps^2 * mR m).
-  Proof. by apply: chernoff_bound_loss01. Qed.
+    <= 2 * 2^(n*32 + 32) * exp (-2%R * eps^2 * mR m).
+  Proof. by rewrite -card_Params; apply: chernoff_bound_loss01. Qed.
 End PerceptronGeneralization.
