@@ -4,10 +4,11 @@ Unset Strict Implicit.
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 
+Require Import NArith.
 Require Import List. Import ListNotations.
 Require Import Extraction.
 
-Require Import MLCert.float32.
+Require Import MLCert.float32 MLCert.learners MLCert.extraction.
 
 Section LinearClassifier.
   Variable n : nat. (*the dimensionality*)
@@ -25,24 +26,6 @@ Section LinearClassifier.
       f32_dot w a + b > 0.
   End predict.    
 End LinearClassifier.
-
-Module Learner.
-  Record t (A B hypers params : Type) :=
-    mk { predict : hypers -> params -> A -> B;
-         update : hypers -> A*B -> params -> params }.
-End Learner.
-
-Section learning.
-  Variables A B hypers params : Type.
-  Variable learner : Learner.t A B hypers params.
-  Variable h : hypers.
-
-  Fixpoint learn (p:params) (training_set:list (A*B)) : params :=
-    match training_set with
-    | [] => p
-    | ab :: training_set' => learn (Learner.update learner h ab p) training_set'
-    end.
-End learning.
 
 Module Perceptron.
   Section Learner.
@@ -69,19 +52,6 @@ Module Perceptron.
         update.
   End Learner.
 End Perceptron.
-
-Module PerceptronExtractionTest.
-  Local Open Scope f32_scope.
-  Definition n := 2.
-  Definition alpha : Perceptron.Hypers := Perceptron.mkHypers 1.
-  Definition training_set ex1 ex2 : list (A n*B) := [(ex1,true); (ex2,false)].
-  Definition go init_weights ex1 ex2 :=
-    @learn
-      _ _ _ _
-      (Perceptron.Learner n) alpha (init_weights, 0) (training_set ex1 ex2).
-  Extraction Language Haskell.
-  Extraction "Perceptron.hs" go.
-End PerceptronExtractionTest.
 
 Require Import Reals Fourier.
 Require Import OUVerT.bigops OUVerT.dist OUVerT.chernoff OUVerT.learning.
@@ -118,3 +88,12 @@ Section PerceptronGeneralization.
     <= 2 * 2^(n*32 + 32) * exp (-2%R * eps^2 * mR m).
   Proof. by rewrite -card_Params; apply: chernoff_bound_loss01. Qed.
 End PerceptronGeneralization.
+
+(*PerceptronExtractionTest.*)
+Local Open Scope f32_scope.
+Definition n : nat := 27.
+Definition alpha : Perceptron.Hypers := Perceptron.mkHypers 1.
+Definition perceptron := go (Perceptron.Learner n) alpha.
+Extraction Language Haskell.
+Extraction "hs/Perceptron.hs" perceptron.
+

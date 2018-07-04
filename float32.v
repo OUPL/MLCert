@@ -21,7 +21,6 @@ Axiom float32_arr_card : forall n, #|float32_arr_finType n| = 2^(n*32).
 
 Extract Constant float32 => "Prelude.Float".
 Extract Constant float32_arr => "[Prelude.Float]".
-Extract Inductive bool => "Prelude.Bool" ["Prelude.True" "Prelude.False"].
 
 (*Axiomatized arithmetic expressions*)
 Axiom f32_0 : float32.
