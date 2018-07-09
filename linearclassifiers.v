@@ -10,7 +10,7 @@ Require Import Extraction.
 
 Require Import MLCert.float32 MLCert.learners MLCert.extraction.
 
-Section LinearClassifier.
+Section LinearThresholdClassifier.
   Variable n : nat. (*the dimensionality*)
 
   Definition A := float32_arr n. (*examples*)
@@ -24,12 +24,12 @@ Section LinearClassifier.
     Definition predict (p : Params) (a : A) : B :=
       let: (w, b) := p in
       f32_dot w a + b > 0.
-  End predict.    
-End LinearClassifier.
+  End predict.
+End LinearThresholdClassifier.
 
 Module Perceptron.
   Section Learner.
-    Variable n : nat.     
+    Variable n : nat.
     Notation A := (A n).
     Notation B := B.
     Notation Params := (Params n).
@@ -37,15 +37,15 @@ Module Perceptron.
     Record Hypers : Type :=
       mkHypers { alpha : float32 }.
 
-    Open Scope f32_scope.    
-    
+    Open Scope f32_scope.
+
     Definition update (h:Hypers) (example_label:A*B) (p:Params) : Params :=
       let: (example, label) := example_label in
       let: predicted_label := predict p example in
       if Bool.eqb predicted_label label then p
       else let: (w, b) := p in
            (f32_map2 (fun x1 x2 => x1 + (alpha h)*label*x2) w example, b+label).
-    
+
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
         (fun _ => @predict n)
@@ -67,33 +67,28 @@ Section PerceptronGeneralization.
   Variable m : nat. (*The number of training samples*)
   Variable m_gt0 : (0 < m)%nat.
 
-  Variable h : Perceptron.Hypers.
+  Variable hypers : Perceptron.Hypers.
 
-  (*J is 0-1 loss applied to Perceptron's prediction function*)
+  (*accuracy is 0-1 accuracy applied to Perceptron's prediction function*)
   Notation Params := [finType of A * float32_finType].
-  Definition J := @loss01 A _ m Params (Learner.predict (Perceptron.Learner n) h).
+  Definition accuracy := 
+    @accuracy01 A _ m Params (Learner.predict (Perceptron.Learner n) hypers).
 
   Lemma card_Params : INR #|Params| = 2^(n*32 + 32).
   Proof. by rewrite pow_add card_prod mult_INR float32_card float32_arr_card !pow_INR. Qed.
-    
-  Lemma chernoff_bound_loss01_perceptron
-      (eps : R) (eps_gt0 : 0 < eps)
-      (not_perfectly_learnable : forall p : Params, 0 < expErr d m_gt0 J p < 1)
-      (ind : forall p : Params, mutual_independence d (J p)) :
-    probOfR (prodR (fun _ : 'I_m => d))
-          [pred T:training_set A B m
-          | [exists i : 'I_#|eps_Hyp d m_gt0 J eps|,
-             let: h := projT1 (enum_val i)
-             in Rle_lt_dec eps (Rabs (expErr d m_gt0 J h - empErr J T h))]]
-    <= 2 * 2^(n*32 + 32) * exp (-2%R * eps^2 * mR m).
-  Proof. by rewrite -card_Params; apply: chernoff_bound_loss01. Qed.
+
+  Variables 
+    (not_perfectly_learnable : 
+       forall p : Params, 0 < expVal d m_gt0 accuracy p < 1)
+    (mut_ind : forall p : Params, mutual_independence d (accuracy p)).
+
+  Lemma perceptron_bound eps (eps_gt0 : 0 < eps) init : 
+    @main A B Params Perceptron.Hypers (Perceptron.Learner n) 
+      hypers _ m_gt0 d eps init (fun _ => 1) <=
+    2^(n*32 + 32) * exp (-2%R * eps^2 * mR m).
+  Proof.
+    rewrite -card_Params.
+    apply: Rle_trans; first by apply: main_bound.
+    apply: Rle_refl.
+  Qed.
 End PerceptronGeneralization.
-
-(*PerceptronExtractionTest.*)
-Local Open Scope f32_scope.
-Definition n : nat := 27.
-Definition alpha : Perceptron.Hypers := Perceptron.mkHypers 1.
-Definition perceptron := go (Perceptron.Learner n) alpha.
-Extraction Language Haskell.
-Extraction "hs/Perceptron.hs" perceptron.
-

@@ -5,69 +5,78 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 
 Require Import List. Import ListNotations.
+Require Import QArith Reals Rpower Ranalysis Fourier.
 Require Import Extraction.
+
+Require Import OUVerT.chernoff OUVerT.learning OUVerT.bigops OUVerT.dist.
 
 Require Import MLCert.float32.
 
 Module Learner.
-  Record t (A B hypers params : Type) :=
-    mk { predict : hypers -> params -> A -> B;
-         update : hypers -> A*B -> params -> params }.
+  Record t (A B Hypers Params : Type) :=
+    mk { predict : Hypers -> Params -> A -> B;
+         update : Hypers -> A*B -> Params -> Params }.
 End Learner.
 
-Section state_monad.
-  Variable state : Type.
-  Definition State (T : Type) : Type := state -> state*T.
-  Definition ret T (t:T) : State T := fun s => (s,t).
-  Definition bind T U (m:State T) (f:T -> State U) : State U :=
-    fun s => let: (s',t) := m s in f t s'.
-  Definition modify (f:state -> state) : State unit := fun s => (f s, tt).
-End state_monad.        
+Section semantics.
+  Variables A B Params : finType. 
+  Variable Hypers : Type.
+  Variable learner : Learner.t A B Hypers Params.
+  Variable h : Hypers.
+  Variable m : nat.
+  Variable m_gt0 : (0 < m)%nat.
 
-Section Exp.
-  Variables A B hypers params : Type.
-  Variable learner : Learner.t A B hypers params.
-  Variable h : hypers.
-  Variable sampler_state : Type.
-  Variable sample : State sampler_state (A*B).
+  Definition C (t:Type) := (t -> R) -> R.
 
-  Inductive exp : Type -> Type :=
-  | Sample : exp (A*B)
-  | Update : A*B -> exp unit
-  | Iter : nat -> exp unit -> exp unit
-  | Bind : forall t1 t2, exp t1 -> (t1 -> exp t2) -> exp t2.
-  
-  Definition lift_left state1 state2 T (m:State state1 T)
-    : State (state1*state2) T :=
-    fun s => let: (s1,s2) := s in
-             let: (s1',t) := m s1 in
-             ((s1',s2), t).
+  Definition sample (d:A*B -> R) : C (training_set A B m) :=
+    fun f => big_sum (enum (training_set A B m)) (fun T => 
+      (prodR (fun _:'I_m => d)) T * f T).
 
-  Definition lift_unit state (m:State state unit) : state*unit -> state*unit :=
-    fun s => let: (s1,_) := s in m s1.
-  
-  Fixpoint run T (e : exp T) : State (sampler_state*params) T :=
-    match e with
-    | Sample => lift_left sample
-    | Update ab => modify (fun s => let: (r,p) := s in (r,Learner.update learner h ab p))
-    | Iter n e1 => fun s => Nat.iter n (lift_unit (run e1)) (s, tt)
-    | Bind _ _ e1 f2 => bind (run e1) (fun v1 => run (f2 v1))                        
-    end.
-End Exp.
+  Definition learn_func (init:Params) (T:training_set A B m) := 
+    foldr (fun i p => 
+      Learner.update learner h (T i) p) init (enum 'I_m).
 
-Notation "'sample'" := (@Sample _ _).
-Notation "'upd'" := (@Update _ _).
-Notation "x <-- e1 ; e2" := (Bind e1 (fun x => e2)) (at level 100).
-Notation "'iter'" := (Iter).
+  Definition learn (init:Params) (T:training_set A B m) : C (Params) :=
+    fun f => f (learn_func init T).
 
-Section learning.
-  Variables A B hypers params : Type.
-  Variable learner : Learner.t A B hypers params.
-  Variable h : hypers.
-  Variable epochs : nat.
+  Definition seq (t1 t2 : Type) (c1:C t1) (c2:t1 -> C t2) : C t2 :=
+    fun f => c1 (fun t1 => c2 t1 f).
 
-  Definition train : exp A B unit := iter epochs (ab <-- sample; upd ab).
+  Definition observe (t:Type) (p:pred t) : t -> C t :=
+    fun t f => if p t then f t else 0.
 
-  Definition go (sampler_state:Type) (sampler:State sampler_state (A*B)) :=
-    run learner h sampler train.
-End learning.
+  Definition accuracy := accuracy01 (m:=m) (Learner.predict learner h).
+
+  Definition post (d:A*B -> R) (eps:R) 
+      (pT : Params * training_set A B m) : bool :=
+    let: (p, T) := pT in 
+    Rlt_le_dec (expVal d m_gt0 accuracy p + eps) (empVal accuracy T p).
+
+  Notation "x <-- e1 ; e2" := (seq e1 (fun x => e2)) 
+    (at level 100, right associativity).
+
+  Definition main (d:A*B -> R) (eps:R) (init:Params) 
+    : C (Params * training_set A B m) :=
+    T <-- sample d;
+    p <-- learn init T;
+    observe (post d eps) (p,T).
+
+  Variables 
+    (d:A*B -> R) 
+    (d_dist : big_sum (enum [finType of A*B]) d = 1)
+    (d_nonneg : forall x, 0 <= d x) 
+    (mut_ind : forall p : Params, mutual_independence d (accuracy p))
+    (not_perfectly_learnable : 
+      forall p : Params, 0 < expVal d m_gt0 accuracy p < 1).
+
+  Lemma main_bound (eps:R) (eps_gt0 : 0 < eps) (init:Params) :
+    main d eps init (fun _ => 1) <= 
+    INR #|Params| * exp (-2%R * eps^2 * mR m).
+  Proof.
+    rewrite /main/seq/sample/learn/observe/=big_sum_pred2; apply: Rle_trans; last first.
+    { apply chernoff_bound_accuracy01 with (d:=d) (learn:=learn_func init) => //.
+      { move => p; apply: mut_ind. }
+      move => p; apply: not_perfectly_learnable. }
+    apply: big_sum_le => c; rewrite /in_mem Rmult_1_r /= => _; apply: Rle_refl.
+  Qed.
+End semantics.
