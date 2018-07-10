@@ -57,7 +57,7 @@ Coercion float32_of_bool : bool >-> float32.
 
 Section f32_definitions.
   Open Scope f32_scope.
-  
+
   Definition f32_dot (n:nat) (a1 a2:float32_arr n) : float32 :=
     f32_fold2 0 (fun x1 x2 sum => (x1 * x2) + sum) a1 a2.
 End f32_definitions.

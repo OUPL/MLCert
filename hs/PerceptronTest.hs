@@ -1,38 +1,34 @@
+{-# LANGUAGE StandaloneDeriving #-}
+
 module Main where
 
 import System.Random
 
 import Perceptron
 
-type Sampler_state = StdGen
+deriving instance (Show a, Show b) => Show (Prod a b)
 
-type Training_set = [(Prod A B)]
+n = S (S O)
+m = S (S (S O))
 
-sampler :: State (Sampler_state,Training_set) (Prod A B)
-sampler (g, t) = 
-  let (r, g') = randomR (0, length t - 1) g
-  in Pair (g', t) (t !! r)
+hypers = MkHypers 1.0 1.5
 
-training_set :: Training_set
-training_set =
-  [Pair [0.0, -1.0] False,
-   Pair [1.0, 0.0] True]
+training_set = 
+  [Pair [1.0, -1.0] False,
+   Pair [1.0, 0.5] True,
+   Pair [-0.5, 0.5] True]
+
+sampler _ f = f training_set
+
+dist _ = 0.5
 
 init_weights :: Weights
-init_weights = [0.0, 0.0]
+init_weights = [0.5, 4.0]
 
 init_bias :: Bias
 init_bias = 0.0
 
-init_sampler_state :: Sampler_state
-init_sampler_state = mkStdGen 42
-
-perceptron_test epochs =
-  case result of
-    Pair (Pair (g, t) (Pair w b)) u -> (w, b)
-  where
-    result = perceptron epochs sampler
-              (Pair (init_sampler_state, training_set)
-                    (Pair init_weights init_bias))
-
-main = putStrLn $ show $ perceptron_test (S (S (S (S (S (S (S (S (S (S O))))))))))
+main =
+  putStrLn
+  $ show
+  $ perceptron n m hypers sampler dist (Pair init_weights init_bias) id

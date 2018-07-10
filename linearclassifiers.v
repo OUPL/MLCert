@@ -12,6 +12,7 @@ Require Import MLCert.float32 MLCert.learners MLCert.extraction.
 
 Section LinearThresholdClassifier.
   Variable n : nat. (*the dimensionality*)
+  Variable theta : float32. (*the threshold*)
 
   Definition A := float32_arr n. (*examples*)
   Definition B := bool. (*labels*)
@@ -23,7 +24,7 @@ Section LinearThresholdClassifier.
     Open Scope f32_scope.
     Definition predict (p : Params) (a : A) : B :=
       let: (w, b) := p in
-      f32_dot w a + b > 0.
+      f32_dot w a + b > theta.
   End predict.
 End LinearThresholdClassifier.
 
@@ -35,20 +36,23 @@ Module Perceptron.
     Notation Params := (Params n).
 
     Record Hypers : Type :=
-      mkHypers { alpha : float32 }.
+      mkHypers { 
+        alpha : float32;
+        theta : float32
+      }.
 
     Open Scope f32_scope.
 
     Definition update (h:Hypers) (example_label:A*B) (p:Params) : Params :=
       let: (example, label) := example_label in
-      let: predicted_label := predict p example in
+      let: predicted_label := predict (theta h) p example in
       if Bool.eqb predicted_label label then p
       else let: (w, b) := p in
            (f32_map2 (fun x1 x2 => x1 + (alpha h)*label*x2) w example, b+label).
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
-        (fun _ => @predict n)
+        (fun h => @predict n (theta h))
         update.
   End Learner.
 End Perceptron.
@@ -84,7 +88,7 @@ Section PerceptronGeneralization.
 
   Lemma perceptron_bound eps (eps_gt0 : 0 < eps) init : 
     @main A B Params Perceptron.Hypers (Perceptron.Learner n) 
-      hypers _ m_gt0 d eps init (fun _ => 1) <=
+      hypers m m_gt0 d eps init (fun _ => 1) <=
     2^(n*32 + 32) * exp (-2%R * eps^2 * mR m).
   Proof.
     rewrite -card_Params.
@@ -92,3 +96,25 @@ Section PerceptronGeneralization.
     apply: Rle_refl.
   Qed.
 End PerceptronGeneralization.
+
+Section PerceptronExtraction.
+  Variable n : nat. (*The dimensionality*)
+  Notation A := (float32_arr n).
+  Notation B := bool.
+  Variable d : A * B -> R.
+
+  Variable m : nat. (*The number of training samples*)
+
+  Notation Params := ((A * float32)%type).
+
+  Variable hypers : Perceptron.Hypers.
+
+  Definition perceptron := 
+    @extractible_main A B Params Perceptron.Hypers 
+      (Perceptron.Learner n) hypers 
+      m (HsListVec m (A*B)) (@HsListVec_get m (A*B)).
+End PerceptronExtraction.
+Extraction Language Haskell.
+
+Extract Constant R => "Prelude.Double".
+Extraction "hs/Perceptron.hs" perceptron.
