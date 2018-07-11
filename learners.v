@@ -20,6 +20,7 @@ Section extractible_semantics.
   Variable learner : Learner.t A B Hypers Params.
   Variable h : Hypers.
   Variable m : nat.
+  Variable epochs : nat.
   Variable training_set : Type.
   Variable training_set_get : 'I_m -> training_set -> A*B.
   Variable u : Type.
@@ -28,10 +29,12 @@ Section extractible_semantics.
 
   Variable sample : (A*B -> R) -> C training_set.
 
-  Definition learn_func (init:Params) (T:training_set) := 
-    foldr (fun i p => 
-      Learner.update learner h (training_set_get i T) p) 
-      init (enum 'I_m).
+  Definition learn_func (init:Params) (T:training_set) :=
+    foldr (fun epoch p_epoch => 
+      foldr (fun i p => 
+        Learner.update learner h (training_set_get i T) p) 
+        p_epoch (enum 'I_m))
+      init (enum 'I_epochs).
 
   Definition learn (init:Params) (T:training_set) : C (Params) :=
     fun f => f (learn_func init T).
@@ -58,6 +61,7 @@ Section semantics.
   Variable h : Hypers.
   Variable m : nat.
   Variable m_gt0 : (0 < m)%nat.
+  Variable epochs : nat.
 
   Notation C := (@C R).
 
@@ -78,7 +82,7 @@ Section semantics.
     Rlt_le_dec (expVal d m_gt0 accuracy p + eps) (empVal accuracy T p).
 
   Definition semantic_main (d:A*B -> R) (init:Params) := 
-    extractible_main learner h semantic_sample_get semantic_sample d init.
+    extractible_main learner h epochs semantic_sample_get semantic_sample d init.
 
   Notation "x <-- e1 ; e2" := (seq e1 (fun x => e2)) 
     (at level 100, right associativity).
@@ -104,7 +108,7 @@ Section semantics.
     rewrite /main/semantic_main/extractible_main/seq/semantic_sample/learn/observe/=. 
     rewrite big_sum_pred2; apply: Rle_trans; last first.
     { apply chernoff_bound_accuracy01 
-        with (d:=d) (learn:=learn_func learner h semantic_sample_get init) => //.
+        with (d:=d) (learn:=learn_func learner h epochs semantic_sample_get init) => //.
       { move => p; apply: mut_ind. }
       move => p; apply: not_perfectly_learnable. }
     apply: big_sum_le => c; rewrite /in_mem Rmult_1_r /= => _; apply: Rle_refl.

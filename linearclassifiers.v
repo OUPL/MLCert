@@ -71,6 +71,8 @@ Section PerceptronGeneralization.
   Variable m : nat. (*The number of training samples*)
   Variable m_gt0 : (0 < m)%nat.
 
+  Variable epochs : nat.
+
   Variable hypers : Perceptron.Hypers.
 
   (*accuracy is 0-1 accuracy applied to Perceptron's prediction function*)
@@ -88,7 +90,7 @@ Section PerceptronGeneralization.
 
   Lemma perceptron_bound eps (eps_gt0 : 0 < eps) init : 
     @main A B Params Perceptron.Hypers (Perceptron.Learner n) 
-      hypers m m_gt0 d eps init (fun _ => 1) <=
+      hypers m m_gt0 epochs d eps init (fun _ => 1) <=
     2^(n*32 + 32) * exp (-2%R * eps^2 * mR m).
   Proof.
     rewrite -card_Params.
@@ -104,6 +106,7 @@ Section PerceptronExtraction.
   Variable d : A * B -> R.
 
   Variable m : nat. (*The number of training samples*)
+  Variable epochs : nat.
 
   Notation Params := ((A * float32)%type).
 
@@ -112,9 +115,8 @@ Section PerceptronExtraction.
   Definition perceptron := 
     @extractible_main A B Params Perceptron.Hypers 
       (Perceptron.Learner n) hypers 
-      m (HsListVec m (A*B)) (@HsListVec_get m (A*B)).
+      m epochs (HsListVec m (A*B)) (@HsListVec_get m (A*B)).
 End PerceptronExtraction.
-Extraction Language Haskell.
 
-Extract Constant R => "Prelude.Double".
+Extraction Language Haskell.
 Extraction "hs/Perceptron.hs" perceptron.

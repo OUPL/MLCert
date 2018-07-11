@@ -8,27 +8,59 @@ import Perceptron
 
 deriving instance (Show a, Show b) => Show (Prod a b)
 
-n = S (S O)
-m = S (S (S O))
+fromInt 0 = O
+fromInt n | n > 0 = S (fromInt $ n - 1)
 
-hypers = MkHypers 1.0 1.5
+fromNat O = 0
+fromNat (S n) = 1 + fromNat n
 
-training_set = 
-  [Pair [1.0, -1.0] False,
-   Pair [1.0, 0.5] True,
-   Pair [-0.5, 0.5] True]
+n = fromInt 100
+m = fromInt 1000
+epochs = fromInt 10
 
-sampler _ f = f training_set
+hypers = MkHypers 1.0 (fromIntegral (fromNat m) / 2.0)
 
-dist _ = 0.5
+dist _ = -1.0 --not used in sampler below
 
 init_weights :: Weights
-init_weights = [0.5, 4.0]
+init_weights = take (fromNat n) $ repeat 0.0
 
 init_bias :: Bias
 init_bias = 0.0
 
+sampler _ f = training_set n m >>= f
+
+training_example O = return []
+training_example (S n) =
+  do { r <- randomRIO (-1.0,1.0)
+     ; e <- training_example n
+     ; return $ r : e }
+training_row n = 
+  do { example <- training_example n
+     ; label <- randomRIO (0,1)
+     ; return $ Pair example (int2bool label) }
+  where int2bool :: Int -> Bool
+        int2bool 0 = False
+        int2bool 1 = True
+
+training_set _ O = return []
+training_set n (S m)
+  = do { r <- training_row n
+       ; t <- training_set n m
+       ; return $ r : t }
+  
+show_test_err (Pair model examples_labels) =
+  let corrects = 
+        map (\(Pair example label) ->
+                if predict n (theta hypers) model example == label
+                then 1 :: Int
+                else 0) examples_labels
+  in putStrLn
+     $ show
+     $ fromIntegral (sum corrects) / fromIntegral (fromNat m)
+
 main =
-  putStrLn
-  $ show
-  $ perceptron n m hypers sampler dist (Pair init_weights init_bias) id
+  perceptron n m epochs hypers sampler dist
+    (Pair init_weights init_bias) show_test_err
+
+
