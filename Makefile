@@ -44,7 +44,7 @@ CAMLFLAGS         := $(COQMF_CAMLFLAGS)
 HASNATDYNLINK     := $(COQMF_HASNATDYNLINK)
 
 Makefile.conf: 
-	/mnt/c/Coq/coq_makefile -R . MLCert -arg '-w none' extraction.v float32.v learners.v linearclassifiers.v -o Makefile
+	coq_makefile -R . MLCert -arg '-w none' extraction.v float32.v learners.v linearclassifiers.v monads.v noise.v samplers.v -o Makefile
 
 # This file can be created by the user to hook into double colon rules or
 # add any other Makefile code he may need

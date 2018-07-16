@@ -9,6 +9,8 @@ Require Import QArith Reals Rpower Ranalysis Fourier.
 
 Require Import OUVerT.chernoff OUVerT.learning OUVerT.bigops OUVerT.dist.
 
+Require Import MLCert.monads.
+
 Module Learner.
   Record t (A B Hypers Params : Type) :=
     mk { predict : Hypers -> Params -> A -> B;
@@ -25,8 +27,8 @@ Section extractible_semantics.
   Variable training_set_get : 'I_m -> training_set -> A*B.
   Variable u : Type.
 
-  Definition C (t:Type) := (t -> u) -> u.
-
+  Notation C t := (Cont u t).
+  
   Variable sample : (A*B -> R) -> C training_set.
 
   Definition learn_func (init:Params) (T:training_set) :=
@@ -38,14 +40,6 @@ Section extractible_semantics.
 
   Definition learn (init:Params) (T:training_set) : C (Params) :=
     fun f => f (learn_func init T).
-
-  Definition seq (t1 t2 : Type) (c1:C t1) (c2:t1 -> C t2) : C t2 :=
-    fun f => c1 (fun t1 => c2 t1 f).
-
-  Definition ret (t:Type) (x:t) : C t := fun f => f x.
-
-  Notation "x <-- e1 ; e2" := (seq e1 (fun x => e2)) 
-    (at level 100, right associativity).
 
   Definition extractible_main (d:A*B -> R) (init:Params)
     : C (Params * training_set) :=
@@ -63,7 +57,7 @@ Section semantics.
   Variable m_gt0 : (0 < m)%nat.
   Variable epochs : nat.
 
-  Notation C := (@C R).
+  Notation C := (@Cont R).
 
   Definition semantic_sample (d:A*B -> R) : C (training_set A B m) :=
     fun f => big_sum (enum (training_set A B m)) (fun T => 
@@ -84,9 +78,6 @@ Section semantics.
   Definition semantic_main (d:A*B -> R) (init:Params) := 
     extractible_main learner h epochs semantic_sample_get semantic_sample d init.
 
-  Notation "x <-- e1 ; e2" := (seq e1 (fun x => e2)) 
-    (at level 100, right associativity).
-
   Definition main (d:A*B -> R) (eps:R) (init:Params) 
     : C (Params * training_set A B m) :=
     pT <-- semantic_main d init;
@@ -105,7 +96,8 @@ Section semantics.
     main d eps init (fun _ => 1) <= 
     INR #|Params| * exp (-2%R * eps^2 * mR m).
   Proof.
-    rewrite /main/semantic_main/extractible_main/seq/semantic_sample/learn/observe/=. 
+    rewrite /main/semantic_main/extractible_main/semantic_sample/learn/observe/=.
+    rewrite /Cbind/Cret.
     rewrite big_sum_pred2; apply: Rle_trans; last first.
     { apply chernoff_bound_accuracy01 
         with (d:=d) (learn:=learn_func learner h epochs semantic_sample_get init) => //.
