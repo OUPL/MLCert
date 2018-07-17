@@ -10,21 +10,35 @@ Require Import Extraction.
 
 Require Import MLCert.extraction.
 
-(*Axiomatized basic types, together with cardinality proofs*)
-Axiom float32 : Type. (*32-bit floating-point numbers*)
+(*Axiomatized basic types, together with cardinality axioms*)
+
+(*Axiomatized length-indexed vectors, implemented as Haskell lists*)
+Axiom HsListVec : forall (n:nat) (t:Type), Type.
+Axiom HsListVec_finite : forall (n:nat) (t:finType), Finite.class_of (HsListVec n t).
+Definition HsListVec_finType (n:nat) (t:finType) : finType :=
+  Finite.Pack (HsListVec_finite n t) (HsListVec n t).
+Axiom HsListVec_card : forall m n (t:finType), #|t| = 2^n -> #|HsListVec_finType m t| = 2^(m*n).
+
+Extract Constant HsListVec "t" => "[t]".
+
+(*32-bit floating-point numbers*)
+Axiom float32 : Type. 
 Axiom float32_finite : Finite.class_of float32.
 Definition float32_finType : finType := Finite.Pack float32_finite float32.
 Axiom float32_card : #|float32_finType| = 2^32.
 
-Definition float32_arr (n:nat) := HsListVec n float32. (*size-indexed float32 arrays*)
-Axiom float32_arr_finite : forall n:nat, Finite.class_of (float32_arr n).
-Definition float32_arr_finType (n:nat) : finType :=
-  Finite.Pack (float32_arr_finite n) (float32_arr n).
-Axiom float32_arr_card : forall n, #|float32_arr_finType n| = 2^(n*32).
-
 Extract Constant float32 => "Prelude.Float".
 
-(*Axiomatized arithmetic expressions*)
+(*Arrays of 32-bit floats, implemented as HsListVec's*)
+Definition float32_arr (n:nat) := HsListVec n float32. (*size-indexed float32 arrays*)
+Lemma float32_arr_finite : forall n:nat, Finite.class_of (float32_arr n).
+Proof. move => n; rewrite /float32_arr; apply: (HsListVec_finite n float32_finType). Defined.
+Definition float32_arr_finType (n:nat) : finType :=
+  Finite.Pack (float32_arr_finite n) (float32_arr n).
+Lemma float32_arr_card : forall n, #|float32_arr_finType n| = 2^(n*32).
+Proof. by move => n; move: (@HsListVec_card n 32 float32_finType float32_card) => /= <-. Qed.
+
+(*Axiomatized arithmetic expressions over float32's and float arrays*)
 Axiom f32_0 : float32.
 Axiom f32_1 : float32.
 Axiom f32_opp : float32 -> float32.
@@ -51,6 +65,7 @@ Extract Constant f32_mapM => "(\_ f a -> Prelude.mapM f a)".
 Extract Constant f32_map2 => "(\_ f a1 a2 -> Prelude.map (\(x,y) -> f x y) (Prelude.zip a1 a2))".
 Extract Constant f32_fold2 => "(\_ t f a1 a2 -> Prelude.foldl (\acc (x, y) -> f x y acc) t (Prelude.zip a1 a2))".
 
+(*Notation and derived operations*)
 Notation "0" := (f32_0) : f32_scope.
 Notation "1" := (f32_1) : f32_scope.
 Notation "2" := (f32_add f32_1 f32_1) : f32_scope.

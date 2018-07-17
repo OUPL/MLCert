@@ -6,8 +6,6 @@ import System.Random
 
 import Perceptron
 
-deriving instance (Show a, Show b) => Show (Prod a b)
-
 fromInt 0 = O
 fromInt n | n > 0 = S (fromInt $ n - 1)
 
@@ -37,8 +35,8 @@ training_example (S n) =
      ; return $ r : e }
 training_row hyperplane n = 
   do { example <- training_example n
-     ; let label = predict n 0.0 (Pair hyperplane init_bias) example
-     ; return $ Pair example label }
+     ; let label = predict n 0.0 (hyperplane, init_bias) example
+     ; return (example, label) }
   where int2bool :: Int -> Bool
         int2bool 0 = False
         int2bool 1 = True
@@ -51,9 +49,9 @@ training_set hyperplane n (S m)
 
 test_set = training_set
   
-print_generalization_err test (Pair model training) =
+print_generalization_err test (model, training) =
   let corrects dataset = 
-        map (\(Pair example label) ->
+        map (\(example, label) ->
                 if predict n (theta hypers) model example == label
                 then 1 :: Int
                 else 0) dataset
@@ -70,8 +68,8 @@ print_generalization_err test (Pair model training) =
 main =
   do { hyperplane <- training_example n
      ; test <- test_set hyperplane n m 
-     ; perceptron n m epochs hypers (sampler hyperplane) dist
-         (Pair init_weights init_bias) (print_generalization_err test) }
+     ; perceptron n epochs hypers (sampler hyperplane) dist
+         (init_weights, init_bias) (print_generalization_err test) }
 
 -- NOTES:
 -- inputs:

@@ -8,17 +8,15 @@ Require Import List. Import ListNotations.
 Require Import Reals Rpower.
 Require Import Extraction.
 
+Require Import MLCert.monads.
+
+(** Axioms together with extraction schemes. 
+ The following files contain addditional axioms/schemes: 
+ - float32.v *)
+
 Extract Inductive bool => "Prelude.Bool" ["Prelude.True" "Prelude.False"].
+Extract Inductive prod => "(,)" [ "(,)" ].
+Extract Inductive list => "([])" [ "[]" "(:)" ].
 
-Axiom HsListVec : forall (m:nat) (t:Type), Type.
-Axiom HsListVec_get : forall (m:nat) (t:Type) (i:'I_m) (l:HsListVec m t), t.
-(*Axiom HsListVec_upd : forall (m:nat) (t:Type) (i:'I_m) (x:t) (l:HsListVec m t), HsListVec m t.*)
+Extract Constant R => "Prelude.Double". (*NOTE: We extract no R operations, just the type.*)
 
-Extract Constant HsListVec "t" => "[t]".
-Extract Constant HsListVec_get => 
-  "(\_ i l -> 
-     let nat2int O = 0
-         nat2int (S n) = (Prelude.+) 1 (nat2int n)
-     in (Prelude.!!) l (nat2int i))".
-
-Extract Constant R => "Prelude.Double".

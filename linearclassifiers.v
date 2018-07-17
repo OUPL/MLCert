@@ -8,7 +8,7 @@ Require Import NArith.
 Require Import List. Import ListNotations.
 Require Import Extraction.
 
-Require Import MLCert.float32 MLCert.learners MLCert.extraction.
+Require Import MLCert.float32 MLCert.learners MLCert.extraction MLCert.monads.
 
 Section LinearThresholdClassifier.
   Variable n : nat. (*the dimensionality*)
@@ -112,10 +112,10 @@ Section PerceptronExtraction.
 
   Variable hypers : Perceptron.Hypers.
 
-  Definition perceptron := 
+  Definition perceptron (r:Type) := 
     @extractible_main A B Params Perceptron.Hypers 
-      (Perceptron.Learner n) hypers 
-      m epochs (HsListVec m (A*B)) (@HsListVec_get m (A*B)).
+      (Perceptron.Learner n) hypers epochs _ (@list_Foldable (A*B)%type) r
+      (fun T => ret T).
 End PerceptronExtraction.
 
 Extraction Language Haskell.
