@@ -37,10 +37,19 @@ Definition HsListVec_finType (n:nat) (t:finType) : finType :=
 Axiom HsListVec_card : forall m n (t:finType), #|t| = 2^n -> #|HsListVec_finType m t| = 2^(m*n).
 
 Extract Constant HsListVec "t" => "[t]".
-Extract Constant HsListVec_to_list =>
-  "(let f = (\n _ l -> case l of 
-      [] -> nil
-      (x : l'_ -> cons x (f l')))
-    in f)".
+(*Why is HsListVec_to_list essentially the identity function? Because we extract 
+  Coq lists to Haskell lists (see the 'Extract Inductive list' directive above).*)
+Extract Constant HsListVec_to_list => "(\_ l -> l)".
 
-
+(*HsListVec Tests*)
+(* Require Import List. *)
+(* Fixpoint sum_natlist (l:list nat) : nat := *)
+(*   match l with *)
+(*   | nil => 0 *)
+(*   | cons x l' => x + sum_natlist l' *)
+(*   end. *)
+(* Definition sum_HsListVec (n:nat) (v:HsListVec n nat) : nat := *)
+(*   sum_natlist (HsListVec_to_list v). *)
+(* Extraction Language Haskell. *)
+(* Extraction "hs/HsListVec.hs" sum_HsListVec. *)
+(*END HsListVec Tests*)
