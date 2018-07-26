@@ -1,4 +1,4 @@
-# deepse
+# NNCert
 
 #### Python compile script prerequisites
 
