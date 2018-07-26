@@ -8,7 +8,7 @@ Require Import List. Import ListNotations.
 Require Import Reals Rpower.
 Require Import Extraction.
 
-Require Import MLCert.extraction.
+Require Import MLCert.axioms MLCert.extraction_hs.
 
 (*Axiomatized 32-bit floating point numbers, together with cardinality axioms*)
 
@@ -20,14 +20,14 @@ Axiom float32_card : #|float32_finType| = 2^32.
 
 Extract Constant float32 => "Prelude.Float".
 
-(*Arrays of 32-bit floats, implemented as HsListVec's*)
-Definition float32_arr (n:nat) := HsListVec n float32. (*size-indexed float32 arrays*)
+(*Arrays of 32-bit floats, implemented as AxVec's*)
+Definition float32_arr (n:nat) := AxVec n float32. (*size-indexed float32 arrays*)
 Lemma float32_arr_finite : forall n:nat, Finite.class_of (float32_arr n).
-Proof. move => n; rewrite /float32_arr; apply: (HsListVec_finite n float32_finType). Defined.
+Proof. move => n; rewrite /float32_arr; apply: (AxVec_finite n float32_finType). Defined.
 Definition float32_arr_finType (n:nat) : finType :=
   Finite.Pack (float32_arr_finite n) (float32_arr n).
 Lemma float32_arr_card : forall n, #|float32_arr_finType n| = 2^(n*32).
-Proof. by move => n; move: (@HsListVec_card n 32 float32_finType float32_card) => /= <-. Qed.
+Proof. by move => n; move: (@AxVec_card n 32 float32_finType float32_card) => /= <-. Qed.
 
 (*Axiomatized arithmetic expressions over float32's and float arrays*)
 Axiom f32_0 : float32.
