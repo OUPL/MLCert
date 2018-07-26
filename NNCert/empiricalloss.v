@@ -3,6 +3,9 @@ From mathcomp Require Import all_ssreflect.
 Require Import List. Import ListNotations. 
 Require Import NArith.
 Require Import OUVerT.dyadic.
+
+Require Import MLCert.axioms MLCert.extraction_ocaml.
+
 Require Import net bitnet out kernel.
 
 Import out.KTranslate. Import TheNet.
@@ -10,10 +13,6 @@ Import F. Import NETEval. Import NET.
 
 (* Number of data batches *)
 Definition num_batches := 2400.
-
-(* This simplifies the annoying conflict between list types. *)
-Extract Inductive list => list [ "[]" "( :: )" ].
-Extract Inductive unit => unit [ "()" ].
 
 (* Returns the batch as a zipped list of labels and InputEnvs. *)
 Axiom load_batch : nat -> list (N * InputEnv.t).

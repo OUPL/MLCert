@@ -10,7 +10,9 @@ Require Import Extraction.
 
 Require Import MLCert.axioms MLCert.extraction_hs.
 
-(*Axiomatized 32-bit floating point numbers, together with cardinality axioms*)
+(*Axiomatized 32-bit floating point numbers, together with cardinality axioms. 
+  Currently Haskell-only: OCaml's float is double-precision by default; nor does 
+  the OCaml standard support a single-precision 32-bit FP type.*)
 
 (*32-bit floating-point numbers*)
 Axiom float32 : Type. 

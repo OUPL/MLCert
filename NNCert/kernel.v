@@ -9,6 +9,9 @@ Require Import List NArith ZArith ProofIrrelevance. Import ListNotations.
 Require Import micromega.Lia.
 
 Require Import OUVerT.dyadic OUVerT.numerics OUVerT.vector OUVerT.compile.
+
+Require Import MLCert.axioms.
+
 Require Import bitnet net.
 
 
@@ -20,17 +23,17 @@ Module Type KernelType (IN N OUT : BOUND) (S T : PAYLOAD).
      S = the type of shift/scale parameters
      T = the type of network weights *)
 
-  Module Layer1Payload := MatrixPayload IN T.
-  Module Layer1 := Vector N Layer1Payload.
+  Definition Layer1Payload := AxVec IN.n T.t.
+  Definition Layer1 := AxVec N.n Layer1Payload.
 
-  Module Layer2Payload := MatrixPayload N T.
-  Module Layer2 := Vector OUT Layer2Payload.
+  Definition Layer2Payload := AxVec N.n T.t.
+  Definition Layer2 := AxVec OUT.n Layer2Payload.
 
   Record t :=
     { ss1 : S.t * S.t;
       ss2 : S.t * S.t;
-      layer1 : Layer1.t;
-      layer2 : Layer2.t }.
+      layer1 : Layer1;
+      layer2 : Layer2 }.
 End KernelType.
 
 Module Kernel (IN N OUT : BOUND) (S T : PAYLOAD) <: KernelType IN N OUT S T.
@@ -39,17 +42,17 @@ Module Kernel (IN N OUT : BOUND) (S T : PAYLOAD) <: KernelType IN N OUT S T.
       S = the type of shift/scale parameters
       T = the type of network weights *)
 
-  Module Layer1Payload := MatrixPayload IN T.
-  Module Layer1 := Vector N Layer1Payload.
+  Definition Layer1Payload := AxVec IN.n T.t.
+  Definition Layer1 := AxVec N.n Layer1Payload.
 
-  Module Layer2Payload := MatrixPayload N T.
-  Module Layer2 := Vector OUT Layer2Payload.
+  Definition Layer2Payload := AxVec N.n T.t.
+  Definition Layer2 := AxVec OUT.n Layer2Payload.
 
   Record t :=
     { ss1 : S.t * S.t;
       ss2 : S.t * S.t;
-      layer1 : Layer1.t;
-      layer2 : Layer2.t }.
+      layer1 : Layer1;
+      layer2 : Layer2 }.
 End Kernel.
 
 
@@ -90,21 +93,17 @@ Module Translate (IN N OUT : BOUND) (S T : PAYLOAD)
       let shift2 := F.f (fst (K.ss2 k)) in
       let scale2 := F.f (snd (K.ss2 k)) in
 
-      let l1 := flatten (map (fun p : K.Layer1.Ix.t * K.Layer1Payload.t =>
-                                let (_, x) := p in
-                                map (fun p : K.Layer1Payload.Vec.Ix.t * T.t =>
-                                       let (_, y) := p in
+      let l1 := flatten (map (fun x : K.Layer1Payload =>
+                                map (fun y : T.t =>
                                        DRed.add (DRed.mult scale1 (G.f y)) shift1)
-                                    (K.Layer1Payload.Vec.to_dense_list x))
-                             (K.Layer1.to_dense_list (K.layer1 k))) in
+                                    (AxVec_to_list x))
+                             (AxVec_to_list (K.layer1 k))) in
 
-      let l2 := flatten (map (fun p : K.Layer2.Ix.t * K.Layer2Payload.t =>
-                                let (_, x) := p in
-                                map (fun p : K.Layer2Payload.Vec.Ix.t * T.t =>
-                                       let (_, y) := p in
+      let l2 := flatten (map (fun x : K.Layer2Payload =>
+                                map (fun y : T.t =>
                                        DRed.add (DRed.mult scale2 (G.f y)) shift2)
-                                    (K.Layer2Payload.Vec.to_dense_list x))
-                             (K.Layer2.to_dense_list (K.layer2 k))) in
+                                    (AxVec_to_list x))
+                             (AxVec_to_list (K.layer2 k))) in
       ParamEnv.of_list (zip (ParamEnv.Ix.enumerate_t) (rev (l1 ++ l2))).
 
   Definition layer1Indices : list (list (nat*nat)) :=
