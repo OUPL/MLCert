@@ -20,6 +20,11 @@ Module Type TYPE.
 End TYPE.  
 
 
+Module Type FINTYPE.
+  Parameter t : finType.
+End FINTYPE.  
+
+
 (** We could use flattened vectors instead of matrices I guess but
     compilation and extraction seem to be a bit faster this way. *)
 Module Type KernelType (IN N OUT : BOUND) (S T : TYPE).
@@ -59,6 +64,39 @@ Module Kernel (IN N OUT : BOUND) (S T : TYPE) <: KernelType IN N OUT S T.
       layer1 : Layer1;
       layer2 : Layer2 }.
 End Kernel.
+
+(** A finType analog of KernelType:*)
+Module Type KernelFinType (IN N OUT : BOUND) (S T : FINTYPE).
+  Definition Layer1Payload := AxVec_finType IN.n T.t.
+  Definition Layer1 := AxVec_finType N.n Layer1Payload.
+
+  Definition Layer2Payload := AxVec_finType N.n T.t.
+  Definition Layer2 := AxVec_finType OUT.n Layer2Payload.
+
+  Definition t : finType :=
+    [finType of ((S.t * S.t) * (S.t * S.t) * Layer1 * Layer2)].
+
+  Definition ss1 (x:t) := let: (ss1, ss2, l1, l2) := x in ss1.
+  Definition ss2 (x:t) := let: (ss1, ss2, l1, l2) := x in ss2.
+  Definition l1 (x:t) := let: (ss1, ss2, l1, l2) := x in l1.
+  Definition l2 (x:t) := let: (ss1, ss2, l1, l2) := x in l2.  
+End KernelFinType.
+
+Module KernelFin (IN N OUT : BOUND) (S T : FINTYPE) <: KernelFinType IN N OUT S T.
+  Definition Layer1Payload := AxVec_finType IN.n T.t.
+  Definition Layer1 := AxVec_finType N.n Layer1Payload.
+
+  Definition Layer2Payload := AxVec_finType N.n T.t.
+  Definition Layer2 := AxVec_finType OUT.n Layer2Payload.
+
+  Definition t : finType :=
+    [finType of ((S.t * S.t) * (S.t * S.t) * Layer1 * Layer2)].
+
+  Definition ss1 (x:t) := let: (ss1, ss2, l1, l2) := x in ss1.
+  Definition ss2 (x:t) := let: (ss1, ss2, l1, l2) := x in ss2.
+  Definition l1 (x:t) := let: (ss1, ss2, l1, l2) := x in l1.
+  Definition l2 (x:t) := let: (ss1, ss2, l1, l2) := x in l2.  
+End KernelFin.
 
 
 Module Type PayloadMap (T : TYPE).
@@ -170,7 +208,9 @@ End Translate.
 
 
 (** Here's an instantiation of KernelType to an EMNIST network with 20 hidden 
-    nodes, using 16-bit IEEE FP numbers as weights and shift/scale parameters. *)
+    nodes, using 16-bit IEEE FP numbers as weights and shift/scale parameters. 
+
+    We prove a cardinality lemma for the finType version of this kernel. *)
 
 Import DyadicFloat16. (*for bits_to_bvec*)
 
@@ -180,6 +220,11 @@ Definition bitvec_to_bvec (n:nat) (v:bitvec n) : BitVec.t :=
 Module bitvec16Type <: TYPE.
   Definition t := bitvec 16.
 End bitvec16Type.
+
+Module bitvec16FinType <: FINTYPE.
+  Definition t := bitvec_finType 16.
+  Lemma card : #|t| = 2^16. Proof. by rewrite bitvec_card. Qed.
+End bitvec16FinType.
 
 Module bitvec16PayloadMap : PayloadMap bitvec16Type.
   Definition f (v:bitvec16Type.t) : DRed.t := to_dyadic (bitvec_to_bvec v).
@@ -192,4 +237,30 @@ Module OUT_10 <: BOUND. Definition n := 10. Lemma n_gt0 : 0 < n. by []. Qed. End
 Module bitvec16_EMNIST_20_KernelType 
   : KernelType IN_784 N_20 OUT_10 bitvec16Type bitvec16Type
   := Kernel IN_784 N_20 OUT_10 bitvec16Type bitvec16Type.
+
+Module bitvec16_EMNIST_20_KernelFinType 
+  : KernelFinType IN_784 N_20 OUT_10 bitvec16FinType bitvec16FinType
+  := KernelFin IN_784 N_20 OUT_10 bitvec16FinType bitvec16FinType.
+
+Lemma card_bitvec16_EMNIST_20_KernelFinType :
+  #|bitvec16_EMNIST_20_KernelFinType.t|
+  = 2^(4*16 + 20*784*16 + 10*20*16). (*2^254144 causes stack overflow*)
+Proof.
+  rewrite /bitvec16_EMNIST_20_KernelFinType.t !card_prod bitvec16FinType.card.
+  (*Layer 1*)
+  rewrite /bitvec16_EMNIST_20_KernelFinType.Layer1.
+  rewrite /bitvec16_EMNIST_20_KernelFinType.Layer1Payload.
+  have H1: #|AxVec_finType IN_784.n bitvec16FinType.t| = 2^(784*16).
+  { rewrite (@AxVec_card 784 16) => //.
+    by rewrite bitvec_card. }
+  rewrite (@AxVec_card 20 (784*16) _ H1).
+  (*Layer 2*)
+  rewrite /bitvec16_EMNIST_20_KernelFinType.Layer2.
+  rewrite /bitvec16_EMNIST_20_KernelFinType.Layer2Payload.
+  have H2: #|AxVec_finType N_20.n bitvec16FinType.t| = 2^(20*16).
+  { rewrite (@AxVec_card 20 16 bitvec16FinType.t); first by reflexivity.
+    rewrite bitvec_card; reflexivity. }
+  rewrite (@AxVec_card 10 (20*16) _ H2).
+  rewrite -!multE; rewrite <-!Nat.pow_add_r; rewrite !multE; reflexivity.
+Qed.  
   
