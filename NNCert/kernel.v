@@ -10,14 +10,19 @@ Require Import micromega.Lia.
 
 Require Import OUVerT.dyadic OUVerT.numerics OUVerT.vector OUVerT.compile.
 
-Require Import MLCert.axioms.
+Require Import MLCert.axioms MLCert.bitvectors.
 
 Require Import bitnet net.
 
 
+Module Type TYPE.
+  Parameter t : Type.
+End TYPE.  
+
+
 (** We could use flattened vectors instead of matrices I guess but
     compilation and extraction seem to be a bit faster this way. *)
-Module Type KernelType (IN N OUT : BOUND) (S T : PAYLOAD).
+Module Type KernelType (IN N OUT : BOUND) (S T : TYPE).
   (* IN = dimensionality of the input space
      N = the number of hidden neurons
      S = the type of shift/scale parameters
@@ -36,7 +41,7 @@ Module Type KernelType (IN N OUT : BOUND) (S T : PAYLOAD).
       layer2 : Layer2 }.
 End KernelType.
 
-Module Kernel (IN N OUT : BOUND) (S T : PAYLOAD) <: KernelType IN N OUT S T.
+Module Kernel (IN N OUT : BOUND) (S T : TYPE) <: KernelType IN N OUT S T.
   (* IN = dimensionality of the input space
       N = the number of hidden neurons
       S = the type of shift/scale parameters
@@ -56,7 +61,7 @@ Module Kernel (IN N OUT : BOUND) (S T : PAYLOAD) <: KernelType IN N OUT S T.
 End Kernel.
 
 
-Module Type PayloadMap (T : PAYLOAD).
+Module Type PayloadMap (T : TYPE).
   Parameter f : T.t -> DRed.t.
 End PayloadMap.
 
@@ -162,3 +167,29 @@ Module Translate (IN N OUT : BOUND) (S T : PAYLOAD)
                                        default_input default_param
                                        layer2Indices.
 End Translate.
+
+
+(** Here's an instantiation of KernelType to an EMNIST network with 20 hidden 
+    nodes, using 16-bit IEEE FP numbers as weights and shift/scale parameters. *)
+
+Import DyadicFloat16. (*for bits_to_bvec*)
+
+Definition bitvec_to_bvec (n:nat) (v:bitvec n) : BitVec.t :=
+  bits_to_bvec (bitvec_to_sparse_list v).
+
+Module bitvec16Type <: TYPE.
+  Definition t := bitvec 16.
+End bitvec16Type.
+
+Module bitvec16PayloadMap : PayloadMap bitvec16Type.
+  Definition f (v:bitvec16Type.t) : DRed.t := to_dyadic (bitvec_to_bvec v).
+End bitvec16PayloadMap.
+
+Module IN_784 <: BOUND. Definition n := 784. Lemma n_gt0 : 0 < n. by []. Qed. End IN_784.
+Module N_20 <: BOUND. Definition n := 20. Lemma n_gt0 : 0 < n. by []. Qed. End N_20.
+Module OUT_10 <: BOUND. Definition n := 10. Lemma n_gt0 : 0 < n. by []. Qed. End OUT_10.
+
+Module bitvec16_EMNIST_20_KernelType 
+  : KernelType IN_784 N_20 OUT_10 bitvec16Type bitvec16Type
+  := Kernel IN_784 N_20 OUT_10 bitvec16Type bitvec16Type.
+  
