@@ -26,6 +26,12 @@ Require Import Extraction.
 
 Axiom AxVec : forall (n:nat) (t:Type), Type.
 Axiom AxVec_to_list : forall (n:nat) (t:Type), AxVec n t -> list t.
+(**NOTE: AxVec_of_list: OCaml/Haskell callers of the extraction of this 
+   function must be extra careful to provide lists of size n (bad behavior 
+   may occur otherwise).
+   TODO: Perhaps extracted AxVec_of_list should introduce a dynamic check, 
+   that it's argument list is of the right size.*)
+Axiom AxVec_of_list : forall (n:nat) (t:Type), list t -> AxVec n t.
 Axiom AxVec_finite : forall (n:nat) (t:finType), Finite.class_of (AxVec n t).
 Definition AxVec_finType (n:nat) (t:finType) : finType :=
   Finite.Pack (AxVec_finite n t) (AxVec n t).

@@ -9,7 +9,7 @@ Require Import MLCert.axioms MLCert.extraction_ocaml.
 Require Import net bitnet out kernel.
 
 Import out.KTranslate. Import TheNet.
-Import F. Import NETEval. Import NET.
+Import TheNet.F. Import NETEval. Import NET.
 
 (* Number of data batches *)
 Definition num_batches := 2400.
@@ -109,8 +109,8 @@ List.map (fun (lbl, image) ->
 
 Definition compute_correct (sample : N * InputEnv.t) :=
   let (lbl, img) := sample in
-  let outs := F.seval theta
-                      (F.Forest.of_list
+  let outs := TheNet.F.seval theta
+                      (TheNet.F.Forest.of_list
                          (combine (Forest.Ix.enumerate_t) (rev outputs)))
                       img in
   let pred := Output.argmax Dlt_bool outs in
@@ -174,14 +174,13 @@ Definition result := print_DRed eval_batches.
 Extraction "extract/batch_test.ml" result.
 
 
-(** Some extra stuff for testing *)
+(* (** Some extra stuff for testing *) *)
 
 (* Definition weights := map snd (ParamEnv.to_dense_list theta). *)
 (* Check weights. *)
 (* Definition print_weights := fold_left (fun _ => print_DRed) weights tt. *)
 (* Check print_weights. *)
 (* Extraction "extract/batch_test.ml" print_weights. *)
-
 
 (* Definition load_batch_0 := load_batch 0. *)
 (* Check load_batch_0. *)

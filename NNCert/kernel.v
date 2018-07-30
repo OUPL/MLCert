@@ -111,7 +111,7 @@ Fixpoint range n :=
   end.
 
 
-Module Translate (IN N OUT : BOUND) (S T : PAYLOAD)
+Module Translate (IN N OUT : BOUND) (S T : TYPE)
        (F : PayloadMap S) (G : PayloadMap T)
        (K : KernelType IN N OUT S T).
 

@@ -23,6 +23,7 @@ Extract Constant AxVec "'t" => "('t list)".
 (*Why is AxVec_to_list the identity function? Because we extract Coq lists
   to OCaml lists (see the 'Extract Inductive list' directive above).*)
 Extract Constant AxVec_to_list => "(fun _ l -> l)".
+Extract Constant AxVec_of_list => "(fun _ l -> l)".
 
 (* (*AxVec Tests*) *)
 (* Require Import List. *)
