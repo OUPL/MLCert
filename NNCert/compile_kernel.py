@@ -39,7 +39,7 @@ class Net(object):
 #                  for c in struct.pack('!f', num))
 # # END stolen
 
-# float->binary little-endian (LSB first)
+# float->binary big-endian
 def binary(f, num_bits):
     if num_bits == 32:
         return ''.join(bin(c).replace('0b', '').rjust(8, '0')

@@ -1,5 +1,5 @@
 NUM_BATCHES = 2400
-NUM_BITS = 16
+NUM_BITS = 2
 
 default: train move
 
@@ -22,4 +22,4 @@ batches:
 	python3 make_simple_data.py $(NUM_BATCHES) # make batches
 
 move:
-	cp models/default/params.pkl.gz ../params.pkl.gz # copy model parameters
+	cp models/default/params.pkl.gz ../params-quantized.pkl.gz # copy model parameters
