@@ -49,26 +49,18 @@ def train_model(model, x, y, loss_op, pred_op, weights, train_images,
 
         # if minibatch_gen.counter % 10000 == 0:
         if minibatch_gen.counter % 1000 == 0:
-            model.save_weights(sess, FLAGS.model_dir, num_bits=FLAGS.bits)
+            model.save_weights(sess, weights, FLAGS.model_dir,
+                               num_bits=FLAGS.bits)
             acc = evaluate(sess, x, y, pred_op, train_images, train_labels,
                            FLAGS.batch_size)
+            # model.test_weights(sess, weights, num_bits=FLAGS.bits)
             if (acc >= FLAGS.stop):
                 print("Reached stopping accuracy.")
                 return
-
-            # vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-            # for var in vars:
-            #     # print(var._variable.__dict__)
-            #     if 'min:0' in var.name or 'max:0' in var.name:
-            #         print(var.name)
-            #         print(var.eval(sess))
-
-            # vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-            # for w in weights:
-            #     print(w.eval(session=sess))
             
-
-    model.save_weights(sess, FLAGS.model_dir, num_bits=FLAGS.bits)
+    evaluate(sess, x, y, pred_op, train_images, train_labels,
+             FLAGS.batch_size)
+    model.save_weights(sess, weights, FLAGS.model_dir, num_bits=FLAGS.bits)
 
 def main(argv):
     # Load parameters and data for the chosen dataset.

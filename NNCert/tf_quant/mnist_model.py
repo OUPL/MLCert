@@ -122,9 +122,32 @@ def predictions(logits):
     return tf.cast(tf.argmax(logits, axis=1), tf.int32)
 
 
-def save_weights(sess, dir='models', num_bits=8):
+def test_weights(sess, quantized_weights, num_bits=8):
+    # ws = [x.eval(sess) for x in tf.trainable_variables()]
+    ws = sess.run(quantized_weights, feed_dict = {})
+    print(ws[0][0])
+
+    bounds = [x.eval(sess) for x in
+              filter(lambda x: 'min:0' in x.name or 'max:0' in x.name,
+                     tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))]
+
+    quantized = [quantize_ndarray(ws[0], bounds[0], bounds[1],
+                                  num_bits=num_bits),
+                 quantize_ndarray(ws[1], bounds[2], bounds[3],
+                                  num_bits=num_bits)]
+    all_vars = quantized + bounds
+
+    weights2 = all_vars[:-4]
+    bounds2 = all_vars[-4:]
+    w0 = dequantize_ndarray(weights2[0], bounds2[0], bounds2[1],
+                            num_bits=num_bits)
+    w1 = dequantize_ndarray(weights2[1], bounds2[2], bounds2[3],
+                            num_bits=num_bits)
+    print(w0[0])
+
+def save_weights(sess, weights_op, dir='models', num_bits=8):
     os.makedirs(dir, exist_ok=True)
-    weights = [x.eval(sess) for x in tf.trainable_variables()]
+    weights = sess.run(weights_op, feed_dict = {})
     bounds = [x.eval(sess) for x in
               filter(lambda x: 'min:0' in x.name or 'max:0' in x.name,
                      tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))]

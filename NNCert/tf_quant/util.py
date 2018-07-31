@@ -1,6 +1,6 @@
 from math import sqrt
 import numpy as np
-from scipy.misc import imsave
+# from scipy.misc import imsave
 
 
 # Assumes size of data is divisible by batch_size.
