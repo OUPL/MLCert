@@ -13,23 +13,15 @@ import sys
 NUM_BATCHES=2400
 EXAMPLES_PER_BATCH=100
 
-i=NUM_BATCHES-1
+i=0
 total_correct=0
-total_correct_reported=0
 for line in sys.stdin:
-    line = line[:-2] #remove '.\n'
-    try:
-        _,batch_num,_,_,correct = line.split()
-        if i!=int(batch_num):
-            raise BaseException("Batch numbers don't match.")
-        else:
-            total_correct += int(correct) 
-        i -= 1
-    except ValueError:
-        total_correct_reported = int(line)
+    correct = int(line[:-1]) #remove '\n'
+    total_correct += int(correct) 
+    i += 1
 
-if total_correct != total_correct_reported:
-    raise BaseException("Total correct doesn't match reported.")
+if i != NUM_BATCHES:
+    print("WARNING: Read only {i} entries".format(i=i))
     
 print("Total correct: {total_correct}\nAccuracy: {accuracy}".format(
     total_correct=total_correct,
