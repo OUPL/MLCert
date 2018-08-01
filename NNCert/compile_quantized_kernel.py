@@ -62,7 +62,7 @@ From mathcomp Require Import all_ssreflect.
 Require Import List. Import ListNotations. 
 Require Import NArith.
 Require Import OUVerT.dyadic OUVerT.compile. 
-Require Import MLCert.axioms MLCert.bitvectors MLCert.extraction_ocaml MLCert.oracleclassifiers. 
+Require Import MLCert.axioms MLCert.bitvectors MLCert.learners MLCert.extraction_ocaml.
 Require Import net bitnet kernel.
 
 Module TheDimensionality. Definition n : nat := N.to_nat {}. 
@@ -83,7 +83,7 @@ Module bitvec2Type <: TYPE.
   Definition t := bitvec 2.
 End bitvec2Type.
 
-Module bitvec2FinType <: FINTYPE.
+Module bitvec2FinType.
   Definition t := bitvec_finType 2.
   Lemma card : #|t| = 2^2. Proof. by rewrite bitvec_card. Qed.
 End bitvec2FinType.
@@ -107,7 +107,7 @@ Module bitvec16Type <: TYPE.
   Definition t := bitvec 16.
 End bitvec16Type.
 
-Module bitvec16FinType <: FINTYPE.
+Module bitvec16FinType.
   Definition t := bitvec_finType 16.
   Lemma card : #|t| = 2^16. Proof. by rewrite bitvec_card. Qed.
 End bitvec16FinType.
@@ -116,21 +116,18 @@ Module bitvec16PayloadMap : PayloadMap bitvec16Type.
   Definition f (v:bitvec16Type.t) : DRed.t := to_dyadic (bitvec_to_bvec _ v).
 End bitvec16PayloadMap.
 
-Module K := Kernel TheDimensionality Neurons Outputs bitvec16Type bitvec2Type.
-
-Module KFin := KernelFin TheDimensionality Neurons Outputs bitvec16FinType bitvec2FinType.
-
 Module KTranslate := Translate TheDimensionality Neurons Outputs 
                                bitvec16Type bitvec2Type
-                               bitvec16PayloadMap bitvec2PayloadMap K.
+                               bitvec16PayloadMap bitvec2PayloadMap.
 Import KTranslate. Import TheNet.
 Import F. Import NETEval. Import NET.
 
-
 Definition X := AxVec TheDimensionality.n (bitvec 16).
+Definition XFin := AxVec_finType TheDimensionality.n bitvec16FinType.t.
 Definition Y := 'I_Outputs.n.
 Definition Hypers := unit.
-Definition Params := K.t.
+Definition Params := Kernel.t TheDimensionality.n Neurons.n Outputs.n bitvec16Type.t bitvec2Type.t.
+Definition ParamsFin := KernelFintype.t TheDimensionality.n Neurons.n Outputs.n bitvec16FinType.t bitvec2FinType.t.
 
 Definition InputEnv_of_X (img:X) : NETEval.InputEnv.t :=
   KTranslate.TheNet.F.NETEval.NET.InputEnv.of_list
@@ -160,13 +157,40 @@ Notation "\'F\'":=(false) (at level 65).
 
 def the_postamble():
     return """
-Definition tf_learner
-  : learners.Learner.t X Y Hypers Params
-  := OracleLearner kernel predict.
-"""
+Definition m : nat := 240 * 1000. (*240000 causes stack overflow*)
+Lemma m_gt0 : 0 < m. Proof. by []. Qed.
 
-def translate_code():
-    return 'Definition theta := translate_kernel kernel.\n'
+Definition tf_learner
+  : Learner.t XFin Y Hypers ParamsFin
+  := OracleLearner kernel predict. 
+
+Notation tf_main :=
+  (@oracular_main XFin [finType of Y] ParamsFin Hypers tf_learner tt m m_gt0 (fun _ => kernel)).
+
+Notation accuracy := (@accuracy XFin [finType of Y] ParamsFin Hypers tf_learner tt m).
+
+Require Import OUVerT.chernoff OUVerT.learning OUVerT.bigops OUVerT.dist.
+Require Import QArith Reals Rpower Ranalysis Fourier.
+
+Section tf_bound.
+  Variables
+    (d:XFin*Y -> R) 
+    (d_dist : big_sum (enum [finType of XFin*Y]) d = 1)
+    (d_nonneg : forall x, 0 <= d x) 
+    (mut_ind : forall p : ParamsFin, mutual_independence (m:=m) d (accuracy p))
+    (not_perfectly_learnable : 
+      forall p : ParamsFin, 0 < expVal d m_gt0 accuracy p < 1).
+
+Lemma tf_main_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
+  tf_main d eps init (fun _ => 1) <= 
+  INR (2 ^ (4 * 16 + 10 * 784 * 2 + 10 * 10 * 2)) * exp (-2%R * eps^2 * mR m).
+Proof.
+  rewrite -card_bitvec2_EMNIST_10_KernelFinType; apply: Rle_trans; last first.
+  { apply oracular_main_bound => //; first by apply: d_dist. }
+  apply: Rle_refl.
+Qed.
+End tf_bound.
+"""
 
 # Given the min and max quantization parameters, compute the
 # corresponding shift and scale values.
@@ -180,15 +204,14 @@ def to_bit_vector(x):
     return build_vector(';', [coqbool_of_bitchar(i) for i in x][::-1])
 
 def build_kernel(shift0, scale0, shift1, scale1, w0, w1):
-    return 'K.Build_t (%s, %s) (%s, %s) %s %s' \
+    return '((%s, %s),\n(%s, %s),\n%s,\n%s)' \
         % (shift0, scale0, shift1, scale1, w0, w1)
 
 # Produce the output Coq file
 def to_coq(IN, NEURONS, OUT, kernel):
     out = ''
     out += the_preamble(IN, NEURONS, OUT)
-    out += '\nDefinition kernel := ' + kernel + '.\n' 
-    out += translate_code()
+    out += '\nDefinition kernel : Params := ' + kernel + '.\n' 
     out += the_postamble()
     return out
 

@@ -160,3 +160,57 @@ Section semantics.
     apply big_sum_le => c; rewrite /in_mem Rmult_1_r /= => _; apply: Rle_refl.
   Qed.
 End semantics.
+
+Section OracleLearner.
+  Variables X Y Hypers Params : Type.
+  Variable oracular_params : Params.
+  Variable predict : Hypers -> Params -> X -> Y.
+  
+  Definition OracleLearner : Learner.t X Y Hypers Params :=
+    Learner.mk predict (fun _ _ _ => oracular_params).
+End OracleLearner.
+
+Section oracular_semantics.
+  Variables X Y Params : finType. 
+  Variable Hypers : Type.
+  Variable learner : Learner.t X Y Hypers Params.
+  Variable h : Hypers.
+  Variable m : nat.
+  Variable m_gt0 : (0 < m)%nat.
+  Notation C := (@Cont R).
+
+  Variable oracle : training_set X Y m -> Params.
+
+  Notation semantic_sample m := (@semantic_sample X Y m).
+  Notation accuracy := (@accuracy X Y Params Hypers learner h m).
+  Notation post := (@post X Y Params Hypers learner h m m_gt0).
+  
+  Definition oracular_main (d:X*Y -> R) (eps:R) (init:Params) 
+    : C (Params * training_set X Y m) :=
+    T <-- semantic_sample m d;
+    p <-- ret (oracle T);
+    observe (post d eps) (p,T).
+
+  Variables
+    (d:X*Y -> R) 
+    (d_dist : big_sum (enum [finType of X*Y]) d = 1)
+    (d_nonneg : forall x, 0 <= d x) 
+    (mut_ind : forall p : Params, mutual_independence d (accuracy p))
+    (not_perfectly_learnable : 
+      forall p : Params, 0 < expVal d m_gt0 accuracy p < 1).
+
+  Lemma oracular_main_bound (eps:R) (eps_gt0 : 0 < eps) (init:Params) :
+    oracular_main d eps init (fun _ => 1) <= 
+    INR #|Params| * exp (-2%R * eps^2 * mR m).
+  Proof.
+    rewrite /oracular_main/bind/=/Cbind/Cret.
+    rewrite /(semantic_sample m)/Cbind/=/Cbind.
+    rewrite big_sum_pred2; apply: Rle_trans; last first.
+    { apply chernoff_bound_accuracy01 
+        with (d:=d) (learn:=fun t => oracle t) => //.
+      { move => p; apply: mut_ind. }
+      move => p; apply: not_perfectly_learnable. }
+    rewrite /probOfR/=. 
+    apply big_sum_le => c; rewrite /in_mem Rmult_1_r /= => _; apply: Rle_refl.
+  Qed.
+End oracular_semantics.
