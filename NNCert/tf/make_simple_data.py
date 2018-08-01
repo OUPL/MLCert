@@ -44,19 +44,19 @@ def binary(f):
         
 # END stolen
 
-# Indices record the '1' bits.
 def float_to_bin(f):
-    # b = binary(float_cast(f).item())
-    # b = b[:N][::-1]
-    b = binary(f)[::-1]
-    l = zip(list(range(N)), [i for i in b])
-    # Just the nonzero indices
-    return list(map(lambda p: p[0], filter(lambda x: x[1] == '1', l)))
+    return binary(f)[::-1] #little-endian
 
-def encode_image(image):
-    return list(filter(lambda p: p[1],
-                       [(i, float_to_bin(image[i]))
-                   for i in range(image.shape[0])]))
+def encode_image(image): 
+    return [float_to_bin(image[i]) for i in range(image.shape[0])]
+
+# We use the following batch encoding scheme (dense rather than sparse):
+#
+# img1-label\n
+# img1_bit1 ... img1_bitN\n  <-- each bit is either '0' or '1'
+# imgBATCH_SIZE_bit1 ... imgBATCH_SIZE_bitN\n
+#
+# The dense encoding simplifies the axiomatized file I/O in empiricalloss.v.
 
 os.makedirs('../extract/batches', exist_ok=True)
 # for i in range(0, images.shape[0], BATCH_SIZE):
@@ -68,13 +68,11 @@ for i in range(0, num_batches * BATCH_SIZE, BATCH_SIZE):
     with open('../extract/batches/batch_' + str(i//BATCH_SIZE), 'w') as f:
         for j in range(BATCH_SIZE):
             encoded_image = encoded_images[j]
-            f.write(str(batch_labels[j]) + ' ')
-            for (x, bits) in encoded_image:
-                f.write(str(x) + ' ' + str(len(bits)) + ' ' + \
-                        ' '.join(map(str, bits)) + ' ')
+            f.write(str(batch_labels[j]) + '\n')
+            f.write('\n'.join(encoded_image))
             f.write('\n')
 
-
+            
 from ast import literal_eval
 
 # x = 1.0

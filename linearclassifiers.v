@@ -8,7 +8,7 @@ Require Import NArith.
 Require Import List. Import ListNotations.
 Require Import Extraction.
 
-Require Import MLCert.float32 MLCert.learners MLCert.extraction MLCert.monads.
+Require Import MLCert.float32 MLCert.learners MLCert.extraction_hs MLCert.monads.
 
 Section LinearThresholdClassifier.
   Variable n : nat. (*the dimensionality*)

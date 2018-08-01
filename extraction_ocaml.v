@@ -14,8 +14,9 @@ Require Import MLCert.axioms.
 
 Extraction Language OCaml.
 
-Extract Inductive list => list [ "[]" "( :: )" ].
-Extract Inductive unit => unit [ "()" ].
+Extract Inductive list => "list" [ "[]" "( :: )" ].
+Extract Inductive unit => "unit" [ "()" ].
+Extract Inductive bool => "bool" [ "true" "false" ].
 
 Extract Constant R => "float". (*NOTE: We extract no R operations, just the type.*)
 

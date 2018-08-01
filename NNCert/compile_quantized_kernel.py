@@ -62,7 +62,7 @@ From mathcomp Require Import all_ssreflect.
 Require Import List. Import ListNotations. 
 Require Import NArith.
 Require Import OUVerT.dyadic OUVerT.compile. 
-Require Import MLCert.axioms MLCert.bitvectors MLCert.extraction_ocaml. 
+Require Import MLCert.axioms MLCert.bitvectors MLCert.extraction_ocaml MLCert.oracleclassifiers. 
 Require Import net bitnet kernel.
 
 Module TheDimensionality. Definition n : nat := N.to_nat {}. 
@@ -118,11 +118,36 @@ End bitvec16PayloadMap.
 
 Module K := Kernel TheDimensionality Neurons Outputs bitvec16Type bitvec2Type.
 
+Module KFin := KernelFin TheDimensionality Neurons Outputs bitvec16FinType bitvec2FinType.
+
 Module KTranslate := Translate TheDimensionality Neurons Outputs 
                                bitvec16Type bitvec2Type
                                bitvec16PayloadMap bitvec2PayloadMap K.
 Import KTranslate. Import TheNet.
 Import F. Import NETEval. Import NET.
+
+
+Definition X := AxVec TheDimensionality.n (bitvec 16).
+Definition Y := 'I_Outputs.n.
+Definition Hypers := unit.
+Definition Params := K.t.
+
+Definition InputEnv_of_X (img:X) : NETEval.InputEnv.t :=
+  KTranslate.TheNet.F.NETEval.NET.InputEnv.of_list
+    (List.map (fun x_bits =>
+                 let: (x,bits) := x_bits in 
+                 (x, bitvec16PayloadMap.f bits))
+              (zip InputEnv.Ix.enumerate_t (AxVec_to_list img))).
+
+Definition Y_of_OutputIx (ix:Output.Ix.t) : Y := Output.Ix.Ordinal_of_t ix.
+
+Definition predict (h:Hypers) (p:Params) (img:X) : Y :=
+  let: outs := TheNet.F.seval
+                 (translate_kernel p)
+                 (TheNet.F.Forest.of_list
+                    (combine (Forest.Ix.enumerate_t) (rev outputs)))
+                 (InputEnv_of_X img)
+  in Y_of_OutputIx (Output.argmax Dlt_bool outs).
 
 Open Scope list_scope.
 Notation "\'i\' ( x )":=(NIn x) (at level 65).
@@ -132,6 +157,13 @@ Notation "\'V\' ( x )":=(@AxVec_of_list _ _ x) (at level 65).
 Notation "\'T\'":=(true) (at level 65).
 Notation "\'F\'":=(false) (at level 65).
 """.format(IN, IN, NEURONS, NEURONS, OUT, OUT, N_W)
+
+def the_postamble():
+    return """
+Definition tf_learner
+  : learners.Learner.t X Y Hypers Params
+  := OracleLearner kernel predict.
+"""
 
 def translate_code():
     return 'Definition theta := translate_kernel kernel.\n'
@@ -155,8 +187,9 @@ def build_kernel(shift0, scale0, shift1, scale1, w0, w1):
 def to_coq(IN, NEURONS, OUT, kernel):
     out = ''
     out += the_preamble(IN, NEURONS, OUT)
-    out += '\nDefinition kernel := ' + kernel + '.\n'
+    out += '\nDefinition kernel := ' + kernel + '.\n' 
     out += translate_code()
+    out += the_postamble()
     return out
 
 images = load_images('test_images.pkl.gz')

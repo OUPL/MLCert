@@ -11,6 +11,7 @@ import struct
 path = sys.argv[1]
 
 # Number of bits (e.g., 16 or 32) per weight
+# NOTE: The code below currently works only for N=16
 N = 16
 
 NUM_CLASSES = 10
@@ -124,7 +125,7 @@ From mathcomp Require Import all_ssreflect.
 Require Import List. Import ListNotations. 
 Require Import NArith.
 Require Import OUVerT.dyadic OUVerT.compile. 
-Require Import MLCert.axioms MLCert.bitvectors MLCert.extraction_ocaml. 
+Require Import MLCert.axioms MLCert.bitvectors MLCert.extraction_ocaml MLCert.oracleclassifiers. 
 Require Import net bitnet kernel.
 
 Module TheDimensionality. Definition n : nat := N.to_nat {}. 
@@ -134,6 +135,8 @@ Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End Neurons.
 Module Outputs. Definition n : nat := {}. Lemma n_gt0 : (0 < {})%nat. by []. Qed. End Outputs.
 Import DyadicFloat16.
 
+(*The following function is used only to map 16-bit FP numbers to dyadics 
+  (following the IEEE 754 convention -- see bitnet.v for more details.)*)
 Definition bitvec_to_bvec (n:nat) (v:bitvec n) : BitVec.t :=
   bits_to_bvec (bitvec_to_sparse_list v).
 
@@ -151,11 +154,37 @@ Module bitvec16PayloadMap : PayloadMap bitvec16Type.
 End bitvec16PayloadMap.
 
 Module K := Kernel TheDimensionality Neurons Outputs bitvec16Type bitvec16Type.
-Module KTranslate := Translate TheDimensionality Neurons
-                               Outputs bitvec16Type bitvec16Type
+
+Module KFin := KernelFin TheDimensionality Neurons Outputs bitvec16FinType bitvec16FinType.
+
+Module KTranslate := Translate TheDimensionality Neurons Outputs 
+                               bitvec16Type bitvec16Type
                                bitvec16PayloadMap bitvec16PayloadMap K.
 Import KTranslate. Import TheNet.
 Import F. Import NETEval. Import NET.
+
+
+Definition X := AxVec TheDimensionality.n (bitvec 16).
+Definition Y := 'I_Outputs.n.
+Definition Hypers := unit.
+Definition Params := K.t.
+
+Definition InputEnv_of_X (img:X) : NETEval.InputEnv.t :=
+  KTranslate.TheNet.F.NETEval.NET.InputEnv.of_list
+    (List.map (fun x_bits =>
+                 let: (x,bits) := x_bits in 
+                 (x, bitvec16PayloadMap.f bits))
+              (zip InputEnv.Ix.enumerate_t (AxVec_to_list img))).
+
+Definition Y_of_OutputIx (ix:Output.Ix.t) : Y := Output.Ix.Ordinal_of_t ix.
+
+Definition predict (h:Hypers) (p:Params) (img:X) : Y :=
+  let: outs := TheNet.F.seval
+                 (translate_kernel p)
+                 (TheNet.F.Forest.of_list
+                    (combine (Forest.Ix.enumerate_t) (rev outputs)))
+                 (InputEnv_of_X img)
+  in Y_of_OutputIx (Output.argmax Dlt_bool outs).
 
 Open Scope list_scope.
 Notation "\'i\' ( x )":=(NIn x) (at level 65).
@@ -165,6 +194,13 @@ Notation "\'V\' ( x )":=(@AxVec_of_list _ _ x) (at level 65).
 Notation "\'T\'":=(true) (at level 65).
 Notation "\'F\'":=(false) (at level 65).
 """.format(IN, IN, NEURONS, NEURONS, OUT, OUT)
+
+def the_postamble():
+    return """
+Definition tf_learner
+  : learners.Learner.t X Y Hypers Params
+  := OracleLearner kernel predict.
+"""
 
 def translate_code():
     return 'Definition theta := translate_kernel kernel.\n'
@@ -192,17 +228,7 @@ def to_coq(IN, NEURONS, OUT, kernel, layers):
     out += the_preamble(IN, NEURONS, OUT)
     out += '\nDefinition kernel := ' + kernel + '.\n'
     out += translate_code()
-    out += declare_inputs(IN) + '\n'
-    out += declare_weights(IN*NEURONS + NEURONS*OUT) + '\n'
-    for i in range(len(layers)):
-        layer = layers[i]
-        for j in range(len(layer)):
-            net = layer[j]
-            out += 'Definition n_' + str(i) + '_' + str(j) + ':=' \
-                   + net_to_coq(net) + '.\n'
-    out += 'Definition outputs:=' + \
-           ''.join(['n_' + str(len(layers)-1) + '_' + str(i) + '::'
-            for i in range(len(layers[-1]))]) + 'nil.\n'
+    out += the_postamble()
     return out
 
 images = load_images('test_images.pkl.gz')
