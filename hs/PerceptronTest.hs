@@ -13,10 +13,14 @@ fromNat O = 0
 fromNat (S n) = 1 + fromNat n
 
 n = fromInt 2 --the number of dimensions
-m = fromInt 7500 --the number of samples
+--m = fromInt 7500 --the number of samples
+-- The following m is better for plotting:
+m = fromInt 20 -- 7500 --the number of samples
 epochs = fromInt 5
 
-hypers = MkHypers 1.0 (fromIntegral (fromNat m) / 2.0)
+--hypers = MkHypers 1.0 (fromIntegral (fromNat m) / 2.0)
+-- The following theta is better for plotting:
+hypers = MkHypers 1.0 0.0
 
 dist _ = -1.0 --not used in sampler below
 
@@ -26,7 +30,20 @@ init_weights = take (fromNat n) $ repeat 0.0
 init_bias :: Bias
 init_bias = 0.0
 
-sampler hyperplane _ f = training_set hyperplane n m >>= f
+print_training_set [] = return ()
+print_training_set ((xs,y) : t) =
+  let print_xs [] = return ()
+      print_xs (x : xs) = putStr (show x) >> putStr "," >> print_xs xs
+  in
+  do { print_xs xs
+     ; putStrLn (show y)
+     ; print_training_set t }
+
+sampler hyperplane _ f =
+  do { t <- training_set hyperplane n m
+     ; putStrLn "Training Set:"
+     ; print_training_set t
+     ; f t }
 
 training_example O = return []
 training_example (S n) =
@@ -60,10 +77,11 @@ print_generalization_err test (model, training) =
       percent_correct_test
         = fromIntegral (sum $ corrects test) / fromIntegral (fromNat m)
   in putStrLn
-     $ "Training: " ++ show percent_correct_training ++ "\n"
-        ++ "Test: " ++ show percent_correct_test ++ "\n"
-        ++ "Generalization Error: "
-        ++ show (percent_correct_training - percent_correct_test)
+     $ "Model: " ++ show model ++ "\n"
+       ++ "Training: " ++ show percent_correct_training ++ "\n"
+       ++ "Test: " ++ show percent_correct_test ++ "\n"
+       ++ "Generalization Error: "
+       ++ show (percent_correct_training - percent_correct_test)
 
 main =
   do { hyperplane <- training_example n
