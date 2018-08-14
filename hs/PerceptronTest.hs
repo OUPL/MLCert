@@ -12,7 +12,7 @@ fromInt n | n > 0 = S (fromInt $ n - 1)
 fromNat O = 0
 fromNat (S n) = 1 + fromNat n
 
-n = fromInt 2 --the number of dimensions
+n = fromInt 3 --the number of dimensions
 --m = fromInt 7500 --the number of samples
 -- The following m is better for plotting:
 m = fromInt 20 -- 7500 --the number of samples
@@ -65,7 +65,7 @@ training_set hyperplane n (S m)
        ; return $ r : t }
 
 test_set = training_set
-  
+
 print_generalization_err test (model, training) =
   let corrects dataset = 
         map (\(example, label) ->
