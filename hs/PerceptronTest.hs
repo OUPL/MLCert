@@ -18,9 +18,7 @@ n = fromInt 3 --the number of dimensions
 m = fromInt 20 -- 7500 --the number of samples
 epochs = fromInt 5
 
---hypers = MkHypers 1.0 (fromIntegral (fromNat m) / 2.0)
--- The following theta is better for plotting:
-hypers = MkHypers 1.0 0.0
+hypers = 1.0
 
 dist _ = -1.0 --not used in sampler below
 
@@ -52,7 +50,7 @@ training_example (S n) =
      ; return $ r : e }
 training_row hyperplane n = 
   do { example <- training_example n
-     ; let label = predict n 0.0 (hyperplane, init_bias) example
+     ; let label = predict n (hyperplane, init_bias) example
      ; return (example, label) }
   where int2bool :: Int -> Bool
         int2bool 0 = False
@@ -69,7 +67,7 @@ test_set = training_set
 print_generalization_err test (model, training) =
   let corrects dataset = 
         map (\(example, label) ->
-                if predict n (theta hypers) model example == label
+                if predict n model example == label
                 then 1 :: Int
                 else 0) dataset
       percent_correct_training

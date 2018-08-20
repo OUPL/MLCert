@@ -12,7 +12,6 @@ Require Import MLCert.float32 MLCert.learners MLCert.extraction_hs MLCert.monads
 
 Section LinearThresholdClassifier.
   Variable n : nat. (*the dimensionality*)
-  Variable theta : float32. (*the threshold*)
 
   Definition A := float32_arr n. (*examples*)
   Definition B := bool. (*labels*)
@@ -24,7 +23,7 @@ Section LinearThresholdClassifier.
     Open Scope f32_scope.
     Definition predict (p : Params) (a : A) : B :=
       let: (w, b) := p in
-      f32_dot w a + b > theta.
+      f32_dot w a + b > 0.
   End predict.
 End LinearThresholdClassifier.
 
@@ -38,21 +37,20 @@ Module Perceptron.
     Record Hypers : Type :=
       mkHypers { 
         alpha : float32;
-        theta : float32
       }.
 
     Open Scope f32_scope.
 
     Definition update (h:Hypers) (example_label:A*B) (p:Params) : Params :=
       let: (example, label) := example_label in
-      let: predicted_label := predict (theta h) p example in
+      let: predicted_label := predict p example in
       if Bool.eqb predicted_label label then p
       else let: (w, b) := p in
            (f32_map2 (fun x1 x2 => x1 + (alpha h)*label*x2) w example, b+label).
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
-        (fun h => @predict n (theta h))
+        (fun h => @predict n)
         update.
   End Learner.
 End Perceptron.
