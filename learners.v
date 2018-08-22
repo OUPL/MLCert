@@ -214,3 +214,65 @@ Section oracular_semantics.
     apply big_sum_le => c; rewrite /in_mem Rmult_1_r /= => _; apply: Rle_refl.
   Qed.
 End oracular_semantics.
+
+Section oracular_holdout_semantics.
+  Variables X Y Params : finType. 
+  Variable Hypers : Type.
+  Variable learner : Learner.t X Y Hypers Params.
+  Variable h : Hypers.
+  Variable m : nat.
+  Variable m_gt0 : (0 < m)%nat.
+  Notation C := (@Cont R).
+
+  Variable oracle : training_set X Y m -> Params.
+
+  Notation semantic_sample m := (@semantic_sample X Y m).
+  Notation accuracy := (@accuracy X Y Params Hypers learner h m).
+  Notation post := (@post X Y Params Hypers learner h m m_gt0).
+
+  Definition eps_hyp_ok (d:X*Y -> R) (eps:R) (t:training_set X Y m) : bool :=
+    Rlt_le_dec eps 
+      (1 - (expVal (A:=X) (B:=Y) d m_gt0 (Hyp:=Params)
+                  (accuracy01 (A:=X) (B:=Y) (Params:=Params) (Learner.predict learner h)) (oracle t))).      
+    
+  Definition oracular_holdout_main (d:X*Y -> R) (eps:R) (init:Params) 
+    : C (Params * training_set X Y m) :=
+    T_train <-- semantic_sample m d;
+    _ <-- observe (eps_hyp_ok d eps) T_train;            
+    p <-- ret (oracle T_train);
+    T_test <-- semantic_sample m d;
+    observe (post d eps) (p,T_test).
+
+  Variables
+    (d:X*Y -> R) 
+    (d_dist : big_sum (enum [finType of X*Y]) d = 1)
+    (d_nonneg : forall x, 0 <= d x) 
+    (mut_ind : forall p : Params, mutual_independence d (accuracy p))
+    (not_perfectly_learnable : 
+      forall p : Params, 0 < expVal d m_gt0 accuracy p < 1).
+
+  Lemma oracular_holdout_main_bound (eps:R) (eps_gt0 : 0 < eps) (init:Params) :
+    oracular_holdout_main d eps init (fun _ => 1) <= 
+    exp (-2%R * eps^2 * mR m).
+  Proof.
+    rewrite /oracular_holdout_main/bind/=/Cbind/Cret.
+    rewrite /(semantic_sample m)/Cbind/=/Cbind.
+    have H:
+      big_sum (enum {ffun 'I_m -> X * Y})
+       (fun T : {ffun 'I_m -> X * Y} =>
+          exp (- (2) * (eps * (eps * 1)) * mR m) *
+          prodR (T:=prod_finType X Y) (fun _ : 'I_m => d) T) =
+      exp (- (2) * (eps * (eps * 1)) * mR m).
+    { by rewrite big_sum_scalar prodR_dist => //; rewrite Rmult_1_r. }
+    rewrite -H; apply: big_sum_le => T_train Htrain.
+    rewrite [exp _ * _]Rmult_comm; apply: Rmult_le_compat_l; first by apply: prodR_nonneg.
+    rewrite /observe; case Heps: (eps_hyp_ok _ _); last by apply: Rlt_le; apply: exp_pos.
+    apply: Rle_trans; last first.
+    { apply: (@chernoff_bound_accuracy01_holdout
+                _ _ _ d_dist d_nonneg _ _ _ _ mut_ind not_perfectly_learnable
+                (oracle T_train) eps) => //.
+      move: Heps; rewrite /eps_hyp_ok; case: (Rlt_le_dec _ _) => // Hlt. }
+    rewrite /probOfR big_sum_pred2; apply: big_sum_le => T_test Htest.
+    by rewrite Rmult_1_r; apply: Rle_refl.
+  Qed.                                                 
+End oracular_holdout_semantics.
