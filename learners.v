@@ -296,7 +296,7 @@ Section oracular_holdout_semantics.
       (1 - (expVal (A:=X) (B:=Y) d m_gt0 (Hyp:=Params)
                   (accuracy01 (A:=X) (B:=Y) (Params:=Params) (Learner.predict learner h)) (oracle t))).      
     
-  Definition oracular_holdout_main (d:X*Y -> R) (eps:R) (init:Params) 
+  Definition oracular_main_holdout (d:X*Y -> R) (eps:R) (init:Params) 
     : C (Params * training_set X Y m) :=
     T_train <-- semantic_sample m d;
     _ <-- observe (eps_hyp_ok d eps) T_train;            
@@ -312,11 +312,11 @@ Section oracular_holdout_semantics.
     (not_perfectly_learnable : 
       forall p : Params, 0 < expVal d m_gt0 accuracy p < 1).
 
-  Lemma oracular_holdout_main_bound (eps:R) (eps_gt0 : 0 < eps) (init:Params) :
-    oracular_holdout_main d eps init (fun _ => 1) <= 
+  Lemma oracular_main_holdout_bound (eps:R) (eps_gt0 : 0 < eps) (init:Params) :
+    oracular_main_holdout d eps init (fun _ => 1) <= 
     exp (-2%R * eps^2 * mR m).
   Proof.
-    rewrite /oracular_holdout_main/bind/=/Cbind/Cret.
+    rewrite /oracular_main_holdout/bind/=/Cbind/Cret.
     rewrite /(semantic_sample m)/Cbind/=/Cbind.
     have H:
       big_sum (enum {ffun 'I_m -> X * Y})
