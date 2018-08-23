@@ -19,7 +19,7 @@ test_images:
 	python3 make_test_images.py # make test_images.pkl.gz
 
 batches:
-	python3 make_simple_data.py $(NUM_BATCHES) # make batches
+	python3 make_simple_data.py $(NUM_BATCHES) False # make batches (False->train+validation sets)
 
 move:
 	cp models/default/params.pkl.gz ../params.pkl.gz # copy model parameters

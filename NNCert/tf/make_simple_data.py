@@ -9,6 +9,12 @@ N = 16
 BATCH_SIZE = 100
 
 num_batches = int(sys.argv[1])
+if sys.argv[2] == "True":
+    test_batches = True
+elif sys.argv[2] == "False":
+    test_batches = False
+else:
+    print("USAGE: python3 make_simple_data.py <num-batches> <test-batches(=True|False)>")
 
 # with open('emnist/all.pkl', 'rb') as f:
 # with open('emnist/test.pkl', 'rb') as f:
@@ -16,14 +22,24 @@ with open('emnist/train.pkl', 'rb') as f:
     train_data = pickle.load(f, encoding='latin1')
 with open('emnist/validation.pkl', 'rb') as f:
     validation_data = pickle.load(f, encoding='latin1')
+with open('emnist/test.pkl', 'rb') as f:
+    test_data = pickle.load(f, encoding='latin1')
 
 train_images = train_data.images
 train_labels = train_data.labels
 validation_images = validation_data.images
 validation_labels = validation_data.labels
+test_images = validation_data.images
+test_labels = validation_data.labels
 
-images = np.concatenate([train_images, validation_images], axis=0)
-labels = np.concatenate([train_labels, validation_labels], axis=0)
+if test_batches:
+    print('Building test batches')
+    images = np.concatenate([test_images], axis=0)
+    labels = np.concatenate([test_labels], axis=0)
+else:
+    print('Building train+validation batches')
+    images = np.concatenate([train_images, validation_images], axis=0)
+    labels = np.concatenate([train_labels, validation_labels], axis=0)
 
 print(images.shape)
 
