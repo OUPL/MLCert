@@ -160,12 +160,22 @@ def the_postamble():
 Definition m : nat := 240 * 1000. (*240000 causes stack overflow*)
 Lemma m_gt0 : 0 < m. Proof. by []. Qed.
 
+Definition mtest : nat := 40 * 1000.
+Lemma mtest_gt0 : 0 < mtest. Proof. by []. Qed.
+
 Definition tf_learner
   : Learner.t XFin Y Hypers ParamsFin
   := OracleLearner kernel predict. 
 
 Notation tf_main :=
   (@oracular_main XFin [finType of Y] ParamsFin Hypers tf_learner tt m m_gt0 (fun _ => kernel)).
+
+Notation tf_main_holdout :=
+  (@oracular_main_holdout
+     XFin [finType of Y] ParamsFin Hypers tf_learner tt
+     m m_gt0 mtest mtest_gt0 (fun _ _ => kernel)).
+
+Notation accuracy_holdout := (@accuracy XFin [finType of Y] ParamsFin Hypers tf_learner tt mtest).
 
 Notation accuracy := (@accuracy XFin [finType of Y] ParamsFin Hypers tf_learner tt m).
 
@@ -190,6 +200,20 @@ Proof.
   apply: Rle_refl.
 Qed.
 End tf_bound.
+
+Section tf_holdout_bound.
+  Variables
+    (d:XFin*Y -> R) 
+    (d_dist : big_sum (enum [finType of XFin*Y]) d = 1)
+    (d_nonneg : forall x, 0 <= d x) 
+    (mut_ind : forall p : ParamsFin, mutual_independence (m:=mtest) d (accuracy_holdout p))
+    (not_perfectly_learnable : 
+      forall p : ParamsFin, 0 < expVal d mtest_gt0 accuracy_holdout p < 1).
+
+Lemma tf_main_holdout_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
+  tf_main_holdout d eps init (fun _ => 1) <= exp (-2%R * eps^2 * mR mtest).
+Proof. by apply: oracular_main_holdout_bound. Qed.
+End tf_holdout_bound.
 """
 
 # Given the min and max quantization parameters, compute the
