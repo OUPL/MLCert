@@ -29,13 +29,11 @@ train_images = train_data.images
 train_labels = train_data.labels
 validation_images = validation_data.images
 validation_labels = validation_data.labels
-test_images = validation_data.images
-test_labels = validation_data.labels
 
 if test_batches:
     print('Building test batches')
-    images = np.concatenate([test_images], axis=0)
-    labels = np.concatenate([test_labels], axis=0)
+    images = test_data.images
+    labels = test_data.labels
 else:
     print('Building train+validation batches')
     images = np.concatenate([train_images, validation_images], axis=0)
