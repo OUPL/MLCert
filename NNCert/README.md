@@ -69,6 +69,6 @@ an OCaml model (previous step), do:
 * `rm batch_test.mli` (This is to avoid an extraction problem related to module interfaces.)
 * `ocamlopt -o batch_test batch_test.ml`
 * `cd scripts`
-* `./train_err ../batch_test <log-file> 2400 <chunk-size>` where `<chunk-size>` is the number of batches you want to evaluate in parallel (this number should evenly divide `2400`, a reasonable value is `4`)
+* `./train_err ../batch_test <log-file> <batches-dir> <num-batches> <chunk-size>` where `<chunk-size>` is the number of batches you want to evaluate in parallel (this number should evenly divide `<num-batches>`, a reasonable value is `4`)
 * Wait a long time...
 * `python3 accuracy.py < <log-file>` to report total accuracy
