@@ -5,6 +5,8 @@ from batch_gen import batch_gen
 from dataset_params import choose_dataset
 from eval import evaluate
 
+from scipy.cluster.vq import kmeans, vq, whiten
+
 def init_session():
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
     sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
@@ -13,8 +15,8 @@ def init_session():
 
 # Train the model one minibatch at a time, occasionally printing the
 # loss/accuracy on the training data and saving the weights.
-def train_model(model, x, y, loss_op, pred_op, weights, train_images,
-                train_labels):
+def train_model(model, x, y, loss_op, pred_op, weights,
+                train_images, train_labels):
     train_op = model.training(loss_op, x, FLAGS.learning_rate,
                               FLAGS.decay_step, FLAGS.decay_factor)
 
@@ -27,6 +29,9 @@ def train_model(model, x, y, loss_op, pred_op, weights, train_images,
     minibatch_gen = batch_gen(FLAGS.batch_size, train_images.shape[0],
                               max_batches=FLAGS.max_steps, replace=True)
 
+    highest_acc = 0.0
+    # i = 0
+
     print("training model...")
 
     start_time = time.time()
@@ -34,7 +39,7 @@ def train_model(model, x, y, loss_op, pred_op, weights, train_images,
         batch_images, batch_labels = train_images[minibatch], \
                                      train_labels[minibatch]
 
-        feed_dict = {x: batch_images, y: batch_labels}
+        feed_dict = {x: batch_images, y: batch_labels }
 
         _, loss_values, summary = sess.run([train_op, loss_op, summary_op],
                                            feed_dict=feed_dict)
@@ -53,14 +58,17 @@ def train_model(model, x, y, loss_op, pred_op, weights, train_images,
                                num_bits=FLAGS.bits)
             acc = evaluate(sess, x, y, pred_op, train_images, train_labels,
                            FLAGS.batch_size)
-            # model.test_weights(sess, weights, num_bits=FLAGS.bits)
+            highest_acc = max(acc, highest_acc)
             if (acc >= FLAGS.stop):
                 print("Reached stopping accuracy.")
                 return
             
     evaluate(sess, x, y, pred_op, train_images, train_labels,
              FLAGS.batch_size)
+
     model.save_weights(sess, weights, FLAGS.model_dir, num_bits=FLAGS.bits)
+    print("highest accuracy: %f" % highest_acc)
+
 
 def main(argv):
     # Load parameters and data for the chosen dataset.
@@ -69,9 +77,10 @@ def main(argv):
     train_data, validation_data, _ = load_data()
 
     # Combine train and validation sets for training
-    images = np.concatenate([train_data.images, validation_data.images],
-                            axis=0)
-    labels = np.concatenate([train_data.labels, validation_data.labels])
+    # images = np.concatenate([train_data.images, validation_data.images],
+    #                         axis=0)
+    # labels = np.concatenate([train_data.labels, validation_data.labels])
+    images, labels = train_data.images, train_data.labels
 
     with tf.Graph().as_default():
 
@@ -85,8 +94,7 @@ def main(argv):
         pred_op = model.predictions(logits)
 
         # Go
-        train_model(model, x, y, loss_op, pred_op, weights,
-                    images, labels)
+        train_model(model, x, y, loss_op, pred_op, weights, images, labels)
 
 
 if __name__ == '__main__':
@@ -131,7 +139,7 @@ if __name__ == '__main__':
         '--dataset',
         type=str,
         default='mnist',
-        help='MNIST or EMNIST'
+        help='MNIST, EMNIST, or EMNIST_reduced'
     )
     parser.add_argument(
         '--bits',

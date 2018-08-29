@@ -4,7 +4,6 @@ import struct
 
 # Generate batch files to be loaded by Coq/OCaml.
 
-# Number of bits (e.g., 16 or 32) per floating-point parameter
 N = 16
 BATCH_SIZE = 100
 
@@ -12,18 +11,23 @@ num_batches = int(sys.argv[1])
 
 # with open('emnist/all.pkl', 'rb') as f:
 # with open('emnist/test.pkl', 'rb') as f:
+
 with open('emnist/train.pkl', 'rb') as f:
+# with open('emnist/train_reduced.pkl', 'rb') as f:
     train_data = pickle.load(f, encoding='latin1')
-with open('emnist/validation.pkl', 'rb') as f:
-    validation_data = pickle.load(f, encoding='latin1')
+# with open('emnist/validation.pkl', 'rb') as f:
+#     validation_data = pickle.load(f, encoding='latin1')
 
-train_images = train_data.images
-train_labels = train_data.labels
-validation_images = validation_data.images
-validation_labels = validation_data.labels
+# train_images = train_data.images
+# train_labels = train_data.labels
+# validation_images = validation_data.images
+# validation_labels = validation_data.labels
 
-images = np.concatenate([train_images, validation_images], axis=0)
-labels = np.concatenate([train_labels, validation_labels], axis=0)
+# images = np.concatenate([train_images, validation_images], axis=0)
+# labels = np.concatenate([train_labels, validation_labels], axis=0)
+
+images = train_data.images
+labels = train_data.labels
 
 print(images.shape)
 
@@ -58,12 +62,23 @@ def encode_image(image):
 #
 # The dense encoding simplifies the axiomatized file I/O in empiricalloss.v.
 
+# image = images[0]
+# encoded = encode_image(image)
+# # decoded = list(map(lambda x: bin(np.float16(x).view('H'))[2:].zfill(16), encoded))
+# # decoded2 = list(map(lambda f: struct.unpack('f', struct.pack('I', f))[0], decoded))
+# # decoded = list(map(lambda x: struct.unpack('f', struct.pack('I', x))[0], encoded))
+
+# print(image)
+# print(encoded)
+# print(decoded)
+# exit()
+
 os.makedirs('../extract/batches', exist_ok=True)
 # for i in range(0, images.shape[0], BATCH_SIZE):
 for i in range(0, num_batches * BATCH_SIZE, BATCH_SIZE):
     batch_images = images[i:i+BATCH_SIZE,:]
     batch_labels = labels[i:i+BATCH_SIZE]
-    print(batch_labels)
+    # print(batch_labels)
     encoded_images = list(map(encode_image, batch_images))
     with open('../extract/batches/batch_' + str(i//BATCH_SIZE), 'w') as f:
         for j in range(BATCH_SIZE):
@@ -99,7 +114,6 @@ if N == 16:
     # b = b + '0'*16
     b = '0'*16 + b
 f = int(b, 2)
-# print(struct.unpack('f', struct.pack('I', f))[0])
 print(struct.unpack('f', struct.pack('I', f))[0])
 # f = struct.unpack('f', b)
 # print(f)
