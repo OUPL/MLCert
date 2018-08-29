@@ -20,18 +20,44 @@ def epsilon(size_parameter_space, num_examples):
         eps = min_eps + (max_eps - min_eps)/2.0
     return eps
 
+# Calculate epsilon by solving the equation:
+# 2^(size_parameter_space_bits) * exp(-2*\eps^2*m) = 10e-9
+def epsilon2(size_parameter_space_bits, num_examples):
+#    2^(size_parameter_space_bits) * exp(-2*eps*eps*num_examples) = 10e-9
+#    exp(size_parameter_space_bits * log(2)) * exp(-2*eps*eps*num_examples) = 10e-9
+#    log(exp(size_parameter_space_bits * log(2)) * exp(-2*eps*eps*num_examples)) = log(10e-9)
+#    size_parameter_bits*log(2) + -2*eps*eps*num_examples = log(10e-9)
+#    -2*eps*eps*num_examples = log(10e-9) - (size_parameter_space_bits*log(2))
+#    eps = sqrt ( (log(10e-9) - size_parameter_space_bits*log(2)) / (-2*num_examples) )
+    return N(sqrt( (log(10e-9) - size_parameter_space_bits*log(2)) / (-2*num_examples) ))
+
+def epsilon_twoways(name, size_parameter_space_bits, num_examples):
+    print(name + ": epsilon={}".format(epsilon(N(2**size_parameter_space_bits), N(num_examples))))
+    print(name + ": epsilon2={}".format(epsilon2(size_parameter_space_bits, N(num_examples))))    
+
+print(epsilon_twoways("test", 0, 40000))
+    
 emnist_training_set_size=240000
 emnist_test_set_size=40000
 
-print("UNION: 2-bit quantized EMNIST, one 10-node hidden layer: eps={}".format(epsilon(N(2**(4*16 + 10*784*2 + 10*10*2)), N(emnist_training_set_size))))
+params_bits_2bit_784_10_10 = 4*16 + 784*10*2 + 10*10*2
+params_bits_16bit_784_10_10 = 4*16 + 784*10*16 + 10*10*16
 
-print("UNION: 16-bit EMNIST, one 10-node hidden layer: eps={}".format(epsilon(N(2**(4*16 + 10*784*16 + 10*10*16)), N(emnist_training_set_size))))
+epsilon_twoways(
+    "UNION: 2-bit quantized EMNIST, one 10-node hidden layer",
+    params_bits_2bit_784_10_10,
+    emnist_training_set_size)
+
+epsilon_twoways(
+    "UNION: 16-bit quantized EMNIST, one 10-node hidden layer",
+    params_bits_16bit_784_10_10,
+    emnist_training_set_size)
 
 #The holdout bounds are independent of model size.
 
-print("HOLDOUT: 2-bit quantized EMNIST, one 10-node hidden layer: eps={}".format(epsilon(N(1), N(emnist_test_set_size))))
+epsilon_twoways("HOLDOUT: 2-bit quantized EMNIST, one 10-node hidden layer", 0, emnist_test_set_size)
 
-print("HOLDOUT: 16-bit quantized EMNIST, one 10-node hidden layer: eps={}".format(epsilon(N(1), N(emnist_test_set_size))))
+epsilon_twoways("HOLDOUT: 16-bit quantized EMNIST, one 10-node hidden layer", 0, emnist_test_set_size)
 
 
 
