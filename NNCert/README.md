@@ -1,11 +1,12 @@
 # NNCert
 
-Neural networks with verified generalizability in Coq
+This directory contains code for training and transferring to Coq neural networks with verified generalizability bounds, building on the results in the parent directory `OUPL/MLCert`.
 
-## Python compile script prerequisites
+## Prerequisites
 
 * Python 3 (tested with 3.5.2)
 * numpy (>= 1.12.1)
+* TensorFlow (tested with 1.6.0)
 
 ## Train a network
 
