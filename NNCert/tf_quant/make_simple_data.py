@@ -12,8 +12,8 @@ num_batches = int(sys.argv[1])
 # with open('emnist/all.pkl', 'rb') as f:
 # with open('emnist/test.pkl', 'rb') as f:
 
-with open('emnist/train.pkl', 'rb') as f:
-# with open('emnist/train_reduced.pkl', 'rb') as f:
+# with open('emnist/train.pkl', 'rb') as f:
+with open('emnist/train_reduced.pkl', 'rb') as f:
     train_data = pickle.load(f, encoding='latin1')
 # with open('emnist/validation.pkl', 'rb') as f:
 #     validation_data = pickle.load(f, encoding='latin1')

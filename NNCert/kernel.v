@@ -7,12 +7,13 @@ From mathcomp Require Import all_algebra.
 
 Require Import List NArith ZArith ProofIrrelevance. Import ListNotations.
 Require Import micromega.Lia.
+Require Import Coq.Program.Basics.
 
 Require Import OUVerT.dyadic OUVerT.numerics OUVerT.vector OUVerT.compile.
 
 Require Import MLCert.axioms MLCert.bitvectors.
 
-Require Import bitnet net.
+Require Import bitnet net print.
 
 
 (** We could use flattened vectors instead of matrices I guess but
@@ -279,3 +280,29 @@ Proof.
   rewrite -!multE; rewrite <-!Nat.pow_add_r; rewrite !multE; reflexivity.
 Qed.  
 
+
+(** Printing *)
+
+Definition bimap {A B C D} (f : A -> C) (g : B -> D) : A*B -> C*D :=
+  fun p => (f (fst p), g (snd p)).
+
+Open Scope program_scope.
+
+Module PrintKernel (IN N OUT : BOUND) (S T : TYPE)
+       (F : PayloadMap S) (G : PayloadMap T).
+  Notation KernelType := (Kernel.t IN.n N.n OUT.n S.t T.t).
+
+  Definition print_ss :=
+    print_pair print_DRed print_DRed ∘ bimap F.f F.f.
+
+  Definition print_layer {n m : nat} :=
+    @print_matrix _ n m print_DRed ∘ matrix_map G.f.
+
+  (* Use let bindings to force left-to-right evaluation order. *)
+  Definition print (k : KernelType) :=
+    let x := (print_newline ∘ print_ss) (Kernel.ss1 k) in
+    let y := (print_newline ∘ print_ss) (Kernel.ss2 k) in
+    let z := (print_layer) (Kernel.layer1 k) in
+    let w := (print_layer) (Kernel.layer2 k) in
+    (x, y, z, w).
+End PrintKernel.

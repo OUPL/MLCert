@@ -98,9 +98,24 @@ def test_weights(sess, quantized_weights, num_bits=8):
                             num_bits=num_bits)
     print(w0[0])
 
-def save_weights(sess, weights_op, dir='models', num_bits=8):
+# def save_weights(sess, weights_op, dir='models', num_bits=8):
+#     os.makedirs(dir, exist_ok=True)
+#     weights = sess.run(weights_op, feed_dict = {})
+#     bounds = [x.eval(sess) for x in
+#               filter(lambda x: 'min:0' in x.name or 'max:0' in x.name,
+#                      tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))]
+
+#     quantized = [quantize_ndarray(weights[0], bounds[0], bounds[1],
+#                                   num_bits=num_bits),
+#                  quantize_ndarray(weights[1], bounds[2], bounds[3],
+#                                   num_bits=num_bits)]
+
+#     all_vars = quantized + bounds
+#     with gzip.open(dir + "/params.pkl.gz", "w") as f:
+#         pickle.dump(tuple(all_vars), f)
+
+def save_weights(sess, weights, dir='models', num_bits=8):
     os.makedirs(dir, exist_ok=True)
-    weights = sess.run(weights_op, feed_dict = {})
     bounds = [x.eval(sess) for x in
               filter(lambda x: 'min:0' in x.name or 'max:0' in x.name,
                      tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))]
@@ -110,10 +125,26 @@ def save_weights(sess, weights_op, dir='models', num_bits=8):
                  quantize_ndarray(weights[1], bounds[2], bounds[3],
                                   num_bits=num_bits)]
 
+    print(quantized)
+
     all_vars = quantized + bounds
     with gzip.open(dir + "/params.pkl.gz", "w") as f:
         pickle.dump(tuple(all_vars), f)
 
+def print_weights(sess, weights, num_bits=8):
+    bounds = [x.eval(sess) for x in
+              filter(lambda x: 'min:0' in x.name or 'max:0' in x.name,
+                     tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))]
+
+    quantized = [quantize_ndarray(weights[0], bounds[0], bounds[1],
+                                  num_bits=num_bits),
+                 quantize_ndarray(weights[1], bounds[2], bounds[3],
+                                  num_bits=num_bits)]
+
+    print(quantized)
+
+def get_weights(sess, weights_op):
+    return sess.run(weights_op, feed_dict = {})
 
 def load_weights(sess, dir, model_name='mnist', num_bits=8):
     filename = dir + '/params.pkl.gz' if dir else 'params.pkl.gz'

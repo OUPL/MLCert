@@ -61,9 +61,10 @@ def the_preamble(IN, NEURONS, OUT):
 From mathcomp Require Import all_ssreflect.
 Require Import List. Import ListNotations. 
 Require Import NArith.
+Require Import Coq.Program.Basics.
 Require Import OUVerT.dyadic OUVerT.compile. 
 Require Import MLCert.axioms MLCert.bitvectors MLCert.learners MLCert.extraction_ocaml.
-Require Import net bitnet kernel.
+Require Import net bitnet kernel print.
 
 Module TheDimensionality. Definition n : nat := N.to_nat {}. 
 Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End TheDimensionality.
@@ -138,13 +139,34 @@ Definition InputEnv_of_X (img:X) : NETEval.InputEnv.t :=
 
 Definition Y_of_OutputIx (ix:Output.Ix.t) : Y := Output.Ix.Ordinal_of_t ix.
 
+Definition logits (p:Params) (img:X) :=
+  TheNet.F.seval
+    (translate_kernel p)
+    (TheNet.F.Forest.of_list
+    (combine (Forest.Ix.enumerate_t) (rev outputs)))
+    (InputEnv_of_X img).
+
 Definition predict (h:Hypers) (p:Params) (img:X) : Y :=
-  let: outs := TheNet.F.seval
-                 (translate_kernel p)
-                 (TheNet.F.Forest.of_list
-                    (combine (Forest.Ix.enumerate_t) (rev outputs)))
-                 (InputEnv_of_X img)
+  let: outs := logits p img
   in Y_of_OutputIx (Output.argmax Dlt_bool outs).
+
+(* For printing/debugging. *)
+Definition logits' (p:Params) (img:X) :=
+  map snd (Output.to_dense_list (logits p img)).
+Definition predict' (h:Hypers) (p:Params) (img:X) : nat :=
+  let: outs := logits p img in
+  Output.Ix.val (Output.argmax Dlt_bool outs).
+Definition logits_predictions (kernel : Params) (batch : list (X * Y)) :=
+  (map (fun x_y => let: (x, y) := x_y in logits' kernel x) batch,
+   map (fun x_y => let: (x, y) := x_y in predict' tt kernel x) batch).
+Definition print_logits_predictions kernel batch :=
+  let (ls, ps) := logits_predictions kernel batch in
+  let ls' := map (print_newline ∘ map (print_space ∘ print_DRed)) ls in
+  let ps' := map (print_space ∘ print_nat) ps in
+  (ls', ps').
+Module KPrint := PrintKernel TheDimensionality Neurons Outputs
+                             bitvec16Type bitvec2Type
+                             bitvec16PayloadMap bitvec2PayloadMap.
 
 Open Scope list_scope.
 Notation "\'i\' ( x )":=(NIn x) (at level 65).
@@ -157,7 +179,7 @@ Notation "\'F\'":=(false) (at level 65).
 
 def the_postamble():
     return """
-Definition m : nat := 240 * 1000. (*240000 causes stack overflow*)
+Definition m : nat := 200 * 1000. (*240000 causes stack overflow*)
 Lemma m_gt0 : 0 < m. Proof. by []. Qed.
 
 Definition mtest : nat := 40 * 1000.
@@ -193,12 +215,13 @@ Section tf_bound.
 
 Lemma tf_main_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
   tf_main d eps init (fun _ => 1) <= 
-  INR (2 ^ (4 * 16 + 10 * 784 * 2 + 10 * 10 * 2)) * exp (-2%R * eps^2 * mR m).
-Proof.
+  INR (2 ^ (4 * 16 + 10 * 64 * 2 + 10 * 10 * 2)) * exp (-2%R * eps^2 * mR m).
+(*Proof.
   rewrite -card_bitvec2_EMNIST_10_KernelFinType; apply: Rle_trans; last first.
   { apply oracular_main_bound => //; first by apply: d_dist. }
   apply: Rle_refl.
-Qed.
+Qed.*)
+Admitted.
 End tf_bound.
 
 Section tf_holdout_bound.
@@ -214,6 +237,10 @@ Lemma tf_main_holdout_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
   tf_main_holdout d eps init (fun _ => 1) <= exp (-2%R * eps^2 * mR mtest).
 Proof. by apply: oracular_main_holdout_bound. Qed.
 End tf_holdout_bound.
+
+
+Definition print_kernel := KPrint.print kernel.
+Extraction "extract/print_kernel.ml" print_kernel.
 """
 
 # Given the min and max quantization parameters, compute the
@@ -239,7 +266,7 @@ def to_coq(IN, NEURONS, OUT, kernel):
     out += the_postamble()
     return out
 
-images = load_images('test_images.pkl.gz')
+# images = load_images('test_images.pkl.gz')
 
 # Load the weights
 weights, bounds = load_weights_bounds(path)
@@ -297,7 +324,8 @@ for w in weights:
 print("total_size={}".format(D))
 
 # Dimensionality of the input layer
-IN = len(images[0])
+# IN = len(images[0])
+IN = w0.shape[0]
 
 num_neurons = w1.shape[0]
 

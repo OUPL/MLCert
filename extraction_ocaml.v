@@ -15,6 +15,7 @@ Require Import MLCert.axioms.
 Extraction Language OCaml.
 
 Extract Inductive list => "list" [ "[]" "( :: )" ].
+Extract Inductive prod => "( * )" [ "" ].
 Extract Inductive unit => "unit" [ "()" ].
 Extract Inductive bool => "bool" [ "true" "false" ].
 
@@ -25,6 +26,8 @@ Extract Constant AxVec "'t" => "('t list)".
   to OCaml lists (see the 'Extract Inductive list' directive above).*)
 Extract Constant AxVec_to_list => "(fun _ l -> l)".
 Extract Constant AxVec_of_list => "(fun _ l -> l)".
+
+Extract Constant AxVec_map => "fun _ f l -> List.map f l".
 
 (* (*AxVec Tests*) *)
 (* Require Import List. *)

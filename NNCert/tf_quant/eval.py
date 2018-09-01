@@ -30,14 +30,14 @@ def evaluate(sess, x, y, pred_op, images, labels, batch_size):
 def compute_logits(sess, x, logits_op, images, batch_size):
     images = images[:100]
     logits = run_batches(sess, logits_op, [x], [images], batch_size)
-    # for l in logits:
-    #     print(l)
-    print(logits[0])
+    for l in logits[::-1]:
+        print(l[::-1])
+    # print(logits[0])
 
 def compute_predictions(sess, x, preds_op, images, batch_size):
     images = images[:100]
     preds = run_batches(sess, preds_op, [x], [images], batch_size)
-    print(preds)
+    print(preds[::-1])
 
 def main(argv):
     model, save_images, NUM_CLASSES, IMAGE_SIZE, example_shape, load_data \
@@ -65,8 +65,10 @@ def main(argv):
         model.load_weights(sess, FLAGS.model_dir, num_bits=FLAGS.bits)
 
         evaluate(sess, x, y, pred_op, images, labels, FLAGS.batch_size)
-        compute_logits(sess, x, logits, images, FLAGS.batch_size)
-        compute_predictions(sess, x, pred_op, images, FLAGS.batch_size)
+        # compute_logits(sess, x, logits, images, FLAGS.batch_size)
+        # compute_predictions(sess, x, pred_op, images, FLAGS.batch_size)
+        model.print_weights(sess, model.get_weights(sess, weights),
+                            num_bits=FLAGS.bits)
 
 
 if __name__ == '__main__':
