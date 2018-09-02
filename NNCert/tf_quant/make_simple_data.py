@@ -12,22 +12,22 @@ num_batches = int(sys.argv[1])
 # with open('emnist/all.pkl', 'rb') as f:
 # with open('emnist/test.pkl', 'rb') as f:
 
-# with open('emnist/train.pkl', 'rb') as f:
-with open('emnist/train_reduced.pkl', 'rb') as f:
+with open('emnist/train.pkl', 'rb') as f:
+# with open('emnist/train_reduced.pkl', 'rb') as f:
     train_data = pickle.load(f, encoding='latin1')
-# with open('emnist/validation.pkl', 'rb') as f:
-#     validation_data = pickle.load(f, encoding='latin1')
+with open('emnist/validation.pkl', 'rb') as f:
+    validation_data = pickle.load(f, encoding='latin1')
 
-# train_images = train_data.images
-# train_labels = train_data.labels
-# validation_images = validation_data.images
-# validation_labels = validation_data.labels
+train_images = train_data.images
+train_labels = train_data.labels
+validation_images = validation_data.images
+validation_labels = validation_data.labels
 
-# images = np.concatenate([train_images, validation_images], axis=0)
-# labels = np.concatenate([train_labels, validation_labels], axis=0)
+images = np.concatenate([train_images, validation_images], axis=0)
+labels = np.concatenate([train_labels, validation_labels], axis=0)
 
-images = train_data.images
-labels = train_data.labels
+# images = train_data.images
+# labels = train_data.labels
 
 print(images.shape)
 

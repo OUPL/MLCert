@@ -66,7 +66,8 @@ def train_model(model, x, y, loss_op, pred_op, weights,
     evaluate(sess, x, y, pred_op, train_images, train_labels,
              FLAGS.batch_size)
 
-    model.save_weights(sess, best_weights, FLAGS.model_dir, num_bits=FLAGS.bits)
+    model.save_weights(sess, best_weights, FLAGS.model_dir,
+                       num_bits=FLAGS.bits)
     print("highest accuracy: %f" % highest_acc)
 
 

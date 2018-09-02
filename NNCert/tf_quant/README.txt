@@ -1,16 +1,16 @@
-* 'make setup' to pre-extract the EMNIST data and generate
-  test_images.pkl.gz file for the compile script. ONE TIME ONLY. If
-  you just need to generate test_images.pkl.gz, run 'make
-  test_images'.
+
+
+* 'make setup' to download and extract the EMNIST data. ONE TIME
+  ONLY. Extraction may take a while.
 
 * 'make batches' to generate batches for Coq network evaluation. Set
   the number of batches to generate by changing NUM_BATCHES in the
-  make file.
+  makefile.
 
-* 'make train' to train the model.
-* 'make eval' to evaluate the model in Python.
-* 'make move' to copy the model parameters over for the compile
-  script.
+* 'make train' to train a model.
+* 'make eval' to evaluate the trained model in Python.
+* 'make move' to copy the model parameters up to be compiled to a Coq
+  network kernel.
 
 'make' by itself is equivalent to 'make train; make move'.
 

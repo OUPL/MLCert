@@ -27,7 +27,7 @@ Extract Constant AxVec "'t" => "('t list)".
 Extract Constant AxVec_to_list => "(fun _ l -> l)".
 Extract Constant AxVec_of_list => "(fun _ l -> l)".
 
-Extract Constant AxVec_map => "fun _ f l -> List.map f l".
+Extract Constant AxVec_map => "fun _ -> List.map".
 
 (* (*AxVec Tests*) *)
 (* Require Import List. *)

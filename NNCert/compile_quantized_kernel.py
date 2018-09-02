@@ -215,13 +215,12 @@ Section tf_bound.
 
 Lemma tf_main_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
   tf_main d eps init (fun _ => 1) <= 
-  INR (2 ^ (4 * 16 + 10 * 64 * 2 + 10 * 10 * 2)) * exp (-2%R * eps^2 * mR m).
-(*Proof.
+  INR (2 ^ (4 * 16 + 10 * 784 * 2 + 10 * 10 * 2)) * exp (-2%R * eps^2 * mR m).
+Proof.
   rewrite -card_bitvec2_EMNIST_10_KernelFinType; apply: Rle_trans; last first.
   { apply oracular_main_bound => //; first by apply: d_dist. }
   apply: Rle_refl.
-Qed.*)
-Admitted.
+Qed.
 End tf_bound.
 
 Section tf_holdout_bound.

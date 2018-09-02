@@ -32,7 +32,7 @@ a prediction function, and proofs.
 
 ### 2-bit quantized
 
-To generate a Coq `.v` file from a parameter definition file for a 16-bit model, do: 
+To generate a Coq `.v` file from a parameter definition file for a 2-bit model, do: 
 
 ```
 python3 compile_quantized_kernel.py params-quantized.pkl.gz
@@ -43,8 +43,10 @@ a prediction function, and proofs.
 
 ## Build the Coq model and proofs
 
-NOTE: Before this step, you should first have transferred both a 16-bit and a 2-bit
-quantized model to Coq (in files `out.v` and `qout.v` respectively).
+NOTE: Before this step, you should have transferred either a 16-bit or
+a 2-bit quantized model to Coq (in files `out.v` or `qout.v`
+respectively). Both files must exist, but you can run 'touch out.v'
+for example to create an empty file.
 
 * Build the parent directory `MLCert` first, by doing `make`.
 * Then do `make` in this directory.
@@ -70,6 +72,23 @@ an OCaml model (previous step), do:
 * `rm batch_test.mli` (This is to avoid an extraction problem related to module interfaces.)
 * `ocamlopt -o batch_test batch_test.ml`
 * `cd scripts`
-* `./train_err ../batch_test <log-file> <batches-dir> <num-batches> <chunk-size>` where `<chunk-size>` is the number of batches you want to evaluate in parallel (this number should evenly divide `<num-batches>`, a reasonable value is `4`)
+* `./train_err ../batch_test <log-file> ../batches/ <num-batches> <chunk-size>` where `<chunk-size>` is the number of batches you want to evaluate in parallel (this number should evenly divide `<num-batches>`, a reasonable value is `4`)
 * Wait a long time...
 * `python3 accuracy.py < <log-file>` to report total accuracy
+
+
+There are also a couple sanity-check scripts for validating the output
+of the generated Coq models. This is to ensure that the compilation
+from Python models to Coq went as expected.
+
+To compare the model's weights with the original weights learned in
+python, do the following in the 'scripts' directory:
+
+* ./validate_kernel.sh print_kernel temp ../../params-quantized.pkl.gz print_weights.py
+
+The output will be the diff between weights printed from Coq and Python.
+
+
+To check that the predictions are being correctly computed from the logit outputs, do:
+
+* ./validate_predictions.sh print_logits temp.txt ../batches 100 ./validate_predictions.py

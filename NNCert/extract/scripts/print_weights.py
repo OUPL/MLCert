@@ -18,7 +18,7 @@ def print_weights(weights):
 
 
 # Load the weights
-weights, bounds = load_weights_bounds('models/default/params.pkl.gz')
+weights, bounds = load_weights_bounds(path)
 
 w0 = np.transpose(weights[0])
 w1 = np.transpose(weights[1])

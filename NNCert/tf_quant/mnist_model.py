@@ -4,8 +4,8 @@ from tensorflow.contrib.quantize.python import quant_ops
 from quantize import quantize_ndarray, dequantize_ndarray
 
 from constants import MNIST_NUM_CLASSES as NUM_CLASSES
-# from constants import MNIST_IMAGE_SIZE as IMAGE_SIZE
-from constants import REDUCED_IMAGE_SIZE as IMAGE_SIZE
+from constants import MNIST_IMAGE_SIZE as IMAGE_SIZE
+# from constants import REDUCED_IMAGE_SIZE as IMAGE_SIZE
 
 IMAGE_PIXELS = IMAGE_SIZE * IMAGE_SIZE
 NUM_HIDDEN_LAYERS = 1
@@ -76,7 +76,6 @@ def predictions(logits):
 
 
 def test_weights(sess, quantized_weights, num_bits=8):
-    # ws = [x.eval(sess) for x in tf.trainable_variables()]
     ws = sess.run(quantized_weights, feed_dict = {})
     print(ws[0][0])
 
@@ -98,22 +97,6 @@ def test_weights(sess, quantized_weights, num_bits=8):
                             num_bits=num_bits)
     print(w0[0])
 
-# def save_weights(sess, weights_op, dir='models', num_bits=8):
-#     os.makedirs(dir, exist_ok=True)
-#     weights = sess.run(weights_op, feed_dict = {})
-#     bounds = [x.eval(sess) for x in
-#               filter(lambda x: 'min:0' in x.name or 'max:0' in x.name,
-#                      tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))]
-
-#     quantized = [quantize_ndarray(weights[0], bounds[0], bounds[1],
-#                                   num_bits=num_bits),
-#                  quantize_ndarray(weights[1], bounds[2], bounds[3],
-#                                   num_bits=num_bits)]
-
-#     all_vars = quantized + bounds
-#     with gzip.open(dir + "/params.pkl.gz", "w") as f:
-#         pickle.dump(tuple(all_vars), f)
-
 def save_weights(sess, weights, dir='models', num_bits=8):
     os.makedirs(dir, exist_ok=True)
     bounds = [x.eval(sess) for x in
@@ -124,8 +107,6 @@ def save_weights(sess, weights, dir='models', num_bits=8):
                                   num_bits=num_bits),
                  quantize_ndarray(weights[1], bounds[2], bounds[3],
                                   num_bits=num_bits)]
-
-    print(quantized)
 
     all_vars = quantized + bounds
     with gzip.open(dir + "/params.pkl.gz", "w") as f:

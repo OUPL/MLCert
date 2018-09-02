@@ -19,7 +19,7 @@ Extract Constant load_batch =>
 "fun _ ->
 
 let float_size = 16 in 
-let num_pixels = 64 in 
+let num_pixels = 784 in 
 let batch_size = 100 in 
 
 let rec read_bits = function 
