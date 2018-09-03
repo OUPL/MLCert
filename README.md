@@ -70,4 +70,26 @@ The following function:
 ```
 defines a generic learning procedure that applies `update` to a training set `T` by folding `update` over `T` `epoch` times.
 
+### Linear Threshold Classifiers 
 
+Linear threshold classifiers (`linearclassifiers.v`) specialize the `predict` of generic learners to a linear prediction function of the form `ax + b > 0`. We implement such classifiers in MLCert as:
+
+```
+Section LinearThresholdClassifier.
+  Variable n : nat. (*the dimensionality*)
+
+  Definition A := float32_arr n. (*examples*)
+  Definition B := bool. (*labels*)
+  Definition Weights := float32_arr n.
+  Definition Bias := float32.
+  Definition Params := (Weights * Bias)%type.
+
+  Section predict.
+    Open Scope f32_scope.
+    Definition predict (p : Params) (a : A) : B :=
+      let: (w, b) := p in
+      f32_dot w a + b > 0.
+  End predict.
+End LinearThresholdClassifier.
+```
+`n` is the dimensionality of the problem space. The type `A:=float32_arr n` defines size-`n` arrays of 32-bit floating-point numbers. A linear threshold classifier's parameters are pairs of `Weights` (also size-`n` floating-point numbers) and `Bias`es.
