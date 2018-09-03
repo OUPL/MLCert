@@ -8,8 +8,6 @@
 
 * Coq 8.8
 
-We've tested in Coq 8.8.0. However, the software probably also builds in Coq 8.8.1.
-
 * [OUPL/OUVerT](https://github.com/OUPL/OUVerT) 
 
 The Ohio University Verification Toolkit, containing a number of lemmas used in MLCert.
