@@ -136,3 +136,7 @@ These commands produce a new Haskell source file, `Perceptron.hs` in directory `
 > ./PerceptronTest
 ```
 `PerceptronTest.hs` is an unverified shim program, written directly in Haskell, that constructs a random linearly separable data set on which to train the extracted `Perceptron.hs`, which it imports.
+
+### From TensorFlow to Coq/MLCert
+
+See directory [MLCert/NNCert/](https://github.com/OUPL/MLCert/tree/master/NNCert) for additional directions on compiling to MLCert models learned in external tools like TensorFlow.
