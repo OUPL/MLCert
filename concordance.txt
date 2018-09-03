@@ -1,0 +1,34 @@
+The following concordance maps definitions, lemmas, and theorems in the 
+AAAI submission entitled 
+
+  Certifying the True Error: Machine Learning in Coq with
+      Verified Generalization Guarantees (Paper #844)
+
+to the supporting definitions, lemmas, and theorems in the associated 
+Coq development, submitted as a supplemental file with the paper.
+
+* Theorem 1 [Hoeffding's inequality] -- Lemma chernoff_bound_h in OUVerT/learning.v
+
+* Corollary 1 -- Lemma chernoff_bound in OUVerT/learning.v
+
+* Acc -- accuracy01 in section zero_one_accuracy in OUVerT/learning.v
+
+* Listing 2: Record Learner -- Learner.t in MLCert/learners.v
+
+* Listing 5: Generic probabilistic learners (post, main, main_bound) -- Section "semantics" in MLCert/learners.v
+
+* Figure 3: Learners: Syntax and Probabilistic Semantics -- Section "semantics" in MLCert/learners.v
+  
+* Listing 3: Linear threshold classifiers -- Section "LinearThresholdClassifier" in MLCert/linearclassifiers.v
+
+* Listing 4: Perceptron learner -- Module "Perceptron" in MLCert/linearclassifiers.v
+
+* Listing 6: Coq ReLU networks -- Net.t in NNCert/net.v
+
+* Listing 7: Coq Network Kernels -- kernel.v 
+
+* Figure 4: Structure of a network elaborated from Listing 7 -- kernel.v defines the translation from kernels to ReLU networks defined as inductive forests.
+
+* oracle, oracular_main, oracular_main_bound -- Section "oracular_semantics" in learners.v
+
+* tf_main_bound -- Files out.v or qout.v, which can be built by compile_kernel.py or compile_quantized_kernel.py respectively (cf. the instructions in MLCert/NNCert/README.md)
