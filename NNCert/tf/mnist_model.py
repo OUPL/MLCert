@@ -1,8 +1,10 @@
 import gzip, pickle, os.path
 import tensorflow as tf
 
-NUM_CLASSES = 10
-IMAGE_SIZE = 28
+from constants import MNIST_NUM_CLASSES as NUM_CLASSES
+from constants import MNIST_IMAGE_SIZE as IMAGE_SIZE
+# from constants import REDUCED_IMAGE_SIZE as IMAGE_SIZE
+
 IMAGE_PIXELS = IMAGE_SIZE * IMAGE_SIZE
 NUM_HIDDEN_LAYERS = 1
 HIDDEN_SIZES = [10] # length should equal NUM_HIDDEN_LAYERS
@@ -80,11 +82,14 @@ def predictions(logits):
     return tf.cast(tf.argmax(logits, axis=1), tf.int32)
 
 
-def save_weights(sess, dir='models'):
-    os.makedirs(dir, exist_ok=True)
-    all_vars = tf.trainable_variables()
+def get_weights(sess):
+    return tuple(map(lambda x: x.eval(sess),
+                     tf.trainable_variables()))
+
+
+def save_weights(sess, weights, dir='models'):
     with gzip.open(dir + "/params.pkl.gz", "w") as f:
-        pickle.dump(tuple(map(lambda x: x.eval(sess), all_vars)), f)
+        pickle.dump(weights, f)
 
 
 def load_weights(sess, dir, model_name='m0', dtype=tf.float32):

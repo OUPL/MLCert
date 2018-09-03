@@ -34,6 +34,7 @@ def init_session():
 def evaluate(sess, x, y, pred_op, images, labels, batch_size):
     preds = run_batches(sess, pred_op, [x], [images], batch_size)
     acc = np.sum(preds == labels) / len(labels)
+    return acc
     print("accuracy: %0.04f" % acc)
 
 def num_correct(sess, x, y, pred_op, images, labels, batch_size):
@@ -83,7 +84,7 @@ def main(argv):
         # num_correct(sess, x, y, pred_op, images, labels,
         #             FLAGS.batch_size)
         evaluate(sess, x, y, pred_op, images, labels, FLAGS.batch_size)
-        compute_logits(sess, x, logits, images[:n], FLAGS.batch_size)
+        # compute_logits(sess, x, logits, images[:n], FLAGS.batch_size)
         # compute_predictions(sess, x, pred_op, images, FLAGS.batch_size)
 
 if __name__ == '__main__':

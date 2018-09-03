@@ -16,6 +16,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 from tensorflow.examples.tutorials.mnist import mnist
 import mnist_model as mnist_model
 from util import save_mnist_images as mnist_save_images
+from constants import *
 
 MNIST_NUM_CLASSES = 10
 MNIST_IMAGE_SIZE = 28
@@ -27,6 +28,9 @@ EMNIST_TEST_SAMPLES=40000
 
 def mnist_example_shape(batch_size):
     return (batch_size, MNIST_IMAGE_SIZE * MNIST_IMAGE_SIZE)
+
+def reduced_example_shape(batch_size):
+    return (batch_size, REDUCED_IMAGE_SIZE * REDUCED_IMAGE_SIZE)
 
 def mnist_load_data():
     data_sets = input_data.read_data_sets('data')
@@ -84,6 +88,15 @@ def emnist_load_extracted_data():
         test = pickle.load(f)
     return train, validation, test
 
+def emnist_load_reduced_data():
+    with open('emnist/train_reduced.pkl', 'rb') as f:
+        train = pickle.load(f)
+    with open('emnist/validation_reduced.pkl', 'rb') as f:
+        validation = pickle.load(f)
+    with open('emnist/test_reduced.pkl', 'rb') as f:
+        test = pickle.load(f)
+    return train, validation, test
+
 # MNIST and EMNIST are available
 def choose_dataset(set_name):
     if set_name.lower() == 'mnist':
@@ -94,5 +107,8 @@ def choose_dataset(set_name):
         return mnist_model, mnist_save_images, MNIST_NUM_CLASSES, \
             MNIST_IMAGE_SIZE, mnist_example_shape, emnist_load_extracted_data
             # MNIST_IMAGE_SIZE, mnist_example_shape, emnist_load_data
+    elif set_name.lower() == 'emnist_reduced':
+        return mnist_model, None, MNIST_NUM_CLASSES, REDUCED_IMAGE_SIZE, \
+            reduced_example_shape, emnist_load_reduced_data
     else:
         return None

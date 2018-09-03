@@ -44,6 +44,8 @@ def train_model(model, x, y, loss_op, pred_op, train_images, train_labels):
     minibatch_gen = batch_gen(FLAGS.batch_size, train_images.shape[0],
                               max_batches=FLAGS.max_steps, replace=True)
 
+    highest_acc, best_weights = 0.0, model.get_weights(sess)
+
     print("training model...")
 
     start_time = time.time()
@@ -66,19 +68,28 @@ def train_model(model, x, y, loss_op, pred_op, train_images, train_labels):
                   (minibatch_gen.counter, duration) + str(loss_values))
 
         if minibatch_gen.counter % 10000 == 0:
-            model.save_weights(sess, FLAGS.model_dir)
-            evaluate(sess, x, y, pred_op, train_images, train_labels,
-                     FLAGS.batch_size)
+            model.save_weights(sess, best_weights, FLAGS.model_dir)
+            acc = evaluate(sess, x, y, pred_op, train_images, train_labels,
+                           FLAGS.batch_size)
+            print("accuracy: %f" % acc)
+            if acc >= highest_acc:
+                highest_acc = acc
+                best_weights = model.get_weights(sess)
 
-    model.save_weights(sess, FLAGS.model_dir)
+    model.save_weights(sess, best_weights, FLAGS.model_dir)
+    print("highest accuracy: %f" % highest_acc)
 
 
 def main(argv):
     # Load parameters and data for the chosen dataset.
     model, save_images, NUM_CLASSES, IMAGE_SIZE, example_shape, load_data \
         = choose_dataset(FLAGS.dataset)
-    train_data, _, _ = load_data()
+    train_data, validation_data, _ = load_data()
     set_dtype()
+
+    images = np.concatenate([train_data.images, validation_data.images],
+                            axis=0)
+    labels = np.concatenate([train_data.labels, validation_data.labels])
 
     with tf.Graph().as_default():
 
@@ -92,7 +103,7 @@ def main(argv):
 
         # Go
         train_model(model, x, y, loss_op, pred_op,
-                    train_data.images.astype(NP_DTYPE), train_data.labels)
+                    images.astype(NP_DTYPE), labels)
 
 
 if __name__ == '__main__':
