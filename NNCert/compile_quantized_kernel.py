@@ -24,12 +24,6 @@ def load_weights_bounds(path):
     bounds = data[-4:]
     return weights, bounds
 
-# Load images
-def load_images(path):
-    with gzip.open(path, 'rb') as f:
-        images = pickle.load(f, encoding='latin1')
-    return images
-
 def binary(f, num_bits):
     if num_bits == 32:
         return ''.join(bin(c).replace('0b', '').rjust(8, '0')
@@ -265,8 +259,6 @@ def to_coq(IN, NEURONS, OUT, kernel):
     out += the_postamble()
     return out
 
-# images = load_images('test_images.pkl.gz')
-
 # Load the weights
 weights, bounds = load_weights_bounds(path)
 
@@ -323,7 +315,6 @@ for w in weights:
 print("total_size={}".format(D))
 
 # Dimensionality of the input layer
-# IN = len(images[0])
 IN = w0.shape[0]
 
 num_neurons = w1.shape[0]

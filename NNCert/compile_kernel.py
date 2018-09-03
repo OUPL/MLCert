@@ -21,12 +21,6 @@ def load_weights(path):
         weights = pickle.load(f, encoding='latin1')
     return weights
 
-# Load images
-def load_images(path):
-    with gzip.open(path, 'rb') as f:
-        images = pickle.load(f, encoding='latin1')
-    return images
-
 NetTag = Enum('NetTag', 'IN RELU COMB')
 class Net(object):
     def __init__(self, tag, data=None):
@@ -124,9 +118,10 @@ def the_preamble(IN, NEURONS, OUT):
 From mathcomp Require Import all_ssreflect.
 Require Import List. Import ListNotations. 
 Require Import NArith.
+Require Import Coq.Program.Basics.
 Require Import OUVerT.dyadic OUVerT.compile. 
 Require Import MLCert.axioms MLCert.bitvectors MLCert.learners MLCert.extraction_ocaml.
-Require Import net bitnet kernel.
+Require Import net bitnet kernel print.
 
 Module TheDimensionality. Definition n : nat := N.to_nat {}. 
 Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End TheDimensionality.
@@ -175,6 +170,7 @@ Definition InputEnv_of_X (img:X) : NETEval.InputEnv.t :=
 
 Definition Y_of_OutputIx (ix:Output.Ix.t) : Y := Output.Ix.Ordinal_of_t ix.
 
+(*
 Definition predict (h:Hypers) (p:Params) (img:X) : Y :=
   let: outs := TheNet.F.seval
                  (translate_kernel p)
@@ -182,6 +178,36 @@ Definition predict (h:Hypers) (p:Params) (img:X) : Y :=
                     (combine (Forest.Ix.enumerate_t) (rev outputs)))
                  (InputEnv_of_X img)
   in Y_of_OutputIx (Output.argmax Dlt_bool outs).
+*)
+
+Definition logits (p:Params) (img:X) :=
+  TheNet.F.seval
+    (translate_kernel p)
+    (TheNet.F.Forest.of_list
+    (combine (Forest.Ix.enumerate_t) (rev outputs)))
+    (InputEnv_of_X img).
+
+Definition predict (h:Hypers) (p:Params) (img:X) : Y :=
+  let: outs := logits p img
+  in Y_of_OutputIx (Output.argmax Dlt_bool outs).
+
+(* For printing/debugging. *)
+Definition logits' (p:Params) (img:X) :=
+  map snd (Output.to_dense_list (logits p img)).
+Definition predict' (h:Hypers) (p:Params) (img:X) : nat :=
+  let: outs := logits p img in
+  Output.Ix.val (Output.argmax Dlt_bool outs).
+Definition logits_predictions (kernel : Params) (batch : list (X * Y)) :=
+  (map (fun x_y => let: (x, y) := x_y in logits' kernel x) batch,
+   map (fun x_y => let: (x, y) := x_y in predict' tt kernel x) batch).
+Definition print_logits_predictions kernel batch :=
+  let (ls, ps) := logits_predictions kernel batch in
+  let ls' := map (print_newline ∘ map (print_space ∘ print_DRed)) ls in
+  let ps' := map (print_space ∘ print_nat) ps in
+  (ls', ps').
+Module KPrint := PrintKernel TheDimensionality Neurons Outputs
+                             bitvec16Type bitvec16Type
+                             bitvec16PayloadMap bitvec16PayloadMap.
 
 Open Scope list_scope.
 Notation "\'i\' ( x )":=(NIn x) (at level 65).
@@ -251,6 +277,9 @@ Lemma tf_main_holdout_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
   tf_main_holdout d eps init (fun _ => 1) <= exp (-2%R * eps^2 * mR mtest).
 Proof. by apply: oracular_main_holdout_bound. Qed.
 End tf_holdout_bound.
+
+Definition print_kernel := KPrint.print kernel.
+Extraction "extract/print_kernel.ml" print_kernel.
 """
 
 def translate_code():
@@ -281,8 +310,6 @@ def to_coq(IN, NEURONS, OUT, kernel, layers):
     out += translate_code()
     out += the_postamble()
     return out
-
-images = load_images('test_images.pkl.gz')
 
 # Load the weights
 weights = load_weights(path)
@@ -328,7 +355,7 @@ for w in weights:
 print("total_size={}".format(D))
 
 # Dimensionality of the input layer
-IN = len(images[0])
+IN = w0.shape[0]
 
 num_neurons = w1.shape[0]
 
