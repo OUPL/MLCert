@@ -41,3 +41,33 @@ Following are the primary directories and files used in the development:
 * [monads.v](https://github.com/OUPL/MLCert/blob/master/monads.v): Defines the continuation monad used in `learners.v`
 * [learners.v](https://github.com/OUPL/MLCert/blob/master/learners.v): Learners as probabilistic programs
 * [linearclassifiers.v](https://github.com/OUPL/MLCert/blob/master/linearclassifiers.v): Specializes `learners.v` to linear classifiers and Perceptron
+
+## EXAMPLES 
+
+### Learners
+
+MLCert defines supervised learners (file `learners.v`):
+```
+Module Learner.
+  Record t (X Y Hypers Params : Type) :=
+    mk { predict : Hypers -> Params -> X -> Y;
+         update : Hypers -> X*Y -> Params -> Params }.
+End Learner.
+```
+as pairs of 
+
+* a `predict`ion function that, given hyperparameters `Hypers`, parameters `Params`, and an input `X`, produces a label `Y`; and
+* and `update` function that maps hypers, `X*Y` pairs, and parameters to new parameters.
+
+The following function:
+```
+  Definition learn_func (init:Params) (T:training_set) : Params := 
+    foldrM (fun epoch p_epoch =>
+      foldable_foldM (M:=Id) (fun xy p =>
+        ret (Learner.update learner h xy p))
+        p_epoch T)
+      init (enum 'I_epochs).
+```
+defines a generic learning procedure that applies `update` to a training set `T` by folding `update` over `T` `epoch` times.
+
+
