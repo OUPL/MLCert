@@ -15,21 +15,21 @@ def epsilon(size_parameter_space, num_examples):
     for i in range(0, max_iters):
         prob = N(size_parameter_space * exp(-2 * eps * eps * num_examples))
         #DEBUG: print("eps=", eps, "prob=", prob)
-        if prob < 10e-9: max_eps = eps
+        if prob < 1e-9: max_eps = eps
         else: min_eps = eps
         eps = min_eps + (max_eps - min_eps)/2.0
     return eps
 
 # Calculate epsilon by solving the equation:
-# 2^(size_parameter_space_bits) * exp(-2*\eps^2*m) = 10e-9
+# 2^(size_parameter_space_bits) * exp(-2*\eps^2*m) = 1e-9
 def epsilon2(size_parameter_space_bits, num_examples):
-#    2^(size_parameter_space_bits) * exp(-2*eps*eps*num_examples) = 10e-9
-#    exp(size_parameter_space_bits * log(2)) * exp(-2*eps*eps*num_examples) = 10e-9
-#    log(exp(size_parameter_space_bits * log(2)) * exp(-2*eps*eps*num_examples)) = log(10e-9)
-#    size_parameter_bits*log(2) + -2*eps*eps*num_examples = log(10e-9)
-#    -2*eps*eps*num_examples = log(10e-9) - (size_parameter_space_bits*log(2))
-#    eps = sqrt ( (log(10e-9) - size_parameter_space_bits*log(2)) / (-2*num_examples) )
-    return N(sqrt( (log(10e-9) - size_parameter_space_bits*log(2)) / (-2*num_examples) ))
+#    2^(size_parameter_space_bits) * exp(-2*eps*eps*num_examples) = 1e-9
+#    exp(size_parameter_space_bits * log(2)) * exp(-2*eps*eps*num_examples) = 1e-9
+#    log(exp(size_parameter_space_bits * log(2)) * exp(-2*eps*eps*num_examples)) = log(1e-9)
+#    size_parameter_bits*log(2) + -2*eps*eps*num_examples = log(1e-9)
+#    -2*eps*eps*num_examples = log(1e-9) - (size_parameter_space_bits*log(2))
+#    eps = sqrt ( (log(1e-9) - size_parameter_space_bits*log(2)) / (-2*num_examples) )
+    return N(sqrt( (log(1e-9) - size_parameter_space_bits*log(2)) / (-2*num_examples) ))
 
 def epsilon_twoways(name, size_parameter_space_bits, num_examples):
     print(name + ": epsilon={}".format(epsilon(N(2**size_parameter_space_bits), N(num_examples))))
