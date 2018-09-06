@@ -1,5 +1,5 @@
 # For a given network architecture, calculate the best epsilon that
-# gives a generalization with probability greater than 1 - 10e-9.
+# gives a generalization with probability less than 1e-9.
 
 # The script is currently specialized to the following two architectures:
 # 1) 2-bit quantized EMNIST, one hidden layer of size 10
