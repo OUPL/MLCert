@@ -88,6 +88,7 @@ def get_weights(sess):
 
 
 def save_weights(sess, weights, dir='models'):
+    os.makedirs(dir, exist_ok=True)
     with gzip.open(dir + "/params.pkl.gz", "w") as f:
         pickle.dump(weights, f)
 

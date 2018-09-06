@@ -1,5 +1,4 @@
 NUM_BATCHES=2400
-# NUM_BATCHES=2000
 NUM_BITS = 2
 
 default: train move
@@ -13,7 +12,6 @@ setup: download
 all: setup batches train move
 
 train:
-	# python3 train.py --dataset emnist_reduced --bits $(NUM_BITS) --max_steps 50000 --decay_step 25000 --learning_rate 0.01 --stop 0.925
 	python3 train.py --dataset emnist --bits $(NUM_BITS) --max_steps 50000 --decay_step 25000 --learning_rate 0.01
 
 eval: # Evaluate on training set

@@ -277,9 +277,6 @@ Lemma tf_main_holdout_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
   tf_main_holdout d eps init (fun _ => 1) <= exp (-2%R * eps^2 * mR mtest).
 Proof. by apply: oracular_main_holdout_bound. Qed.
 End tf_holdout_bound.
-
-Definition print_kernel := KPrint.print kernel.
-Extraction "extract/print_kernel.ml" print_kernel.
 """
 
 def translate_code():

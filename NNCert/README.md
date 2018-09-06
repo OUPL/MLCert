@@ -1,6 +1,6 @@
 # NNCert
 
-This directory contains code for training and transferring to Coq neural networks with verified generalizability bounds, building on the results in the parent directory `OUPL/MLCert`.
+This directory contains code for training and transferring to Coq neural networks with verified generalizability bounds, building on the results in the parent directory `MLCert`.
 
 ## Prerequisites
 
@@ -84,11 +84,13 @@ from Python models to Coq went as expected.
 To compare the model's weights with the original weights learned in
 python, do the following in the 'scripts' directory:
 
-* ./validate_kernel.sh print_kernel temp ../../params-quantized.pkl.gz print_weights.py
+* ./validate_kernel.sh print_kernel temp ../../params-quantized.pkl.gz
 
-The output will be the diff between weights printed from Coq and Python.
+Or, for quantized models, do the same with
+'validate_quantized_kernel.sh'. The output will be the diff between
+weights printed from Coq and Python.
 
 
 To check that the predictions are being correctly computed from the logit outputs, do:
 
-* ./validate_predictions.sh print_logits temp.txt ../batches 100 ./validate_predictions.py
+* ./validate_predictions.sh print_logits temp.txt ../batches 100

@@ -11,7 +11,7 @@ Require Import OUVerT.dyadic.
 
 Require Import MLCert.axioms MLCert.extraction_ocaml.
 
-Require Import net bitnet kernel qout print.
+Require Import net bitnet kernel out print.
 
 (*NOTE: The code below is specialized to a 16-bit encoding of input image pixels.*)
 Axiom load_batch : unit -> list (X * Y).
@@ -59,6 +59,9 @@ Definition num_correct : nat :=
         (fun y_y' => let: (Ordinal y _,Ordinal y' _) := y_y' in eq_nat_dec y y')
         (map (fun x_y => let: (x,y) := x_y in (y, predict tt kernel x)) batch) in
   size corrects.
+
+Definition print_kernel := KPrint.print kernel.
+Extraction "extract/print_kernel.ml" print_kernel.
 
 Definition print_logits := print_logits_predictions kernel (load_batch tt).
 Extraction "extract/print_logits.ml" print_logits.
