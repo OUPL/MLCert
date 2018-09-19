@@ -70,16 +70,16 @@ Definition print_string {X} : string -> X -> X :=
 
 Definition print_space {X} : X -> X := print_string " ".
 
-(* Force left-to-right evaluation order... *)
 Definition tuple_fun : forall {A B C}, (A -> B) -> (A -> C) -> A -> B*C :=
   fun _ _ _ f g x => (f x, g x).
+(* Force left-to-right evaluation order... *)
 Extract Constant tuple_fun =>
 "fun f g x -> let a = f x in let b = g x in (a, b)".
+Notation " f △ g " :=
+  (tuple_fun f g) (at level 50, no associativity) : program_scope.
 
-
-(* Print a pair in machine-readable format. *)
 Definition print_pair {A B} (f : A -> A) (g : B -> B) : A*B -> A*B :=
-  tuple_fun (f ∘ fst) (g ∘ print_space ∘ snd).
+  f ∘ fst △ g ∘ print_space ∘ snd.
 
 (* Print a vector in machine-readable format. *)
 Definition print_vector {A n} (f : A -> A) : AxVec n A -> AxVec n A :=
