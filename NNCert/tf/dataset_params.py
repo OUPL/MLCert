@@ -37,9 +37,10 @@ def choose_dataset(set_name, d=0):
     elif set_name.lower() == 'emnist':
         # New data, but otherwise same as mnist
         return mnist_save_images, MNIST_NUM_CLASSES, MNIST_IMAGE_SIZE, \
-            mnist_example_shape, emnist_load_extracted_data
+            mnist_example_shape, shared.emnist_load_extracted_data()
     elif set_name.lower() == 'emnist_reduced':
-        return None, MNIST_NUM_CLASSES, REDUCED_IMAGE_SIZE, \
-            reduced_example_shape, emnist_load_reduced_data
+        return None, MNIST_NUM_CLASSES, d, \
+            lambda x: reduced_example_shape(x, d), \
+            shared.emnist_load_reduced_dataa
     else:
         return None

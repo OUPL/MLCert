@@ -5,14 +5,17 @@ from dataset_params import choose_dataset
 from train import train_model
 from eval import evaluate
 import float_model, quantized_model
-from shared import init_session
+from shared import build_ops, choose_images_labels, init_session
+
+# This program can be used to either train or evaluate a model
+# according to various options given by command line arguments.
 
 
 def choose_model():
     return float_model if FLAGS.quantize == 0 else quantized_model
 
-
 def main(argv):
+    # Choose between float and quantized models.
     model = choose_model()
 
     # Load parameters and data for the chosen dataset.
@@ -22,29 +25,19 @@ def main(argv):
     print ('loading data...')
     train_data, validation_data, test_data = load_data()
 
-    images = test_data.images if FLAGS.set == 0 else \
-             validation_data.images if FLAGS.set == 1 else \
-             train_data.images if FLAGS.set == 2 else \
-             np.concatenate([train_data.images, validation_data.images],
-                            axis=0)
-    labels = test_data.labels if FLAGS.set == 0 else \
-             validation_data.labels if FLAGS.set == 1 else \
-             train_data.labels if FLAGS.set == 2 else \
-             np.concatenate([train_data.labels, validation_data.labels],
-                            axis=0)
+    # Choose which set to use (train, test, etc.).
+    images, labels = choose_images_labels(train_data, validation_data,
+                                          test_data, FLAGS.set)
 
     with tf.Graph().as_default():
 
         # Build all of the ops.
         print("building computation graph...")
-        x = tf.placeholder(tf.float32, example_shape(FLAGS.batch_size))
-        y = tf.placeholder(tf.int32, shape=(FLAGS.batch_size))
-        weights = model.weights(num_bits=FLAGS.bits, pca_d=FLAGS.pca_d)
-        logits = model.inference(x, weights)
-        loss_op = model.loss(logits, y)
-        pred_op = model.predictions(logits)
-        train_op = model.training(loss_op, x, FLAGS.learning_rate,
-                                  FLAGS.decay_step, FLAGS.decay_factor)
+        x, y, weights, logits, loss_op, pred_op, train_op = build_ops(
+            FLAGS.batch_size, FLAGS.bits, FLAGS.pca_d, FLAGS.learning_rate,
+            FLAGS.decay_step, FLAGS.decay_factor, model, example_shape)
+
+        # Create session and initialize variables.
         sess = init_session()
 
         # Go.

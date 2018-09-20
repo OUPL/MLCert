@@ -22,27 +22,27 @@ def init_placeholders(batch_size, example_shape):
     y = tf.placeholder(tf.int32, shape=(batch_size))
     return x, y
 
-def emnist_load_data():
+def emnist_load_data(parent_dir=''):
     train_data = extract_data(
-        'emnist/emnist-digits-train-images-idx3-ubyte.gz', \
+        parent_dir + '/emnist/emnist-digits-train-images-idx3-ubyte.gz', \
         EMNIST_TRAIN_SAMPLES)
     train_labels = extract_labels(
-        'emnist/emnist-digits-train-labels-idx1-ubyte.gz', \
+        parent_dir + '/emnist/emnist-digits-train-labels-idx1-ubyte.gz', \
         EMNIST_TRAIN_SAMPLES)
 
     #Validation at end of training set
     valid_data = extract_data(
-        'emnist/emnist-digits-train-images-idx3-ubyte.gz', \
+        parent_dir + '/emnist/emnist-digits-train-images-idx3-ubyte.gz', \
         EMNIST_VALID_SAMPLES, EMNIST_TRAIN_SAMPLES)
     valid_labels = extract_labels(
-        'emnist/emnist-digits-train-labels-idx1-ubyte.gz', \
+        parent_dir + '/emnist/emnist-digits-train-labels-idx1-ubyte.gz', \
         EMNIST_VALID_SAMPLES, EMNIST_TRAIN_SAMPLES)
 
     test_data = extract_data(
-        'emnist/emnist-digits-test-images-idx3-ubyte.gz', \
+        parent_dir + '/emnist/emnist-digits-test-images-idx3-ubyte.gz', \
         EMNIST_TEST_SAMPLES)
     test_labels = extract_labels(
-        'emnist/emnist-digits-test-labels-idx1-ubyte.gz', \
+        parent_dir + '/emnist/emnist-digits-test-labels-idx1-ubyte.gz', \
         EMNIST_TEST_SAMPLES)
 
     return tuple([make_dataset(data, labels) for data, labels in
@@ -82,3 +82,26 @@ def extract_labels(filename, num_images, start=0):
         labels = np.frombuffer(buf, dtype=np.uint8).astype(np.int64)
         return labels
 # END adapted code
+
+def choose_images_labels(train, valid, test, i):
+    images = test.images if i == 0 else \
+             valid.images if i == 1 else \
+             train.images if i == 2 else \
+             np.concatenate([train.images, valid.images], axis=0)
+    labels = test.labels if i == 0 else \
+             valid.labels if i == 1 else \
+             train.labels if i == 2 else \
+             np.concatenate([train.labels, valid.labels], axis=0)
+    return images, labels
+
+def build_ops(batch_size, bits, pca_d, learning_rate, decay_step,
+              decay_factor, model, example_shape):
+    x = tf.placeholder(tf.float32, example_shape(batch_size))
+    y = tf.placeholder(tf.int32, shape=(batch_size))
+    weights = model.weights(num_bits=bits, pca_d=pca_d)
+    logits = model.inference(x, weights)
+    loss_op = model.loss(logits, y)
+    pred_op = model.predictions(logits)
+    train_op = model.training(loss_op, x, learning_rate, decay_step,
+                              decay_factor)
+    return x, y, weights, logits, loss_op, pred_op, train_op
