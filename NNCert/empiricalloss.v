@@ -11,33 +11,37 @@ Require Import OUVerT.dyadic.
 
 Require Import MLCert.axioms MLCert.extraction_ocaml.
 
-Require Import net bitnet kernel out print.
+Require Import net bitnet kernel qout print config.
 
-(*NOTE: The code below is specialized to a 16-bit encoding of input image pixels.*)
-Axiom load_batch : unit -> list (X * Y).
+(* NOTE: The code below is specialized to a 16-bit encoding of input
+image pixels. *)
+Axiom load_batch : nat -> list (X * Y).
 Extract Constant load_batch =>
-"fun _ ->
+"fun num_pixels ->
 
-let float_size = 16 in 
-let num_pixels = 784 in 
-let batch_size = 100 in 
+let float_size = 16 in
+let batch_size = 100 in
 
-let rec read_bits = function 
+let rec read_bits = function
   | 0 -> ((*eat newline:*) let _ = input_char stdin in [])
-  | n -> 
-    (match input_char stdin with 
+  | n ->
+    (match input_char stdin with
      | '0' -> false :: read_bits (n-1)
      | '1' -> true :: read_bits (n-1)
-     | _ -> failwith ""Bad char in read_bits"") in 
+     | _ -> failwith ""Bad char in read_bits"") in
 
 let rec read_pixels = function
-  | 0 -> [] 
+  | 0 -> []
   | n -> read_bits float_size :: read_pixels (n-1) in
 
 let read_image _ =
-  let lbl = read_int () in 
-  let pixels = read_pixels num_pixels in
+  let lbl = read_int () in
+  let pixels = read_pixels (int_of_nat num_pixels) in
   (lbl, pixels) in
+
+let rec int_of_nat = function
+  | O -> 0
+  | S n -> 1 + int_of_nat n
 
 let rec nat_of_int = function
   | 0 -> O
@@ -46,14 +50,14 @@ let rec nat_of_int = function
 let rec read_batch = function
   | 0 -> []
   | n ->
-    let (y,x) = read_image () in 
+    let (y,x) = read_image () in
     (x,nat_of_int y) :: read_batch (n-1)
 in
 
 read_batch batch_size".
 
-Definition num_correct : nat := 
-  let batch := load_batch tt in
+Definition num_correct : nat :=
+  let batch := load_batch Config.num_pixels in
   let corrects :=
       filter
         (fun y_y' => let: (Ordinal y _,Ordinal y' _) := y_y' in eq_nat_dec y y')
@@ -63,7 +67,7 @@ Definition num_correct : nat :=
 Definition print_kernel := KPrint.print kernel.
 Extraction "extract/print_kernel.ml" print_kernel.
 
-Definition print_logits := print_logits_predictions kernel (load_batch tt).
+Definition print_logits := print_logits_predictions kernel (load_batch Config.num_pixels).
 Extraction "extract/print_logits.ml" print_logits.
 
 Definition batch_test := (print_newline ∘ print_nat) num_correct.

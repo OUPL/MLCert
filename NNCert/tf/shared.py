@@ -17,10 +17,10 @@ def init_session():
     sess.run(init)
     return sess
 
-def init_placeholders(batch_size, example_shape):
-    x = tf.placeholder(tf.float32, example_shape)
-    y = tf.placeholder(tf.int32, shape=(batch_size))
-    return x, y
+# def init_placeholders(batch_size, example_shape):
+#     x = tf.placeholder(tf.float32, example_shape)
+#     y = tf.placeholder(tf.int32, shape=(batch_size))
+#     return x, y
 
 def emnist_load_data(parent_dir=''):
     train_data = extract_data(
@@ -50,13 +50,13 @@ def emnist_load_data(parent_dir=''):
                       [train_labels, valid_labels, test_labels])])
 
 def emnist_load_extracted_data(postfix=''):
-    return lambda : \
-        load_pickled_files(['emnist/train' + postfix + '.pkl',
-                            'emnist/validation' + postfix + '.pkl',
-                            'emnist/test' + postfix + '.pkl'])
+    return lambda prefix : \
+        load_pickled_files([prefix + 'emnist/train' + postfix + '.pkl',
+                            prefix + 'emnist/validation' + postfix + '.pkl',
+                            prefix + 'emnist/test' + postfix + '.pkl'])
 
-def emnist_load_reduced_data():
-    return emnist_load_extracted_data('_reduced')
+def emnist_load_reduced_data(prefix):
+    return emnist_load_extracted_data('_pca')(prefix)
 
 # Code adapted from:
 # https://gist.github.com/ischlag/41d15424e7989b936c1609b53edd1390
@@ -94,11 +94,21 @@ def choose_images_labels(train, valid, test, i):
              np.concatenate([train.labels, valid.labels], axis=0)
     return images, labels
 
-def build_ops(batch_size, bits, pca_d, learning_rate, decay_step,
-              decay_factor, model, example_shape):
-    x = tf.placeholder(tf.float32, example_shape(batch_size))
-    y = tf.placeholder(tf.int32, shape=(batch_size))
-    weights = model.weights(num_bits=bits, pca_d=pca_d)
+def build_ops(batch_size, bits, learning_rate, decay_step,
+              decay_factor, model, input_size):
+    if bits == 16: dtype = tf.float16
+    elif bits == 32: dtype = tf.float32
+    else:
+        print('shared.build_ops warning: unexpected value %d for \
+        bits, defaulting to 32' % bits)
+        dtype = tf.float32
+
+    print(batch_size)
+    print(input_size)
+
+    x = tf.placeholder(dtype, (batch_size, input_size))
+    y = tf.placeholder(tf.int32, shape=batch_size)
+    weights = model.weights(input_size, num_bits=bits)
     logits = model.inference(x, weights)
     loss_op = model.loss(logits, y)
     pred_op = model.predictions(logits)

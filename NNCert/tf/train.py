@@ -20,7 +20,8 @@ def train_model(sess, model, x, y, train_op, loss_op, pred_op, weights,
     minibatch_gen = batch_gen(batch_size, train_images.shape[0],
                               max_batches=max_steps, replace=True)
 
-    highest_acc, best_weights = 0.0, model.get_weights(sess, weights)
+    current_acc, highest_acc = 0.0, 0.0
+    best_weights = model.get_weights(sess, weights)
 
     if log: print("training model...")
 
@@ -43,18 +44,18 @@ def train_model(sess, model, x, y, train_op, loss_op, pred_op, weights,
 
         if minibatch_gen.counter % 1000 == 0:
             model.save_weights(sess, best_weights, model_dir, num_bits=bits)
-            acc = evaluate(sess, x, y, pred_op, train_images, train_labels,
-                           batch_size)
+            current_acc = evaluate(sess, x, y, pred_op, train_images,
+                                   train_labels, batch_size)
 
-            if acc >= highest_acc:
-                highest_acc = acc
+            if current_acc >= highest_acc:
+                highest_acc = current_acc
                 best_weights = model.get_weights(sess, weights)
 
-            if (acc >= stop):
+            if (current_acc >= stop):
                 if log: print("Reached stopping accuracy.")
-                return (best_weights, acc)
-            else:
-                yield (best_weights, acc)
+                return (best_weights, current_acc)
+
+        yield (best_weights, current_acc)
 
     if log: print("highest accuracy: %f" % highest_acc)
     return (best_weights, highest_acc)

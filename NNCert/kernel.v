@@ -207,79 +207,83 @@ Module bitvec16PayloadMap : PayloadMap bitvec16Type.
   Definition f (v:bitvec16Type.t) : DRed.t := to_dyadic (bitvec_to_bvec v).
 End bitvec16PayloadMap.
 
-Module IN_784 <: BOUND. Definition n := 784. Lemma n_gt0 : 0 < n. by []. Qed. End IN_784.
-Module N_10 <: BOUND. Definition n := 10. Lemma n_gt0 : 0 < n. by []. Qed. End N_10.
-Module OUT_10 <: BOUND. Definition n := 10. Lemma n_gt0 : 0 < n. by []. Qed. End OUT_10.
+Module CardinalityProof (IN_N : BOUND).
 
-Definition bitvec16_EMNIST_10_KernelType : Type := 
-  Kernel.t IN_784.n N_10.n OUT_10.n bitvec16Type.t bitvec16Type.t.
+  (* Module IN_784 <: BOUND. Definition n := 784. Lemma n_gt0 : 0 < n. by []. Qed. End IN_784. *)
+  Module N_10 <: BOUND. Definition n := 10. Lemma n_gt0 : 0 < n. by []. Qed. End N_10.
+  Module OUT_10 <: BOUND. Definition n := 10. Lemma n_gt0 : 0 < n. by []. Qed. End OUT_10.
 
-Definition bitvec16_EMNIST_10_KernelFinType : finType := 
-  KernelFintype.t IN_784.n N_10.n OUT_10.n bitvec16FinType.t bitvec16FinType.t.
+  Definition bitvec16_EMNIST_10_KernelType : Type := 
+    Kernel.t IN_N.n N_10.n OUT_10.n bitvec16Type.t bitvec16Type.t.
 
-Lemma card_bitvec16_EMNIST_10_KernelFinType :
-  #|bitvec16_EMNIST_10_KernelFinType| = 2^(4*16 + 10*784*16 + 10*10*16). (*2^254144 causes stack overflow*)
-Proof.
-  rewrite /bitvec16_EMNIST_10_KernelFinType !card_prod bitvec16FinType.card.
-  (*Layer 1*)
-  rewrite /KernelFintype.Layer1.
-  rewrite /KernelFintype.Layer1Payload.
-  have H1: #|AxVec_finType IN_784.n bitvec16FinType.t| = 2^(784*16).
-  { rewrite (@AxVec_card 784 16) => //.
-    by rewrite bitvec_card. }
-  rewrite (@AxVec_card 10 (784*16) _ H1).
-  (*Layer 2*)
-  rewrite /KernelFintype.Layer2.
-  rewrite /KernelFintype.Layer2Payload.
-  have H2: #|AxVec_finType N_10.n bitvec16FinType.t| = 2^(10*16).
-  { rewrite (@AxVec_card 10 16 bitvec16FinType.t); first by reflexivity.
-    rewrite bitvec_card; reflexivity. }
-  rewrite (@AxVec_card 10 (10*16) _ H2).
-  rewrite -!multE; rewrite <-!Nat.pow_add_r; rewrite !multE; reflexivity.
-Qed.  
+  Definition bitvec16_EMNIST_10_KernelFinType : finType := 
+    KernelFintype.t IN_N.n N_10.n OUT_10.n bitvec16FinType.t bitvec16FinType.t.
 
-(** Cardinality proof for b=2, N=10*)
+  Lemma card_bitvec16_EMNIST_10_KernelFinType :
+    #|bitvec16_EMNIST_10_KernelFinType| = 2^(4*16 + 10*IN_N.n*16 + 10*10*16). (*2^254144 causes stack overflow*)
+  Proof.
+    rewrite /bitvec16_EMNIST_10_KernelFinType !card_prod bitvec16FinType.card.
+    (*Layer 1*)
+    rewrite /KernelFintype.Layer1.
+    rewrite /KernelFintype.Layer1Payload.
+    have H1: #|AxVec_finType IN_N.n bitvec16FinType.t| = 2^(IN_N.n*16).
+    { rewrite (@AxVec_card IN_N.n 16) => //.
+        by rewrite bitvec_card. }
+    rewrite (@AxVec_card 10 (IN_N.n*16) _ H1).
+    (*Layer 2*)
+    rewrite /KernelFintype.Layer2.
+    rewrite /KernelFintype.Layer2Payload.
+    have H2: #|AxVec_finType N_10.n bitvec16FinType.t| = 2^(10*16).
+    { rewrite (@AxVec_card 10 16 bitvec16FinType.t); first by reflexivity.
+      rewrite bitvec_card; reflexivity. }
+    rewrite (@AxVec_card 10 (10*16) _ H2).
+    (* rewrite -!multE; rewrite <-!Nat.pow_add_r; rewrite !multE; reflexivity. *)
+    admit. (* lia or nia might work given a little direction.. *)
+  Admitted.
 
-Module bitvec2Type <: TYPE.
-  Definition t := bitvec 2.
-End bitvec2Type.
+  (** Cardinality proof for b=2, N=10*)
 
-Module bitvec2FinType.
-  Definition t := bitvec_finType 2.
-  Lemma card : #|t| = 2^2. Proof. by rewrite bitvec_card. Qed.
-End bitvec2FinType.
+  Module bitvec2Type <: TYPE.
+    Definition t := bitvec 2.
+  End bitvec2Type.
 
-Module bitvec2PayloadMap : PayloadMap bitvec2Type.
-  Definition f (v:bitvec2Type.t) : DRed.t := to_dyadic (bitvec_to_bvec v).
-End bitvec2PayloadMap.
+  Module bitvec2FinType.
+    Definition t := bitvec_finType 2.
+    Lemma card : #|t| = 2^2. Proof. by rewrite bitvec_card. Qed.
+  End bitvec2FinType.
 
-Definition bitvec2_EMNIST_10_KernelType : Type := 
-  Kernel.t IN_784.n N_10.n OUT_10.n bitvec2Type.t bitvec2Type.t.
+  Module bitvec2PayloadMap : PayloadMap bitvec2Type.
+    Definition f (v:bitvec2Type.t) : DRed.t := to_dyadic (bitvec_to_bvec v).
+  End bitvec2PayloadMap.
 
-Definition bitvec2_EMNIST_10_KernelFinType : finType := 
-  KernelFintype.t IN_784.n N_10.n OUT_10.n bitvec16FinType.t bitvec2FinType.t.
+  Definition bitvec2_EMNIST_10_KernelType : Type := 
+    Kernel.t IN_N.n N_10.n OUT_10.n bitvec2Type.t bitvec2Type.t.
 
-Lemma card_bitvec2_EMNIST_10_KernelFinType :
-  #|bitvec2_EMNIST_10_KernelFinType| = 2^(4*16 + 10*784*2 + 10*10*2). 
-Proof.
-  rewrite /bitvec2_EMNIST_10_KernelFinType !card_prod bitvec16FinType.card.
-  (*Layer 1*)
-  rewrite /KernelFintype.Layer1.
-  rewrite /KernelFintype.Layer1Payload.
-  have H1: #|AxVec_finType IN_784.n bitvec2FinType.t| = 2^(784*2).
-  { rewrite (@AxVec_card 784 2) => //.
-    by rewrite bitvec_card. }
-  rewrite (@AxVec_card 10 (784*2) _ H1).
-  (*Layer 2*)
-  rewrite /KernelFintype.Layer2.
-  rewrite /KernelFintype.Layer2Payload.
-  have H2: #|AxVec_finType N_10.n bitvec2FinType.t| = 2^(10*2).
-  { rewrite (@AxVec_card 10 2 bitvec2FinType.t); first by reflexivity.
-    rewrite bitvec_card; reflexivity. }
-  rewrite (@AxVec_card 10 (10*2) _ H2).
-  rewrite -!multE; rewrite <-!Nat.pow_add_r; rewrite !multE; reflexivity.
-Qed.  
+  Definition bitvec2_EMNIST_10_KernelFinType : finType := 
+    KernelFintype.t IN_N.n N_10.n OUT_10.n bitvec16FinType.t bitvec2FinType.t.
 
+  Lemma card_bitvec2_EMNIST_10_KernelFinType :
+    #|bitvec2_EMNIST_10_KernelFinType| = 2^(4*16 + 10*IN_N.n*2 + 10*10*2). 
+  Proof.
+    rewrite /bitvec2_EMNIST_10_KernelFinType !card_prod bitvec16FinType.card.
+    (*Layer 1*)
+    rewrite /KernelFintype.Layer1.
+    rewrite /KernelFintype.Layer1Payload.
+    have H1: #|AxVec_finType IN_N.n bitvec2FinType.t| = 2^(IN_N.n*2).
+    { rewrite (@AxVec_card IN_N.n 2) => //.
+        by rewrite bitvec_card. }
+    rewrite (@AxVec_card 10 (IN_N.n*2) _ H1).
+    (*Layer 2*)
+    rewrite /KernelFintype.Layer2.
+    rewrite /KernelFintype.Layer2Payload.
+    have H2: #|AxVec_finType N_10.n bitvec2FinType.t| = 2^(10*2).
+    { rewrite (@AxVec_card 10 2 bitvec2FinType.t); first by reflexivity.
+      rewrite bitvec_card; reflexivity. }
+    rewrite (@AxVec_card 10 (10*2) _ H2).
+    (* rewrite -!multE; rewrite <-!Nat.pow_add_r; rewrite !multE; reflexivity. *)
+    admit. (* Same as above. *)
+  Admitted.
+End CardinalityProof.
 
 (** Printing *)
 

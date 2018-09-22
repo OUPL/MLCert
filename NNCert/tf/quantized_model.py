@@ -4,21 +4,20 @@ from tensorflow.contrib.quantize.python import quant_ops
 from quantize import quantize_ndarray, dequantize_ndarray
 
 from constants import MNIST_NUM_CLASSES as NUM_CLASSES
-from constants import MNIST_IMAGE_SIZE as IMAGE_SIZE
+# from constants import MNIST_IMAGE_SIZE as IMAGE_SIZE
 
-IMAGE_PIXELS = IMAGE_SIZE**2
+# IMAGE_PIXELS = IMAGE_SIZE**2
 NUM_HIDDEN_LAYERS = 1
 HIDDEN_SIZES = [10] # length should equal NUM_HIDDEN_LAYERS
 WEIGHT_DECAY = 0.00002
 
 
-def weights(name='mnist', reuse=None, num_bits=8, pca_d=0):
-    image_pixels = IMAGE_PIXELS if pca_d == 0 else pca_d**2
+def weights(input_size, name='mnist', reuse=None, num_bits=8):
     with tf.variable_scope(name, reuse=reuse):
         sizes = HIDDEN_SIZES + [NUM_CLASSES]
         w0 = tf.get_variable(
             'w0',
-            (image_pixels, sizes[0]),
+            (input_size, sizes[0]),
             initializer=tf.contrib.layers.xavier_initializer())
         ws = [w0] + [tf.get_variable(
             'w' + str(i+1), [sizes[i], sizes[i+1]],
@@ -125,8 +124,7 @@ def print_weights(sess, weights, num_bits=8):
 def get_weights(sess, weights_op):
     return sess.run(weights_op, feed_dict = {})
 
-def load_weights(sess, dir, model_name='mnist', num_bits=8, pca_d=0):
-    image_pixels = IMAGE_PIXELS if pca_d == 0 else pca_d**2
+def load_weights(sess, dir, input_size, model_name='mnist', num_bits=8):
     filename = dir + '/params.pkl.gz' if dir else 'params.pkl.gz'
     with gzip.open(filename, 'rb') as f:
         vars = pickle.load(f, encoding='latin1')
@@ -147,7 +145,7 @@ def load_weights(sess, dir, model_name='mnist', num_bits=8, pca_d=0):
         #     print(w)
         
         with tf.variable_scope(model_name, reuse=True):
-            sizes = [image_pixels] + HIDDEN_SIZES + [NUM_CLASSES]
+            sizes = [input_size] + HIDDEN_SIZES + [NUM_CLASSES]
             w0_var = tf.get_variable('w0', [sizes[0], sizes[1]])
             w1_var = tf.get_variable('w1', [sizes[1], sizes[2]])
             sess.run([w0_var.assign(w0)])

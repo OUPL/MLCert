@@ -9,6 +9,7 @@ import numpy as np
 import struct
 
 path = sys.argv[1]
+# dims = int(sys.argv[2]) or 784
 
 # Number of bits (e.g., 16 or 32) per weight
 # NOTE: The code below currently works only for N=16
@@ -123,11 +124,12 @@ Require Import OUVerT.dyadic OUVerT.compile.
 Require Import MLCert.axioms MLCert.bitvectors MLCert.learners MLCert.extraction_ocaml.
 Require Import net bitnet kernel print.
 
-Module TheDimensionality. Definition n : nat := N.to_nat {}. 
+Module TheDimensionality <: BOUND. Definition n : nat := N.to_nat {}. 
 Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End TheDimensionality.
 Module Neurons. Definition n : nat := N.to_nat {}.
 Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End Neurons.
 Module Outputs. Definition n : nat := {}. Lemma n_gt0 : (0 < {})%nat. by []. Qed. End Outputs.
+Module CProof := CardinalityProof TheDimensionality.
 Import DyadicFloat16.
 
 (*The following function is used only to map 16-bit FP numbers to dyadics 
@@ -218,7 +220,7 @@ Notation "\'T\'":=(true) (at level 65).
 Notation "\'F\'":=(false) (at level 65).
 """.format(IN, IN, NEURONS, NEURONS, OUT, OUT)
 
-def the_postamble():
+def the_postamble(IN):
     return """
 Definition m : nat := 240 * 1000. (*240000 causes stack overflow*)
 Lemma m_gt0 : 0 < m. Proof. by []. Qed.
@@ -256,9 +258,9 @@ Section tf_bound.
 
 Lemma tf_main_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
   tf_main d eps init (fun _ => 1) <= 
-  INR (2 ^ (4 * 16 + 10 * 784 * 16 + 10 * 10 * 16)) * exp (-2%R * eps^2 * mR m).
+  INR (2 ^ (4 * 16 + 10 * """ + str(IN) + """ * 16 + 10 * 10 * 16)) * exp (-2%R * eps^2 * mR m).
 Proof.
-  rewrite -card_bitvec16_EMNIST_10_KernelFinType; apply: Rle_trans; last first.
+  rewrite -CProof.card_bitvec16_EMNIST_10_KernelFinType; apply: Rle_trans; last first.
   { apply oracular_main_bound => //; first by apply: d_dist. }
   apply: Rle_refl.
 Qed.
@@ -305,7 +307,7 @@ def to_coq(IN, NEURONS, OUT, kernel, layers):
     out += the_preamble(IN, NEURONS, OUT)
     out += '\nDefinition kernel : Params := ' + kernel + '.\n'
     out += translate_code()
-    out += the_postamble()
+    out += the_postamble(IN)
     return out
 
 # Load the weights

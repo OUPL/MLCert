@@ -1,4 +1,4 @@
-import gzip, pickle
+import pickle
 from math import sqrt
 import numpy as np
 # from scipy.misc import imsave

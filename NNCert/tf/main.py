@@ -1,6 +1,8 @@
 import argparse, sys, time
 import numpy as np
 import tensorflow as tf
+from functools import reduce
+from operator import mul
 from dataset_params import choose_dataset
 from train import train_model
 from eval import evaluate
@@ -18,29 +20,35 @@ def main(argv):
     # Choose between float and quantized models.
     model = choose_model()
 
+    if FLAGS.pca == 1 and FLAGS.dataset != 'emnist':
+        print('Error: PCA only supported for EMNIST')
+        exit(-1)
+
     # Load parameters and data for the chosen dataset.
-    save_images, NUM_CLASSES, IMAGE_SIZE, example_shape, load_data \
-        = choose_dataset(FLAGS.dataset +
-                         ("" if FLAGS.pca_d == 0 else "_reduced"))
+    save_images, load_data = choose_dataset(
+        FLAGS.dataset + ('' if FLAGS.pca == 0 else '_pca'))
     print ('loading data...')
-    train_data, validation_data, test_data = load_data()
+    train_data, validation_data, test_data = load_data('')
 
     # Choose which set to use (train, test, etc.).
     images, labels = choose_images_labels(train_data, validation_data,
                                           test_data, FLAGS.set)
+    example_shape = images.shape[1:]
+    input_size = reduce(mul, example_shape, 1)
 
     with tf.Graph().as_default():
 
         # Build all of the ops.
         print("building computation graph...")
         x, y, weights, logits, loss_op, pred_op, train_op = build_ops(
-            FLAGS.batch_size, FLAGS.bits, FLAGS.pca_d, FLAGS.learning_rate,
-            FLAGS.decay_step, FLAGS.decay_factor, model, example_shape)
+            FLAGS.batch_size, FLAGS.bits, FLAGS.learning_rate,
+            FLAGS.decay_step, FLAGS.decay_factor, model, input_size)
 
         # Create session and initialize variables.
         sess = init_session()
 
         # Go.
+        i = 0
         if FLAGS.action.lower() == 'train':
             seq = train_model(sess, model, x, y, train_op, loss_op,
                               pred_op, weights, images, labels,
@@ -48,10 +56,12 @@ def main(argv):
                               FLAGS.model_dir, FLAGS.bits, FLAGS.stop,
                               log=False)
             for _, acc in seq:
-                print('acc: %.02f' % acc)
+                i += 1
+                if i % 1000 == 0:
+                    print('acc: %.02f' % acc)
         elif FLAGS.action.lower() == 'eval':
-            model.load_weights(sess, FLAGS.model_dir, num_bits=FLAGS.bits,
-                               pca_d=FLAGS.pca_d)
+            model.load_weights(sess, FLAGS.model_dir, input_size,
+                               num_bits=FLAGS.bits)
             acc = evaluate(sess, x, y, pred_op, images, labels,
                            FLAGS.batch_size, log=False)
             print('acc: %.02f' % acc)
@@ -118,12 +128,10 @@ if __name__ == '__main__':
         help=''
     )
     parser.add_argument(
-        '--pca_d',
+        '--pca',
         type=int,
         default=0,
-        help='0 to use original data, otherwise the value provided \
-        determines the number of principal components in PCA transform \
-        (n = pca_d²).'
+        help='0 to use original data, 1 to use PCA data'
     )
     parser.add_argument(
         '--action',
