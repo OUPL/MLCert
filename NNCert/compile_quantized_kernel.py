@@ -295,7 +295,7 @@ for i in range(w0.shape[1]):
     bvecs = [to_bit_vector(x) for x in w]
     vec = build_vector(';\n', bvecs)
     w0_bits.append(vec)
-print(np.array(w0_bits).shape)
+# print(np.array(w0_bits).shape)
 w0_vec = build_vector(';\n', w0_bits)
 
 w1_bits = []
@@ -304,7 +304,7 @@ for i in range(w1.shape[1]):
     bvecs = [to_bit_vector(x) for x in w]
     vec = build_vector(';\n', bvecs)
     w1_bits.append(vec)
-print(np.array(w1_bits).shape)
+# print(np.array(w1_bits).shape)
 w1_vec = build_vector(';\n', w1_bits)
 
 kernel = build_kernel(shift0_bits, scale0_bits, shift1_bits,
@@ -325,5 +325,15 @@ num_neurons = w1.shape[0]
 src = to_coq(IN, num_neurons, NUM_CLASSES, kernel)
 
 # Write it to file
-with open("qout.v", "w") as f:
+with open("out.v", "w") as f:
     f.write(src)
+
+# Generate config file.
+with open("config.v", "w") as f:
+    f.write("""
+(* Configuration parameters for empiricalloss.v *)
+Module Config.
+  Definition num_pixels := {}.
+  Definition quantized := true.
+End Config.
+    """.format(IN))

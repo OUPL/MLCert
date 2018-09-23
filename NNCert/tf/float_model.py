@@ -2,16 +2,12 @@ import gzip, pickle, os.path
 import tensorflow as tf
 
 from constants import MNIST_NUM_CLASSES as NUM_CLASSES
-# from constants import MNIST_IMAGE_SIZE as IMAGE_SIZE
 
-# IMAGE_PIXELS = IMAGE_SIZE**2
-NUM_HIDDEN_LAYERS = 1
-HIDDEN_SIZES = [10] # length should equal NUM_HIDDEN_LAYERS
 INCLUDE_BIASES = False
 WEIGHT_DECAY = 0.00002
 
 
-def weights(input_size, name='mnist', reuse=None, num_bits=32):
+def weights(input_size, hidden_sizes, name='mnist', reuse=None, num_bits=32):
     if num_bits == 16: dtype = tf.float16
     elif num_bits == 32: dtype = tf.float32
     else:
@@ -20,7 +16,7 @@ def weights(input_size, name='mnist', reuse=None, num_bits=32):
         dtype = tf.float32
 
     with tf.variable_scope(name, reuse=reuse):
-        sizes = HIDDEN_SIZES + [NUM_CLASSES]
+        sizes = hidden_sizes + [NUM_CLASSES]
         w0 = tf.get_variable(
             'w0',
             (input_size, sizes[0]),
@@ -29,7 +25,7 @@ def weights(input_size, name='mnist', reuse=None, num_bits=32):
         ws = [w0] + [tf.get_variable(
             'w' + str(i+1), [sizes[i], sizes[i+1]],
             initializer=tf.contrib.layers.xavier_initializer(),
-            dtype=dtype) for i in range(NUM_HIDDEN_LAYERS)]
+            dtype=dtype) for i in range(len(hidden_sizes))]
         weight_decay = tf.multiply(sum([tf.nn.l2_loss(w) for w in ws]),
                                    WEIGHT_DECAY, name='weight_loss')
         tf.add_to_collection('losses', weight_decay)
@@ -38,10 +34,10 @@ def weights(input_size, name='mnist', reuse=None, num_bits=32):
 # This builds the feedforward network op and returns it. A weight
 # decay term is added to a collection so it can be referred to by the
 # loss function.
-def inference(images, weights, name='m0', reuse=None):
+def inference(images, weights, num_hidden, name='m0', reuse=None):
     with tf.variable_scope(name, reuse=reuse):
         l = images
-        for i in range(NUM_HIDDEN_LAYERS):
+        for i in range(num_hidden):
             l = tf.nn.relu(tf.matmul(l, weights[i]))
         out = tf.matmul(l, weights[-1])
         return out
@@ -93,7 +89,8 @@ def save_weights(sess, weights, dir='models', num_bits=0):
         pickle.dump(weights, f)
 
 
-def load_weights(sess, dir, input_size, model_name='mnist', num_bits=32):
+def load_weights(sess, dir, input_size, hidden_sizes,
+                 model_name='mnist', num_bits=32):
     if num_bits == 16: dtype = tf.float16
     elif num_bits == 32: dtype = tf.float32
     else:
@@ -110,7 +107,7 @@ def load_weights(sess, dir, input_size, model_name='mnist', num_bits=32):
         #     print(w)
 
         with tf.variable_scope(model_name, reuse=True):
-            sizes = [input_size] + HIDDEN_SIZES + [NUM_CLASSES]
+            sizes = [input_size] + hidden_sizes + [NUM_CLASSES]
             for i in range(NUM_HIDDEN_LAYERS+1):
                 w_var = tf.get_variable('w' + str(i),
                                         [sizes[i], sizes[i+1]],

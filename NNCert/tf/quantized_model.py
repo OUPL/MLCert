@@ -4,17 +4,13 @@ from tensorflow.contrib.quantize.python import quant_ops
 from quantize import quantize_ndarray, dequantize_ndarray
 
 from constants import MNIST_NUM_CLASSES as NUM_CLASSES
-# from constants import MNIST_IMAGE_SIZE as IMAGE_SIZE
 
-# IMAGE_PIXELS = IMAGE_SIZE**2
-NUM_HIDDEN_LAYERS = 1
-HIDDEN_SIZES = [10] # length should equal NUM_HIDDEN_LAYERS
 WEIGHT_DECAY = 0.00002
 
 
-def weights(input_size, name='mnist', reuse=None, num_bits=8):
+def weights(input_size, hidden_sizes, name='mnist', reuse=None, num_bits=8):
     with tf.variable_scope(name, reuse=reuse):
-        sizes = HIDDEN_SIZES + [NUM_CLASSES]
+        sizes = hidden_sizes + [NUM_CLASSES]
         w0 = tf.get_variable(
             'w0',
             (input_size, sizes[0]),
@@ -22,17 +18,17 @@ def weights(input_size, name='mnist', reuse=None, num_bits=8):
         ws = [w0] + [tf.get_variable(
             'w' + str(i+1), [sizes[i], sizes[i+1]],
             initializer=tf.contrib.layers.xavier_initializer())
-                     for i in range(NUM_HIDDEN_LAYERS)]
+                     for i in range(len(hidden_sizes))]
         weight_decay = tf.multiply(sum([tf.nn.l2_loss(w) for w in ws]),
                                    WEIGHT_DECAY, name='weight_loss')
         tf.add_to_collection('losses', weight_decay)
         ws = [quant_ops.MovingAvgQuantize(w, num_bits=num_bits) for w in ws]
         return ws
 
-def inference(images, weights, name='mnist', reuse=None):
+def inference(images, weights, num_hidden, name='mnist', reuse=None):
     with tf.variable_scope(name, reuse=reuse):
         l = images
-        for i in range(NUM_HIDDEN_LAYERS):
+        for i in range(num_hidden):
             l = tf.nn.relu(tf.matmul(l, weights[i]))
         out = tf.matmul(l, weights[-1])
         return out
@@ -124,7 +120,8 @@ def print_weights(sess, weights, num_bits=8):
 def get_weights(sess, weights_op):
     return sess.run(weights_op, feed_dict = {})
 
-def load_weights(sess, dir, input_size, model_name='mnist', num_bits=8):
+def load_weights(sess, dir, input_size, hidden_sizes,
+                 model_name='mnist', num_bits=8):
     filename = dir + '/params.pkl.gz' if dir else 'params.pkl.gz'
     with gzip.open(filename, 'rb') as f:
         vars = pickle.load(f, encoding='latin1')
@@ -145,7 +142,7 @@ def load_weights(sess, dir, input_size, model_name='mnist', num_bits=8):
         #     print(w)
         
         with tf.variable_scope(model_name, reuse=True):
-            sizes = [input_size] + HIDDEN_SIZES + [NUM_CLASSES]
+            sizes = [input_size] + hidden_sizes + [NUM_CLASSES]
             w0_var = tf.get_variable('w0', [sizes[0], sizes[1]])
             w1_var = tf.get_variable('w1', [sizes[1], sizes[2]])
             sess.run([w0_var.assign(w0)])

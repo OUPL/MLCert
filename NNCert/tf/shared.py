@@ -95,21 +95,18 @@ def choose_images_labels(train, valid, test, i):
     return images, labels
 
 def build_ops(batch_size, bits, learning_rate, decay_step,
-              decay_factor, model, input_size):
+              decay_factor, model, input_size, hidden_sizes):
     if bits == 16: dtype = tf.float16
     elif bits == 32: dtype = tf.float32
     else:
-        print('shared.build_ops warning: unexpected value %d for \
-        bits, defaulting to 32' % bits)
+        # print('shared.build_ops warning: unexpected value %d for \
+        # bits, defaulting to 32' % bits)
         dtype = tf.float32
-
-    print(batch_size)
-    print(input_size)
 
     x = tf.placeholder(dtype, (batch_size, input_size))
     y = tf.placeholder(tf.int32, shape=batch_size)
-    weights = model.weights(input_size, num_bits=bits)
-    logits = model.inference(x, weights)
+    weights = model.weights(input_size, hidden_sizes, num_bits=bits)
+    logits = model.inference(x, weights, len(hidden_sizes))
     loss_op = model.loss(logits, y)
     pred_op = model.predictions(logits)
     train_op = model.training(loss_op, x, learning_rate, decay_step,

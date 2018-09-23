@@ -33,8 +33,13 @@ def main(argv):
     # Choose which set to use (train, test, etc.).
     images, labels = choose_images_labels(train_data, validation_data,
                                           test_data, FLAGS.set)
+
+    # Compute flattened input dimensionality by folding mul over the
+    # shape dimensions.
     example_shape = images.shape[1:]
     input_size = reduce(mul, example_shape, 1)
+
+    hidden_sizes = map(int, FLAGS.layer_sizes.split())
 
     with tf.Graph().as_default():
 
@@ -42,7 +47,8 @@ def main(argv):
         print("building computation graph...")
         x, y, weights, logits, loss_op, pred_op, train_op = build_ops(
             FLAGS.batch_size, FLAGS.bits, FLAGS.learning_rate,
-            FLAGS.decay_step, FLAGS.decay_factor, model, input_size)
+            FLAGS.decay_step, FLAGS.decay_factor, model, input_size,
+            hidden_sizes)
 
         # Create session and initialize variables.
         sess = init_session()
@@ -61,7 +67,7 @@ def main(argv):
                     print('acc: %.02f' % acc)
         elif FLAGS.action.lower() == 'eval':
             model.load_weights(sess, FLAGS.model_dir, input_size,
-                               num_bits=FLAGS.bits)
+                               hidden_sizes, num_bits=FLAGS.bits)
             acc = evaluate(sess, x, y, pred_op, images, labels,
                            FLAGS.batch_size, log=False)
             print('acc: %.02f' % acc)
@@ -113,7 +119,7 @@ if __name__ == '__main__':
         '--dataset',
         type=str,
         default='mnist',
-        help='MNIST, EMNIST, or EMNIST_reduced'
+        help='MNIST, EMNIST, or EMNIST_reduced (capitalization doesn\'t matter)'
     )
     parser.add_argument(
         '--bits',
@@ -131,18 +137,21 @@ if __name__ == '__main__':
         '--pca',
         type=int,
         default=0,
+        choices=[0, 1],
         help='0 to use original data, 1 to use PCA data'
     )
     parser.add_argument(
         '--action',
         type=str,
         default='eval',
+        choices=['train', 'eval'],
         help='\'train\' to train, \'eval\' to evaluate.'
     )
     parser.add_argument(
         '-s', '--set',
         type=int,
         default=2,
+        choices=[0, 1, 2, 3],
         help='0 to use test set, 1 for validation set, 2 for training \
         set, 3 for combined training and validation.'
     )
@@ -150,8 +159,16 @@ if __name__ == '__main__':
         '-q', '--quantize',
         type=int,
         default=0,
+        choices=[0, 1],
         help='0 for float weights, 1 for fixed-precision quantized weights'
     )
+    parser.add_argument(
+        '--layer_sizes',
+        type=str,
+        default='10',
+        help='Sizes of hidden layers separated by spaces.'
+    )
+    
     
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)

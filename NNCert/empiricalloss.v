@@ -11,7 +11,7 @@ Require Import OUVerT.dyadic.
 
 Require Import MLCert.axioms MLCert.extraction_ocaml.
 
-Require Import net bitnet kernel qout print config.
+Require Import net bitnet kernel out print config.
 
 (* NOTE: The code below is specialized to a 16-bit encoding of input
 image pixels. *)
@@ -34,14 +34,14 @@ let rec read_pixels = function
   | 0 -> []
   | n -> read_bits float_size :: read_pixels (n-1) in
 
+let rec int_of_nat = function
+  | O -> 0
+  | S n -> 1 + int_of_nat n in
+
 let read_image _ =
   let lbl = read_int () in
   let pixels = read_pixels (int_of_nat num_pixels) in
   (lbl, pixels) in
-
-let rec int_of_nat = function
-  | O -> 0
-  | S n -> 1 + int_of_nat n
 
 let rec nat_of_int = function
   | 0 -> O
