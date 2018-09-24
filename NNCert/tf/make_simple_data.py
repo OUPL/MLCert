@@ -9,7 +9,7 @@ N = 16
 BATCH_SIZE = 100
 
 num_batches = int(sys.argv[1])
-use_pca = bool(sys.argv[2])
+use_pca = True if sys.argv[2] == 'True' else False
 if sys.argv[3] == "True": test_batches = True
 elif sys.argv[3] == "False": test_batches = False
 else:

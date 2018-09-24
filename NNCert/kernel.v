@@ -207,34 +207,35 @@ Module bitvec16PayloadMap : PayloadMap bitvec16Type.
   Definition f (v:bitvec16Type.t) : DRed.t := to_dyadic (bitvec_to_bvec v).
 End bitvec16PayloadMap.
 
-Module CardinalityProof (IN_N : BOUND).
+Module CardinalityProof (IN N : BOUND).
 
   (* Module IN_784 <: BOUND. Definition n := 784. Lemma n_gt0 : 0 < n. by []. Qed. End IN_784. *)
-  Module N_10 <: BOUND. Definition n := 10. Lemma n_gt0 : 0 < n. by []. Qed. End N_10.
+  (* Module N_10 <: BOUND. Definition n := 10. Lemma n_gt0 : 0 < n. by []. Qed. End N_10. *)
   Module OUT_10 <: BOUND. Definition n := 10. Lemma n_gt0 : 0 < n. by []. Qed. End OUT_10.
 
   Definition bitvec16_EMNIST_10_KernelType : Type := 
-    Kernel.t IN_N.n N_10.n OUT_10.n bitvec16Type.t bitvec16Type.t.
+    Kernel.t IN.n N.n OUT_10.n bitvec16Type.t bitvec16Type.t.
 
   Definition bitvec16_EMNIST_10_KernelFinType : finType := 
-    KernelFintype.t IN_N.n N_10.n OUT_10.n bitvec16FinType.t bitvec16FinType.t.
+    KernelFintype.t IN.n N.n OUT_10.n bitvec16FinType.t bitvec16FinType.t.
 
   Lemma card_bitvec16_EMNIST_10_KernelFinType :
-    #|bitvec16_EMNIST_10_KernelFinType| = 2^(4*16 + 10*IN_N.n*16 + 10*10*16). (*2^254144 causes stack overflow*)
+    #|bitvec16_EMNIST_10_KernelFinType| = 2^(4*16 + N.n*IN.n*16 + N.n*10*16). (*2^254144 causes stack overflow*)
   Proof.
     rewrite /bitvec16_EMNIST_10_KernelFinType !card_prod bitvec16FinType.card.
     (*Layer 1*)
     rewrite /KernelFintype.Layer1.
     rewrite /KernelFintype.Layer1Payload.
-    have H1: #|AxVec_finType IN_N.n bitvec16FinType.t| = 2^(IN_N.n*16).
-    { rewrite (@AxVec_card IN_N.n 16) => //.
+    have H1: #|AxVec_finType IN.n bitvec16FinType.t| = 2^(IN.n*16).
+    { rewrite (@AxVec_card IN.n 16) => //.
         by rewrite bitvec_card. }
-    rewrite (@AxVec_card 10 (IN_N.n*16) _ H1).
+    rewrite (@AxVec_card N.n (IN.n*16) _ H1).
     (*Layer 2*)
     rewrite /KernelFintype.Layer2.
     rewrite /KernelFintype.Layer2Payload.
-    have H2: #|AxVec_finType N_10.n bitvec16FinType.t| = 2^(10*16).
-    { rewrite (@AxVec_card 10 16 bitvec16FinType.t); first by reflexivity.
+    have H2: #|AxVec_finType N.n bitvec16FinType.t| = 2^(10*16).
+    { rewrite (@AxVec_card N.n 16 bitvec16FinType.t). (* ; first by reflexivity. *)
+      admit.
       rewrite bitvec_card; reflexivity. }
     rewrite (@AxVec_card 10 (10*16) _ H2).
     (* rewrite -!multE; rewrite <-!Nat.pow_add_r; rewrite !multE; reflexivity. *)
@@ -257,27 +258,28 @@ Module CardinalityProof (IN_N : BOUND).
   End bitvec2PayloadMap.
 
   Definition bitvec2_EMNIST_10_KernelType : Type := 
-    Kernel.t IN_N.n N_10.n OUT_10.n bitvec2Type.t bitvec2Type.t.
+    Kernel.t IN.n N.n OUT_10.n bitvec2Type.t bitvec2Type.t.
 
   Definition bitvec2_EMNIST_10_KernelFinType : finType := 
-    KernelFintype.t IN_N.n N_10.n OUT_10.n bitvec16FinType.t bitvec2FinType.t.
+    KernelFintype.t IN.n N.n OUT_10.n bitvec16FinType.t bitvec2FinType.t.
 
   Lemma card_bitvec2_EMNIST_10_KernelFinType :
-    #|bitvec2_EMNIST_10_KernelFinType| = 2^(4*16 + 10*IN_N.n*2 + 10*10*2). 
+    #|bitvec2_EMNIST_10_KernelFinType| = 2^(4*16 + N.n*IN.n*2 + N.n*10*2). 
   Proof.
     rewrite /bitvec2_EMNIST_10_KernelFinType !card_prod bitvec16FinType.card.
     (*Layer 1*)
     rewrite /KernelFintype.Layer1.
     rewrite /KernelFintype.Layer1Payload.
-    have H1: #|AxVec_finType IN_N.n bitvec2FinType.t| = 2^(IN_N.n*2).
-    { rewrite (@AxVec_card IN_N.n 2) => //.
+    have H1: #|AxVec_finType IN.n bitvec2FinType.t| = 2^(IN.n*2).
+    { rewrite (@AxVec_card IN.n 2) => //.
         by rewrite bitvec_card. }
-    rewrite (@AxVec_card 10 (IN_N.n*2) _ H1).
+    rewrite (@AxVec_card N.n (IN.n*2) _ H1).
     (*Layer 2*)
     rewrite /KernelFintype.Layer2.
     rewrite /KernelFintype.Layer2Payload.
-    have H2: #|AxVec_finType N_10.n bitvec2FinType.t| = 2^(10*2).
-    { rewrite (@AxVec_card 10 2 bitvec2FinType.t); first by reflexivity.
+    have H2: #|AxVec_finType N.n bitvec2FinType.t| = 2^(10*2).
+    { rewrite (@AxVec_card N.n 2 bitvec2FinType.t). (* ; first by reflexivity. *)
+      admit.
       rewrite bitvec_card; reflexivity. }
     rewrite (@AxVec_card 10 (10*2) _ H2).
     (* rewrite -!multE; rewrite <-!Nat.pow_add_r; rewrite !multE; reflexivity. *)

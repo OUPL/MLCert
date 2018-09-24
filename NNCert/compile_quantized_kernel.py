@@ -68,12 +68,12 @@ Require Import net bitnet kernel print.
 
 Module TheDimensionality <: BOUND. Definition n : nat := N.to_nat {}. 
 Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End TheDimensionality.
-Module Neurons. Definition n : nat := N.to_nat {}.
+Module Neurons <: BOUND. Definition n : nat := N.to_nat {}.
 Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End Neurons.
 Module Outputs. Definition n : nat := {}. Lemma n_gt0 : (0 < {})%nat. by []. Qed. End Outputs.
 Module BLow <: BOUND. Definition n := {}. Lemma n_gt0 : 0 < n. Proof. by []. Qed. End BLow.
 Module BLowType : TYPE. Definition t := bitvec BLow.n. End BLowType.
-Module CProof := CardinalityProof TheDimensionality.
+Module CProof := CardinalityProof TheDimensionality Neurons.
 Import DyadicFloat16.
 
 (*The following function is used only to map 16-bit FP numbers to dyadics 
@@ -178,7 +178,7 @@ Notation "\'T\'":=(true) (at level 65).
 Notation "\'F\'":=(false) (at level 65).
 """.format(IN, IN, NEURONS, NEURONS, OUT, OUT, N_W)
 
-def the_postamble(IN):
+def the_postamble(IN, NEURONS):
     return """
 Definition m : nat := 200 * 1000. (*240000 causes stack overflow*)
 Lemma m_gt0 : 0 < m. Proof. by []. Qed.
@@ -216,7 +216,7 @@ Section tf_bound.
 
 Lemma tf_main_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
   tf_main d eps init (fun _ => 1) <= 
-  INR (2 ^ (4 * 16 + 10 * """ + str(IN) + """ * 2 + 10 * 10 * 2)) * exp (-2%R * eps^2 * mR m).
+  INR (2 ^ (4 * 16 + """ + str(NEURONS) + " * " + str(IN) + " * 2 + " + str(NEURONS) + """ * 10 * 2)) * exp (-2%R * eps^2 * mR m).
 Proof.
   rewrite -CProof.card_bitvec2_EMNIST_10_KernelFinType; apply: Rle_trans; last first.
   { apply oracular_main_bound => //; first by apply: d_dist. }
@@ -259,7 +259,7 @@ def to_coq(IN, NEURONS, OUT, kernel):
     out = ''
     out += the_preamble(IN, NEURONS, OUT)
     out += '\nDefinition kernel : Params := ' + kernel + '.\n' 
-    out += the_postamble(IN)
+    out += the_postamble(IN, NEURONS)
     return out
 
 # Load the weights
@@ -334,6 +334,6 @@ with open("config.v", "w") as f:
 (* Configuration parameters for empiricalloss.v *)
 Module Config.
   Definition num_pixels := {}.
-  Definition quantized := true.
+  Definition quantized := false.
 End Config.
     """.format(IN))

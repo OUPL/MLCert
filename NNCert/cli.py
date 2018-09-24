@@ -16,6 +16,7 @@ from sklearn.decomposition import PCA
 from termcolor import colored
 from shutil import copyfile
 from subprocess import call
+import time
 
 from dataset_params import choose_dataset
 from train import train_model
@@ -129,19 +130,21 @@ def ask_use_pca():
     # else: return 0
 
 
-def gen_pca():
-    questions = [
-        inquirer.Text('pca_d',
-                      message =
-                      'Square root of number of principal components',
-                      validate =
-                      lambda _, x: 1 <= int(x) <= int(sqrt(784)) )
-    ]
-    pca_d = int(inquirer.prompt(questions)['pca_d'])
+def gen_pca(pca_d=None):
+    if pca_d is None:
+        questions = [
+            inquirer.Text('pca_d',
+                          message =
+                          'Number of principal components',
+                          validate =
+                          lambda _, x: 1 <= int(x) <= int(784) )
+        ]
+        pca_d = int(inquirer.prompt(questions)['pca_d'])
     print('Loading original data...')
     _, load_data = choose_dataset('emnist')
     train_data, valid_data, test_data = load_data('tf/')
-    pca = PCA(n_components=pca_d**2)
+    print(pca_d)
+    pca = PCA(n_components=pca_d)
     # Fit to validation data only
     print('Fitting to validation data...')
     pca.fit(valid_data.images)
@@ -160,10 +163,12 @@ def gen_pca():
 
 
 # For now we only allow training but that could change.
-def train_or_eval(do_train=True):
-    weights_type, bits = ask_weight_info()
-    hidden_sizes = ask_layer_info()
-    use_pca = ask_use_pca()
+def train_or_eval(do_train=True, weights_type_bits=None, hidden_sizes=None,
+                  use_pca=None, use_old_pca=None, pca_d=None):
+    weights_type, bits = ask_weight_info() if weights_type_bits is None \
+                         else weights_type_bits
+    hidden_sizes = ask_layer_info() if hidden_sizes is None else hidden_sizes
+    use_pca = ask_use_pca() if use_pca is None else use_pca
 
     # TODO: need to ask for the number of hidden layers and their
     # sizes. When compiling / evaluating, we should be able to get
@@ -178,18 +183,28 @@ def train_or_eval(do_train=True):
         # Check if any PCA data exists.
         if Path('tf/emnist/test_pca.pkl').is_file():
             data = load_pickled('tf/emnist/test_pca.pkl')
-            questions = [
-                inquirer.Confirm(
-                    'old_pca',
-                    message='Use existing PCA data (%d principal components)?'
-                    % data.images.shape[1])
-            ]
-            if inquirer.prompt(questions)['old_pca']:
+            if use_old_pca:
                 print('Using existing PCA data.')
             else:
-                gen_pca()
+                if use_old_pca is None:
+                    questions = [
+                        inquirer.Confirm(
+                            'old_pca',
+                            message='Use existing PCA data (%d principal components)?'
+                            % data.images.shape[1])
+                    ]
+                    if inquirer.prompt(questions)['old_pca']:
+                        print('Using existing PCA data.')
+                    else: gen_pca(pca_d)
+                else:
+                    if use_old_pca: print('Using existing PCA data.')
+                    else: gen_pca(pca_d)
         else:
-            gen_pca()
+            if use_old_pca:
+                print('train_or_eval error: use_old_pca is set but there \
+is no existing PCA data')
+                exit(-1)
+            else: gen_pca(pca_d)
 
     # Write PCA flag to disk so we can easily check later whether PCA
     # is being used or not (so we use the appropriate number of
@@ -233,20 +248,20 @@ def train_or_eval(do_train=True):
         sess = init_session()
 
         # Go.
-        i = 0
         if do_train:
             print('Training model...')
             seq = train_model(sess, model, x, y, train_op, loss_op,
                               pred_op, weights, images, labels,
                               batch_size, max_steps, 'tf/models/default/',
                               bits, 1.0, log=False)
-            ac = 0.0
+            # i, ac = 0, 0.0
+            i = 0
             for _, acc in seq:
                 i += 1
                 render_progress_bar(i, max_steps,
                                     (colored('Accuracy', 'yellow') + ': %0.02f%%') \
                                     % (acc * 100.0))
-                ac = acc
+                # ac = acc
             clear_bottom_bar()
             print('Done training model.')
             print('Selecting weights with best accuracy (%.02f%%).' % (acc * 100.0))
@@ -260,19 +275,17 @@ def train_or_eval(do_train=True):
 
 
 def compile():
-    # TODO: copy weights, use compile script, generate empiricalloss
-    # config file, and maybe compile the extracted OCaml program
-    # (optimization flags?)
+    # Copy weights from tf directory. Not really necessary but whatever.
     copyfile('tf/models/default/params.pkl.gz', 'params.pkl.gz')
 
+    # Load the weights.
     with gzip.open('params.pkl.gz', 'rb') as f:
         weights = pickle.load(f, encoding='latin1')
 
-    # print(len(weights))
-    # _ = [print(w.shape) for w in weights]
-    # exit(0)
-
-    # Set the type of weights based on the presence of shift/scale.
+    # Determine the type of weights based on the presence of
+    # shift/scale values. NOTE: if we support different numbers of
+    # hidden layers later then this will have to change to actually
+    # look for the shift/scale values.
     weights_type = 'float' if len(weights) == 2 else 'quantized'
     if weights_type == 'float':
         bits = 16
@@ -296,20 +309,18 @@ def compile():
         call(['python3', 'compile_quantized_kernel.py', 'params.pkl.gz',
               str(bits)])
 
+    print('Done compiling to Coq.')
+
 
 def extract():
+    print('Extracting model...')
     call(['touch', 'out.v'])
     call(['make'])
-    print('Extracting model...')
     call(['coqc', '-R', '..', 'MLCert', '-w', 'none', 'empiricalloss.v'])
     print('Done extracting model.')
 
 
-def evaluate():
-    # TODO: give option to either run the OCaml batch evaluation
-    # program or run one of the other validation scripts.
-    print('evaluate')
-
+def evaluate(gen_batches=None):
     with gzip.open('params.pkl.gz', 'rb') as f:
         weights = pickle.load(f, encoding='latin1')
 
@@ -318,12 +329,14 @@ def evaluate():
     # TODO: need to generate different batch data sometimes.. (PCA)
     # if not Path('extract/batches/batch_' + str(num_batches-1)).is_file():
     pca = load_pickled('pca.pkl')
-    questions = [
-        inquirer.Confirm(
-            'make_batches',
-            message='Generate batch data?')
-    ]
-    if inquirer.prompt(questions)['make_batches']:
+    if gen_batches is None:
+        questions = [
+            inquirer.Confirm(
+                'make_batches',
+                message='Generate batch data?')
+        ]
+        gen_batches = inquirer.prompt(questions)['make_batches']
+    if gen_batches:
         call(['python3', 'tf/make_simple_data.py', str(num_batches),
               str(pca), 'False', 'tf/emnist', 'extract/batches'])
 
@@ -332,38 +345,100 @@ def evaluate():
     # print('Done generating batches.')
 
     call(['rm', 'extract/batch_test.mli'])
-    # call(['ocamlopt', '-o', 'extract/batch_test', 'extract/batch_test.ml'])
     print('Compiling OCaml executable...')
-    call(['ocamlopt', '-inline', '1000', '-o', 'extract/batch_test',
-          'extract/batch_test.ml'])
+    call(['ocamlopt', '-o', 'extract/batch_test', 'extract/batch_test.ml'])
     print('Running evaluation...')
-    call(['extract/scripts/train_err', 'extract/batch_test', 'extract/log.txt',
-          'extract/batches', str(num_batches), str(5)])
-    call(['python3', 'extract/scripts/accuracy.py', 'extract/log.txt'])
+    logfile = 'extract/log_' + str(time.time()) + '.txt'
+    call(['extract/scripts/train_err', 'extract/batch_test', logfile,
+          'extract/batches', str(num_batches), '5'])
+    call(['python3', 'extract/scripts/accuracy.py', str(num_batches)],
+         stdin=open(logfile, 'r'))
 
 
+def eat(inputs):
+    if not inputs:
+        print('error: expected another input')
+        exit(-1)
+    return inputs[0], inputs[1:]
 
-while True:
-    # User entry point.
-    questions = [
-        inquirer.List('action',
-                      message='Action',
-                      choices=['Train a TensorFlow model',
-                               'Compile TensorFlow model to Coq',
-                               'Extract Coq model to OCaml',
-                               'Evaluate extracted model',
-                               'Exit'])
-    ]
+def mapFst(f, p):
+    return f(p[0]), p[1]
 
-    # Branch on the user's response.
-    { 'train': lambda: train_or_eval(True),
-      'compile': compile,
-      'evaluate': evaluate,
-      'extract': extract,
-      'exit': lambda: exit(0) } \
-      [inquirer.prompt(questions)['action'].split()[0].lower()]()
+def boolOfString(s):
+    return True if s.lower() == 'true' else False
 
-# TODO: maybe support little script files in XML or something so this
-# program can just be pointed to one of those files to execute
-# specified actions and then exit. Maybe just piping regular inputs to
-# stdin would work?
+
+def interp_train(inputs):
+    weights_type, inputs = eat(inputs)
+    if weights_type == 'quantized':
+        bits, inputs = mapFst(int, eat(inputs))
+    else: bits = 16
+    hidden_sizes, inputs = mapFst(lambda x: [int(x)], eat(inputs))
+    use_pca, inputs = mapFst(boolOfString, eat(inputs))
+    if use_pca:
+        use_old_pca, inputs = mapFst(boolOfString, eat(inputs))
+        if not use_old_pca:
+            pca_d, inputs = mapFst(int, eat(inputs))
+        else: pca_d = None
+    else: use_old_pca, pca_d = None, None
+
+    train_or_eval(True, weights_type_bits=(weights_type, bits),
+                  hidden_sizes=hidden_sizes, use_pca=use_pca,
+                  use_old_pca=use_old_pca, pca_d=pca_d)
+    print(inputs)
+    interp(inputs)
+
+
+def interp_compile(inputs):
+    compile()
+    interp(inputs)
+
+def interp_extract(inputs):
+    extract()
+    interp(inputs)
+
+def interp_evaluate(inputs):
+    gen_batches, inputs = mapFst(boolOfString, eat(inputs))
+    evaluate(gen_batches)
+    interp(inputs)
+
+def interp(inputs):
+    print(inputs)
+    if len(inputs) == 0:
+        return 0
+    # try:
+    { 'train': interp_train,
+      'compile': interp_compile,
+      'evaluate': interp_evaluate,
+      'extract': interp_extract,
+      'exit': lambda _: 0 } [inputs[0]](inputs[1:])
+    # except:
+    #     print('interp: error on input \'' + inputs[0] + '\'')
+    #     return -1
+
+
+# Entry point.
+# If a command script is given, execute it and exit. Otherwise, run
+# the interactive loop.
+if len(sys.argv) > 1:
+    with open(sys.argv[1], 'r') as f:
+        exit(interp(f.read().lower().split()))
+else:
+    while True:
+        questions = [
+            inquirer.List('action',
+                          message='Action',
+                          choices=['Train a TensorFlow model',
+                                   'Compile TensorFlow model to Coq',
+                                   'Extract Coq model to OCaml',
+                                   'Evaluate extracted model',
+                                   'Exit'])
+        ]
+        
+        # Branch on the user's response.
+        { 'train': lambda: train_or_eval(True),
+          'compile': compile,
+          'evaluate': evaluate,
+          'extract': extract,
+          'exit': lambda: exit(0) } \
+          [inquirer.prompt(questions)['action'].split()[0].lower()]()
