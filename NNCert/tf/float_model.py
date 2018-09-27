@@ -8,12 +8,13 @@ WEIGHT_DECAY = 0.00002
 
 
 def weights(input_size, hidden_sizes, name='mnist', reuse=None, num_bits=32):
-    if num_bits == 16: dtype = tf.float16
-    elif num_bits == 32: dtype = tf.float32
-    else:
-        print('float_model.weights warning: unexpected value %d for \
-        num_bits, defaulting to 32' % num_bits)
-        dtype = tf.float32
+    # if num_bits == 16: dtype = tf.float16
+    # elif num_bits == 32: dtype = tf.float32
+    # else:
+    #     print('float_model.weights warning: unexpected value %d for \
+    #     num_bits, defaulting to 32' % num_bits)
+    #     dtype = tf.float32
+    dtype = tf.float32
 
     with tf.variable_scope(name, reuse=reuse):
         sizes = hidden_sizes + [NUM_CLASSES]
@@ -91,12 +92,14 @@ def save_weights(sess, weights, dir='models', num_bits=0):
 
 def load_weights(sess, dir, input_size, hidden_sizes,
                  model_name='mnist', num_bits=32):
-    if num_bits == 16: dtype = tf.float16
-    elif num_bits == 32: dtype = tf.float32
-    else:
-        print('float_model.load_weights warning: unexpected value %d for \
-        num_bits, defaulting to 32' % num_bits)
-        dtype = tf.float32
+    # if num_bits == 16: dtype = tf.float16
+    # elif num_bits == 32: dtype = tf.float32
+    # else:
+    #     print('float_model.load_weights warning: unexpected value %d for \
+    #     num_bits, defaulting to 32' % num_bits)
+    #     dtype = tf.float32
+    dtype=tf.float32
+
     filename = dir + '/params.pkl.gz' if dir else 'params.pkl.gz'
     with gzip.open(filename, 'rb') as f:
         weights = pickle.load(f, encoding='latin1')

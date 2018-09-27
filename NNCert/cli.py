@@ -31,8 +31,14 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 ui = inquirer.render.console.ConsoleRender()
 
+# Disabling the progress bar can be useful if you want to pipe output
+# to a file or something.
+RENDER_PROGRESS_BAR = True
+
+
 # i/n
 def render_progress_bar(i, n, msg=None):
+    if not RENDER_PROGRESS_BAR: return
     xs = ['|', '/', '-', '\\']
     progress = int(i / n * 20)
     s = '[' + '█'*progress + colored('.'*(20-progress), 'grey') + '] ' + \
@@ -42,7 +48,8 @@ def render_progress_bar(i, n, msg=None):
     ui.render_in_bottombar(s)
 
 def clear_bottom_bar():
-    ui.render_in_bottombar('')
+    if RENDER_PROGRESS_BAR:
+        ui.render_in_bottombar('')
 
 
 if not Path('tf/emnist/test.pkl').is_file():
@@ -254,17 +261,16 @@ is no existing PCA data')
                               pred_op, weights, images, labels,
                               batch_size, max_steps, 'tf/models/default/',
                               bits, 1.0, log=False)
-            # i, ac = 0, 0.0
             i = 0
             for _, acc in seq:
                 i += 1
                 render_progress_bar(i, max_steps,
                                     (colored('Accuracy', 'yellow') + ': %0.02f%%') \
                                     % (acc * 100.0))
-                # ac = acc
             clear_bottom_bar()
             print('Done training model.')
             print('Selecting weights with best accuracy (%.02f%%).' % (acc * 100.0))
+            print(str(acc))
         else:
             print('Evaluating model...')
             model.load_weights(sess, 'tf/models/default/', num_bits=bits,
@@ -287,10 +293,7 @@ def compile():
     # hidden layers later then this will have to change to actually
     # look for the shift/scale values.
     weights_type = 'float' if len(weights) == 2 else 'quantized'
-    if weights_type == 'float':
-        bits = 16
-    else:
-        bits = len(weights[0][0][0])
+    bits = 16 if weights_type == 'float' else len(weights[0][0][0])
 
     # We don't need to know the PCA dimensionality information here
     # because the compile script just looks at dimensions of the
@@ -367,7 +370,6 @@ def mapFst(f, p):
 def boolOfString(s):
     return True if s.lower() == 'true' else False
 
-
 def interp_train(inputs):
     weights_type, inputs = eat(inputs)
     if weights_type == 'quantized':
@@ -385,9 +387,7 @@ def interp_train(inputs):
     train_or_eval(True, weights_type_bits=(weights_type, bits),
                   hidden_sizes=hidden_sizes, use_pca=use_pca,
                   use_old_pca=use_old_pca, pca_d=pca_d)
-    print(inputs)
     interp(inputs)
-
 
 def interp_compile(inputs):
     compile()
@@ -403,18 +403,12 @@ def interp_evaluate(inputs):
     interp(inputs)
 
 def interp(inputs):
-    print(inputs)
-    if len(inputs) == 0:
-        return 0
-    # try:
+    if not inputs: return 0
     { 'train': interp_train,
       'compile': interp_compile,
       'evaluate': interp_evaluate,
       'extract': interp_extract,
       'exit': lambda _: 0 } [inputs[0]](inputs[1:])
-    # except:
-    #     print('interp: error on input \'' + inputs[0] + '\'')
-    #     return -1
 
 
 # Entry point.

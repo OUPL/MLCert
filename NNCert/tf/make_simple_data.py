@@ -41,7 +41,7 @@ else:
     images = np.concatenate([train_images, validation_images], axis=0)
     labels = np.concatenate([train_labels, validation_labels], axis=0)
 
-print(images.shape)
+# print(images.shape)
 
 # This function stolen from code posted to:
 # https://stackoverflow.com/questions/16444726/binary-representation-of-float-in-python-bits-not-hex

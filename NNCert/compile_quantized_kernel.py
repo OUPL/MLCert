@@ -334,6 +334,5 @@ with open("config.v", "w") as f:
 (* Configuration parameters for empiricalloss.v *)
 Module Config.
   Definition num_pixels := {}.
-  Definition quantized := false.
 End Config.
     """.format(IN))

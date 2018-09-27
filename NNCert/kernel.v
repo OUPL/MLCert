@@ -31,7 +31,7 @@ Module Kernel. Section t.
 
   Definition Layer2Payload := AxVec N T.
   Definition Layer2 := AxVec OUT Layer2Payload.
-  
+
   (*The following type is isomorphic to: 
     Record t :=
     { ss1 : S * S;
@@ -96,7 +96,7 @@ Module Translate (IN N OUT : BOUND) (S T : TYPE)
       rewrite -!plusE -!multE; nia.
     Qed.
   End D.
-  
+
   Module TheNet := DyadicNet IN D OUT.
   Import TheNet. Import TheNet.F. Import NETEval.
 
@@ -233,14 +233,12 @@ Module CardinalityProof (IN N : BOUND).
     (*Layer 2*)
     rewrite /KernelFintype.Layer2.
     rewrite /KernelFintype.Layer2Payload.
-    have H2: #|AxVec_finType N.n bitvec16FinType.t| = 2^(10*16).
-    { rewrite (@AxVec_card N.n 16 bitvec16FinType.t). (* ; first by reflexivity. *)
-      admit.
+    have H2: #|AxVec_finType N.n bitvec16FinType.t| = 2^(N.n*16).
+    { rewrite (@AxVec_card N.n 16 bitvec16FinType.t); first by reflexivity.
       rewrite bitvec_card; reflexivity. }
-    rewrite (@AxVec_card 10 (10*16) _ H2).
-    (* rewrite -!multE; rewrite <-!Nat.pow_add_r; rewrite !multE; reflexivity. *)
-    admit. (* lia or nia might work given a little direction.. *)
-  Admitted.
+    rewrite (@AxVec_card 10 (N.n*16) _ H2).
+    rewrite <- !Nat.pow_add_r; f_equal; rewrite <- !plusE, <- !multE; nia.
+  Qed.
 
   (** Cardinality proof for b=2, N=10*)
 
@@ -277,14 +275,12 @@ Module CardinalityProof (IN N : BOUND).
     (*Layer 2*)
     rewrite /KernelFintype.Layer2.
     rewrite /KernelFintype.Layer2Payload.
-    have H2: #|AxVec_finType N.n bitvec2FinType.t| = 2^(10*2).
-    { rewrite (@AxVec_card N.n 2 bitvec2FinType.t). (* ; first by reflexivity. *)
-      admit.
+    have H2: #|AxVec_finType N.n bitvec2FinType.t| = 2^(N.n*2).
+    { rewrite (@AxVec_card N.n 2 bitvec2FinType.t); first by reflexivity.
       rewrite bitvec_card; reflexivity. }
-    rewrite (@AxVec_card 10 (10*2) _ H2).
-    (* rewrite -!multE; rewrite <-!Nat.pow_add_r; rewrite !multE; reflexivity. *)
-    admit. (* Same as above. *)
-  Admitted.
+    rewrite (@AxVec_card 10 (N.n*2) _ H2).
+    rewrite <- !Nat.pow_add_r; f_equal; rewrite <- !plusE, <- !multE; nia.
+  Qed.
 End CardinalityProof.
 
 (** Printing *)

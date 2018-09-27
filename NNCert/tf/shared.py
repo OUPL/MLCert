@@ -96,12 +96,13 @@ def choose_images_labels(train, valid, test, i):
 
 def build_ops(batch_size, bits, learning_rate, decay_step,
               decay_factor, model, input_size, hidden_sizes):
-    if bits == 16: dtype = tf.float16
-    elif bits == 32: dtype = tf.float32
-    else:
-        # print('shared.build_ops warning: unexpected value %d for \
-        # bits, defaulting to 32' % bits)
-        dtype = tf.float32
+    # if bits == 16: dtype = tf.float16
+    # elif bits == 32: dtype = tf.float32
+    # else:
+    #     # print('shared.build_ops warning: unexpected value %d for \
+    #     # bits, defaulting to 32' % bits)
+    #     dtype = tf.float32
+    dtype=tf.float32
 
     x = tf.placeholder(dtype, (batch_size, input_size))
     y = tf.placeholder(tf.int32, shape=batch_size)
