@@ -27,6 +27,32 @@ Section LinearThresholdClassifier.
   End predict.
 End LinearThresholdClassifier.
 
+Section KernelClassifier.
+  Variable n : nat. (*the dimensionality*)
+  Variable m : nat. (*#examples*)
+
+  Definition Ak := ('I_m * float32_arr n)%type. (*examples*)
+  Definition Bk := bool. (*labels*)
+  Definition KernelParams := float32_arr m.
+
+  Context {training_set} `{Foldable training_set (Ak * Bk)}.
+  
+  Variable T : training_set.
+
+  Section predict.
+    Open Scope f32_scope.
+
+    Definition kernel_predict (w : KernelParams) (x : Ak) : Bk :=
+      (foldable_foldM
+        (fun xi_yi r =>
+           let: ((i, xi), yi) := xi_yi in
+           let: (j, xj) := x in 
+           let: wi := f32_get i w in 
+           (float32_of_bool yi) * wi * f32_dot xi xj)
+        0 T) > 0.
+  End predict.
+End KernelClassifier.
+
 Module Perceptron.
   Section Learner.
     Variable n : nat.
@@ -54,6 +80,33 @@ Module Perceptron.
         update.
   End Learner.
 End Perceptron.
+
+Module KernelPerceptron.
+  Section Learner.
+    Variable n : nat. (*the dimensionality*)
+    Variable m : nat. (*#examples*)
+    Notation A := (Ak n m).
+    Notation B := Bk.
+    Definition Params := KernelParams m.
+    Context {training_set} `{F:Foldable training_set (A * B)}.    
+    Variable T : training_set.
+    
+    Record Hypers : Type := mkHypers { }.
+
+    Open Scope f32_scope.
+
+    Definition kernel_update (h:Hypers) (example_label:A*B) (p:Params) : Params :=
+      let: ((i, example), label) := example_label in 
+      let: predicted_label := kernel_predict T p (i, example) in
+      if Bool.eqb predicted_label label then p
+      else f32_upd i (f32_get i p + 1) p.
+
+    Definition Learner : Learner.t A B Hypers Params :=
+      Learner.mk
+        (fun _ => @kernel_predict n m training_set F T)
+        kernel_update.
+  End Learner.
+End KernelPerceptron.
 
 Require Import Reals Fourier.
 Require Import OUVerT.bigops OUVerT.dist OUVerT.chernoff OUVerT.learning.
