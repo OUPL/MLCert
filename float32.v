@@ -60,6 +60,8 @@ Extract Constant f32_mapM => "(\_ f a -> Prelude.mapM f a)".
 Extract Constant f32_map2 => "(\_ f a1 a2 -> Prelude.map (\(x,y) -> f x y) (Prelude.zip a1 a2))".
 Extract Constant f32_fold2 => "(\_ t f a1 a2 -> Prelude.foldl (\acc (x, y) -> f x y acc) t (Prelude.zip a1 a2))".
 (*FIXME: add extraction for f32_get and f32_upd*)
+Extract Constant f32_get => "(\_ n i a -> a Prelude.!! i)".
+Extract Constant f32_upd => "(\_ n i new a -> let (x,y:z) = splitAt i a in x ++ new : z)".
 
 (*Notation and derived operations*)
 Notation "0" := (f32_0) : f32_scope.
