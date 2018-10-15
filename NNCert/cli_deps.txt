@@ -1,0 +1,11 @@
+pip modules needed:
+
+numpy
+tensorflow
+scipy (I think?)
+sklearn
+
+And these for the CLI:
+
+inquirer
+gitpython

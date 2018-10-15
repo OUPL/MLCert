@@ -1,24 +1,14 @@
-NUM_BATCHES = 2400
-NUM_BITS = 16
+NUM_BITS = 2
 
-default: train move
+default: all
 
-download:
-	git clone https://github.com/bagnalla/emnist.git
-
-setup: download
-	python3 extract_emnist.py
-
-all: setup batches train move
+all: train move
 
 train:
-	python3 train.py --dataset emnist --bits $(NUM_BITS) --max_steps 80000 --decay_step 40000
+	python3 train.py --dataset emnist --bits $(NUM_BITS) --max_steps 50000 --decay_step 25000 --learning_rate 0.01 --pca 1
 
 eval: # Evaluate on training set
-	python3 eval.py --dataset emnist --bits $(NUM_BITS) --set 3
-
-batches:
-	python3 make_simple_data.py $(NUM_BATCHES) False # make batches (False->train+validation sets)
+	python3 eval.py --dataset emnist --bits $(NUM_BITS) --set 2
 
 move:
-	cp models/default/params.pkl.gz ../params.pkl.gz # copy model parameters
+	cp models/default/params.pkl.gz ../params-quantized.pkl.gz # copy model parameters

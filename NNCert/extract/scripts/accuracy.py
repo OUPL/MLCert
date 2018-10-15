@@ -10,7 +10,7 @@
 
 import sys
 
-NUM_BATCHES=2000
+NUM_BATCHES = int(sys.argv[1])
 EXAMPLES_PER_BATCH=100
 
 i=0

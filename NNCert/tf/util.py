@@ -1,6 +1,9 @@
+import pickle
 from math import sqrt
 import numpy as np
-from scipy.misc import imsave
+# from scipy.misc import imsave
+
+from constants import MNIST_IMAGE_SIZE
 
 
 # Assumes size of data is divisible by batch_size.
@@ -19,21 +22,21 @@ def run_batches(sess, op, vars, data, batch_size):
 
 def save_mnist_images(images, dir, filename='all.jpg'):
     images = images - np.mean(images)
-    images = images.reshape(images.shape[0], 28, 28)
+    images = images.reshape(images.shape[0], MNIST_IMAGE_SIZE,
+                            MNIST_IMAGE_SIZE)
     width = int(sqrt(images.shape[0]))
-    overall_image = np.empty([0, 28 * width])
-    current_row = np.empty([28, 0])
+    overall_image = np.empty([0, MNIST_IMAGE_SIZE * width])
+    current_row = np.empty([MNIST_IMAGE_SIZE, 0])
     i = 0
     for example in images:
         current_row = np.append(current_row, example, axis=1)
         i += 1
         if i >= width:
             overall_image = np.append(overall_image, current_row, axis=0)
-            current_row = np.empty([28, 0])
+            current_row = np.empty([MNIST_IMAGE_SIZE, 0])
             i = 0
     print('# of examples omitted from jpg: %d' % i)
     imsave(dir + '/' + filename, overall_image)
-
 
 def save_cifar10_images(images, dir, filename='all.jpg'):
     width = int(sqrt(images.shape[0]))
@@ -49,3 +52,17 @@ def save_cifar10_images(images, dir, filename='all.jpg'):
             i = 0
     print('# of examples omitted from jpg: %d' % i)
     imsave(dir + '/' + filename, overall_image)
+
+def load_pickled(dir):
+    with open(dir, 'rb') as f:
+        return pickle.load(f)
+
+def load_pickled_files(dirs):
+    return [load_pickled(d) for d in dirs]
+
+def save_pickled(dir, val):
+    with open(dir, 'wb') as f:
+        pickle.dump(val, f)
+
+def save_pickled_files(dirs, vals):
+    _ = [save_pickled(d, v) for d, v in zip(dirs, vals)]

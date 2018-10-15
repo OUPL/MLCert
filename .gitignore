@@ -1,0 +1,8 @@
+*.vo
+*.glob
+*~
+*.aux
+*.cache
+*.cmi
+*.cmx
+*.o
