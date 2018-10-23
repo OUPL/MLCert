@@ -150,6 +150,58 @@ Section PerceptronGeneralization.
   Qed.
 End PerceptronGeneralization.
 
+Section KPerceptronGeneralization.
+  Variable n : nat. (*The dimensionality*)
+  Variable m : nat. (*#examples*)
+  Notation A := [finType of 'I_m * float32_arr_finType n].
+  Notation B := bool_finType.
+  Variable d : A * B -> R.
+  Variable d_dist : big_sum (enum [finType of A * B]) d = 1.
+  Variable d_nonneg : forall x, 0 <= d x.
+
+  Variable m_gt0 : (0 < m)%nat.
+
+  Variable epochs : nat.
+
+  Variable hypers : KernelPerceptron.Hypers.
+
+  Context {training_set} `{F:Foldable training_set (A * B)}.
+  Variable T : training_set.
+
+  (*accuracy is 0-1 accuracy applied to Perceptron's prediction function*)
+  Notation Params := (float32_arr_finType m).
+  Definition Kaccuracy := 
+    @accuracy01 A _ m Params (Learner.predict 
+      (@KernelPerceptron.Learner n m training_set F T) hypers).
+  
+  Lemma Kcard_Params : INR #|Params| = 2^(n*32 + 32).
+  Proof.
+  rewrite pow_add. rewrite float32_arr_card.
+
+  (* proof gets stuck, as we have to show that:
+     INR (2 ^ (m * 32)) = 2 ^ (n * 32) * 2 ^ 32 *)
+
+  (*(*Perceptron Proof: *)
+  by rewrite pow_add card_prod mult_INR float32_card float32_arr_card !pow_INR. Qed.*)
+  Admitted.
+
+  Variables 
+    (not_perfectly_learnable : 
+       forall p : Params, 0 < expVal d m_gt0 Kaccuracy p < 1)
+    (mut_ind : forall p : Params, mutual_independence d (Kaccuracy p)).
+
+  Lemma Kperceptron_bound eps (eps_gt0 : 0 < eps) init : 
+    @main A B Params KernelPerceptron.Hypers (@KernelPerceptron.Learner n m training_set F T) 
+      hypers m m_gt0 epochs d eps init (fun _ => 1) <=
+    2^(n*32 + 32) * exp (-2%R * eps^2 * mR m).
+  Proof.
+    rewrite -Kcard_Params. (* if Kcard_Params can be proved, 
+                       rest of proof is same as Perceptron.*)
+    apply: Rle_trans; first by apply: main_bound.
+    apply: Rle_refl.
+  Qed.
+End KPerceptronGeneralization.
+
 Section PerceptronExtraction.
   Variable n : nat. (*The dimensionality*)
   Notation A := (float32_arr n).
