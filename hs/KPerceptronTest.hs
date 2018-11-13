@@ -18,17 +18,10 @@ n = fromInt 3 --the number of dimensions
 m = fromInt 20 -- 7500 --the number of samples
 epochs = fromInt 5
 
-hypers = 1.0
-
 dist _ = -1.0 --not used in sampler below
 
-{- FIXME: parameters for kernel perceptron
-
-init_weights :: Weights
-init_weights = take (fromNat n) $ repeat 0.0
-
-init_bias :: Bias
-init_bias = 0.0-}
+init_weights :: KernelParams
+init_weights = take (fromNat m) $ repeat 0.0
 
 print_training_set [] = return ()
 print_training_set ((xs,y) : t) =
@@ -52,7 +45,7 @@ training_example (S n) =
      ; return $ r : e }
 training_row hyperplane n = 
   do { example <- training_example n
-     ; let label = kernel_predict n (hyperplane, init_bias) example
+     ; let label = kernel_predict n hyperplane (n,example)
      ; return (example, label) }
   where int2bool :: Int -> Bool
         int2bool 0 = False
@@ -86,8 +79,8 @@ print_generalization_err test (model, training) =
 main =
   do { hyperplane <- training_example n
      ; test <- test_set hyperplane n m 
-     ; kperceptron n epochs hypers (sampler hyperplane) dist
-         (init_weights, init_bias) (print_generalization_err test) }
+     ; kperceptron n epochs O (sampler hyperplane) dist
+         init_weights (print_generalization_err test) }
 
 -- NOTES:
 -- inputs:
