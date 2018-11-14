@@ -68,7 +68,7 @@ epsilon_twoways("HOLDOUT: 16-bit quantized EMNIST, one 10-node hidden layer",
 # A third way
 
 from math import e
-target = 10e-9
+target = 1e-9
 
 def union_eps(n, m):
     return sqrt(((n / log(e, 2)) - log(target)) / (2*m))
