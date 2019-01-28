@@ -17,25 +17,25 @@ Module Type mkLearner.
   Axiom F : Foldable training_set (X*Y).
 End mkLearner.
 
-(*Module Learner.
-  Record t (X Y Hypers Params training_set : Type) :=
+Module Learner.
+  Record t (training_set X Y Hypers Params : Type) :=
     mk { predict : training_set -> Hypers -> Params -> X -> Y;
          update : training_set -> Hypers -> X*Y -> Params -> Params }.
-End Learner.*)
+End Learner.
 
-Module Learner.
+(*Module Learner.
   Record t (X Y Hypers Params : Type) :=
     mk { predict : Hypers -> Params -> X -> Y;
          update : Hypers -> X*Y -> Params -> Params }.
-End Learner.
+End Learner.*)
 
 Section extractible_semantics.
   Variable X Y Params Hypers : Type.
-  Variable learner : Learner.t X Y Hypers Params.
+  Context {training_set} `{Foldable training_set (X*Y)}.
+  Variable learner : Learner.t training_set X Y Hypers Params.
   Variable h : Hypers.
   Variable m : nat.
   Variable epochs : nat.
-  Context {training_set} `{Foldable training_set (X*Y)}.
 
   Variable r : Type.
   Notation C t := (Cont r t).
@@ -51,7 +51,7 @@ Section extractible_semantics.
   Definition learn_func (init:Params) (T:training_set) : Params := 
     foldrM (fun epoch p_epoch =>
       foldable_foldM (M:=Id) (fun xy p =>
-        ret (Learner.update learner h xy p))
+        ret (Learner.update learner T h xy p))
         p_epoch T)
       init (enum 'I_epochs).
 
@@ -70,12 +70,12 @@ Section rv_impulse_extractible_semantics.
   Variable x : Type.
   Variable x_of_nat : nat -> x.
   Variable example_mapM : forall (M:Type->Type), (x -> M x) -> X -> M X.  
-  Variable learner : Learner.t X Y Hypers Params.
+  Context {training_set} `{Foldable training_set (X*Y)}.
+  Variable learner : Learner.t training_set X Y Hypers Params.
   Variable h : Hypers.
   Variable m : nat.
   Variable epochs : nat.
 
-  Context {training_set} `{Foldable training_set (X*Y)}.
   Context {sampler_state} `{BasicSamplers sampler_state}.      
 
   Variable r : Type.  
@@ -119,9 +119,11 @@ End training_set.
 Section semantics.
   Variables X Y Params : finType. 
   Variable Hypers : Type.
-  Variable learner : Learner.t X Y Hypers Params.
-  Variable h : Hypers.
   Variable m : nat.
+  Variable learner : Learner.t (training_set X Y m) X Y Hypers Params.
+  Variable h : Hypers.
+  Variable T : (training_set X Y m).
+  
   Variable m_gt0 : (0 < m)%nat.
   Variable epochs : nat.
   Notation C := (@Cont R).
@@ -133,7 +135,7 @@ Section semantics.
   Definition observe (t:Type) (p:pred t) : t -> C t :=
     fun t f => if p t then f t else 0.
 
-  Definition accuracy := accuracy01 (m:=m) (Learner.predict learner h).
+  Definition accuracy := accuracy01 (m:=m) (Learner.predict learner T h).
 
   Definition post (d:X*Y -> R) (eps:R) 
       (pT : Params * training_set X Y m) : bool :=
@@ -176,26 +178,28 @@ End semantics.
 Section holdout_semantics.
   Variables X Y Params : finType. 
   Variable Hypers : Type.
-  Variable learner : Learner.t X Y Hypers Params.
-  Variable h : Hypers.
   Variable m : nat.
+  Variable learner : Learner.t (training_set X Y m) X Y Hypers Params.
+  Variable h : Hypers.
   Variable m_gt0 : (0 < m)%nat.
   Variable epochs : nat.  
   Notation C := (@Cont R).
+  Variable T : (training_set X Y m).
+  Variable F : Foldable (training_set X Y m) (X * Y).
 
   Notation semantic_sample m := (@semantic_sample X Y m).
-  Notation accuracy := (@accuracy X Y Params Hypers learner h m).
-  Notation post := (@post X Y Params Hypers learner h m m_gt0).
+  Notation accuracy := (@accuracy X Y Params Hypers m learner h T).
+  Notation post := (@post X Y Params Hypers m learner h T m_gt0).
 
   Definition eps_hyp_range (d:X*Y -> R) (eps:R) (p:Params) (t:training_set X Y m) : bool :=
     Rlt_le_dec eps 
       (1 - (expVal (A:=X) (B:=Y) d m_gt0 (Hyp:=Params)
-             (accuracy01 (A:=X) (B:=Y) (Params:=Params) (Learner.predict learner h)) p)).      
-    
+             (accuracy01 (A:=X) (B:=Y) (Params:=Params) (Learner.predict learner T h)) p)).      
+
   Definition main_holdout (d:X*Y -> R) (eps:R) (init:Params) 
     : C (Params * training_set X Y m) :=
     T_train <-- semantic_sample m d;
-    p <-- learn learner h epochs init T_train;
+    p <-- (@learn X Y Params Hypers (training_set X Y m) F learner h epochs R init T_train);
     _ <-- observe (eps_hyp_range d eps p) T_train;            
     T_test <-- semantic_sample m d;
     observe (post d eps) (p,T_test).
@@ -235,28 +239,29 @@ Section holdout_semantics.
 End holdout_semantics.
 
 Section OracleLearner.
-  Variables X Y Hypers Params : Type.
+  Variables X Y Hypers Params training_set: Type.
   Variable oracular_params : Params.
-  Variable predict : Hypers -> Params -> X -> Y.
+  Variable predict : training_set -> Hypers -> Params -> X -> Y.
   
-  Definition OracleLearner : Learner.t X Y Hypers Params :=
-    Learner.mk predict (fun _ _ _ => oracular_params).
+  Definition OracleLearner : Learner.t training_set X Y Hypers Params :=
+    Learner.mk predict (fun _ _ _ _ => oracular_params).
 End OracleLearner.
 
 Section oracular_semantics.
   Variables X Y Params : finType. 
   Variable Hypers : Type.
-  Variable learner : Learner.t X Y Hypers Params.
-  Variable h : Hypers.
   Variable m : nat.
+  Variable learner : Learner.t (training_set X Y m) X Y Hypers Params.
+  Variable h : Hypers.
   Variable m_gt0 : (0 < m)%nat.
+  Variable T : training_set X Y m.
   Notation C := (@Cont R).
 
   Variable oracle : training_set X Y m -> Params.
 
   Notation semantic_sample m := (@semantic_sample X Y m).
-  Notation accuracy := (@accuracy X Y Params Hypers learner h m).
-  Notation post := (@post X Y Params Hypers learner h m m_gt0).
+  Notation accuracy := (@accuracy X Y Params Hypers m learner h T).
+  Notation post := (@post X Y Params Hypers m learner h T m_gt0).
   
   Definition oracular_main (d:X*Y -> R) (eps:R) (init:Params) 
     : C (Params * training_set X Y m) :=
@@ -291,24 +296,24 @@ End oracular_semantics.
 Section oracular_holdout_semantics.
   Variables X Y Params : finType. 
   Variable Hypers : Type.
-  Variable learner : Learner.t X Y Hypers Params.
+  Variable m n : nat.
+  Variable learner : Learner.t (training_set X Y n) X Y Hypers Params.
   Variable h : Hypers.
-  Variable m : nat.
+  Variable T : training_set X Y n.
   Variable m_gt0 : (0 < m)%nat.
-  Variable n : nat.
   Variable n_gt0 : (0 < n)%nat.
   Notation C := (@Cont R).
 
   Variable oracle : forall m:nat, training_set X Y m -> Params.
 
   Notation semantic_sample m := (@semantic_sample X Y m).
-  Notation accuracy := (@accuracy X Y Params Hypers learner h n).
-  Notation post := (@post X Y Params Hypers learner h n n_gt0).
+  Notation accuracy := (@accuracy X Y Params Hypers n learner h T).
+  Notation post := (@post X Y Params Hypers n learner h T n_gt0).
 
   Definition eps_hyp_ok m (d:X*Y -> R) (eps:R) (t:training_set X Y m) : bool :=
     Rlt_le_dec eps 
       (1 - (expVal (A:=X) (B:=Y) d m_gt0 (Hyp:=Params)
-                  (accuracy01 (A:=X) (B:=Y) (Params:=Params) (Learner.predict learner h)) (oracle t))).      
+                  (accuracy01 (A:=X) (B:=Y) (Params:=Params) (Learner.predict learner T h)) (oracle t))).      
     
   Definition oracular_main_holdout (d:X*Y -> R) (eps:R) (init:Params) 
     : C (Params * training_set X Y n) :=
