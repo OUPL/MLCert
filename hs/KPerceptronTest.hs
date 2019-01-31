@@ -15,7 +15,7 @@ fromNat (S n) = 1 + fromNat n
 n = fromInt 20 --the number of dimensions
 --m = fromInt 7500 --the number of samples
 -- The following m is better for plotting:
-m = fromInt 2000 -- 7500 --the number of samples
+m = fromInt 2000 -- 2000 --the number of samples
 epochs = fromInt 5
 
 dist _ = -1.0 --not used in sampler below
@@ -78,7 +78,7 @@ print_generalization_err test (model, training) =
 main =
   do { test <- data_set n m
      ; train <- data_set n m 
-     ; kperceptron n m epochs list_Foldable train (sampler train) dist
+     ; kperceptron n m epochs (sampler train) dist
          init_weights (print_generalization_err test) }
 
 
@@ -90,8 +90,8 @@ main =
 
 -- NOTES:
 -- inputs:
--- n = 2
--- m = 7500
--- eps = 0.05
--- should yield probability: 4.45e-7
+-- n = 20
+-- m = 2000
+-- epochs = 5
+-- should yield probability: 
 
