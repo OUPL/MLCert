@@ -50,7 +50,7 @@ training_example (S n) =
      ; return $ r : e }
 training_row hyperplane n = 
   do { example <- training_example n
-     ; let label = predict n (hyperplane, init_bias) example
+     ; let label = predict O n (hyperplane, init_bias) example
      ; return (example, label) }
   where int2bool :: Int -> Bool
         int2bool 0 = False
@@ -67,7 +67,7 @@ test_set = training_set
 print_generalization_err test (model, training) =
   let corrects dataset = 
         map (\(example, label) ->
-                if predict n model example == label
+                if predict O n model example == label
                 then 1 :: Int
                 else 0) dataset
       percent_correct_training
