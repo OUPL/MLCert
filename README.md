@@ -38,7 +38,7 @@ Following are the primary directories and files used in the development:
 * [float32.v]: Axiomatized 32-bit floating point numbers, as used in `linearclassifiers.v`
 * [monads.v]: Defines the continuation monad used in `learners.v`
 * [learners.v]: Learners as probabilistic programs
-* [linearclassifiers.v]: Specializes `learners.v` to linear classifiers and Perceptron
+* [linearclassifiers.v]: Specializes `learners.v` to linear classifiers, Perceptron, and Kernel Perceptron
 
 ## EXAMPLES 
 
@@ -47,22 +47,22 @@ Following are the primary directories and files used in the development:
 MLCert defines supervised learners (file `learners.v`):
 ```
 Module Learner.
-  Record t (X Y Hypers Params : Type) :=
-    mk { predict : Hypers -> Params -> X -> Y;
-         update : Hypers -> X*Y -> Params -> Params }.
+  Record t (training_set X Y Hypers Params) :=
+    mk { predict : training_set -> Hypers -> Params -> X -> Y;
+         update : training_set -> Hypers -> X*Y -> Params -> Params }.
 End Learner.
 ```
 as pairs of 
 
-* a `predict`ion function that, given hyperparameters `Hypers`, parameters `Params`, and an input `X`, produces a label `Y`; and
-* and `update` function that maps hypers, `X*Y` pairs, and parameters to new parameters.
+* a `predict`ion function that, given the training set training_set, hyperparameters `Hypers`, parameters `Params`, and an input `X`, produces a label `Y`; and
+* and `update` function that maps the training_set, hypers, `X*Y` pairs, and parameters to new parameters.
 
 The following function:
 ```
   Definition learn_func (init:Params) (T:training_set) : Params := 
     foldrM (fun epoch p_epoch =>
       foldable_foldM (M:=Id) (fun xy p =>
-        ret (Learner.update learner h xy p))
+        ret (Learner.update learner T h xy p))
         p_epoch T)
       init (enum 'I_epochs).
 ```
@@ -81,33 +81,34 @@ Section LinearThresholdClassifier.
   Definition Weights := float32_arr n.
   Definition Bias := float32.
   Definition Params := (Weights * Bias)%type.
+  Variable training_set : Type.
 
   Section predict.
     Open Scope f32_scope.
-    Definition predict (p : Params) (a : A) : B :=
+    Definition predict (T : training_set) (p : Params) (a : A) : B :=
       let: (w, b) := p in
       f32_dot w a + b > 0.
   End predict.
 End LinearThresholdClassifier.
 ```
-`n` is the dimensionality of the problem space. The type `A:=float32_arr n` defines size-`n` arrays of 32-bit floating-point numbers. A linear threshold classifier's parameters are pairs of `Weights` (also size-`n` floating-point numbers) and `Bias`es.
+`n` is the dimensionality of the problem space. The type `A:=float32_arr n` defines size-`n` arrays of 32-bit floating-point numbers. A linear threshold classifier's parameters are pairs of `Weights` (also size-`n` floating-point numbers) and `Bias`es. The training set is not necessary for linear threshold classifier prediction, which means that its type is left abstract in this instance. 
 
 ### Perceptron 
 
 We further specialize `Learner` by adding to `predict` an `update` rule that implements the Perceptron algorithm, defined as:
 ```
-  Definition update (h:Hypers) (example_label:A*B) (p:Params) : Params :=
+  Definition update (T : training_set) (h:Hypers) (example_label:A*B) (p:Params) : Params :=
     let: (example, label) := example_label in
-    let: predicted_label := predict p example in
+    let: predicted_label := predict T p example in
     if Bool.eqb predicted_label label then p
     else let: (w, b) := p in
     (f32_map2 (fun x1 x2 => x1 + (alpha h)*label*x2) w example, b+label).
 ```
 We package Perceptron `update` with the generic prediction rule of linear threshold classifiers by constructing the following record: 
 ```
-  Definition Learner : Learner.t A B Hypers Params :=
+  Definition Learner : Learner.t training_set A B Hypers Params :=
     Learner.mk
-      (fun h => @predict n)
+      (fun T h => @predict n training_set T)
       update.
 ```
 
@@ -116,8 +117,9 @@ We package Perceptron `update` with the generic prediction rule of linear thresh
 To extract the Perceptron `Learner` to Haskell, we build an "extractible" version of a probabilistic program that first samples a training set, then uses `learn_func` specialized to Perceptron to learn a linear classifier.
 ```
   Definition perceptron (r:Type) := 
-    @extractible_main A B Params Perceptron.Hypers 
-      (Perceptron.Learner n) hypers epochs _ (@list_Foldable (A*B)%type) r
+    @extractible_main A B Params Perceptron.Hypers (seq.seq (A * B))
+      (@list_Foldable (A*B)%type) 
+      (Perceptron.Learner n) hypers epochs r
     (fun T => ret T).
 ```
 The function `perceptron` is parametric in the sampling procedure that produces training sets (to prove generalization results of Perceptron, we further specialize to a sampler that's assumed to produced `n` iid examples from a distribution `D`). 
