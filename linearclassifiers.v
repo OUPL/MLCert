@@ -207,16 +207,17 @@ Section PerceptronExtraction.
   Notation Params := ((A * float32)%type).
 
   Variable hypers : Perceptron.Hypers.
+  Variable training_set : Type.
+  Variable F : Foldable training_set (A * B).
 
   Definition perceptron (r:Type) := 
-    @extractible_main A B Params Perceptron.Hypers (seq.seq (A * B)) 
-      (@list_Foldable (A * B)%type)
-      (Perceptron.Learner n) hypers epochs r
+    @extractible_main A B Params Perceptron.Hypers training_set F
+      (Perceptron.Learner n) hypers epochs _ (@list_Foldable (A*B)%type) r
       (fun T => ret T).
 End PerceptronExtraction.
 
-Extraction Language Haskell.
-Extraction "hs/Perceptron.hs" perceptron.
+(*Extraction Language Haskell.
+Extraction "hs/Perceptron.hs" perceptron.*)
 
 Section KPerceptronExtraction.
   Variable n : nat. (*The dimensionality*)
@@ -232,12 +233,12 @@ Section KPerceptronExtraction.
 
   Variable hypers : KernelPerceptron.Hypers.
 
+  Context {training_set} `{F:Foldable training_set (A * B)}.
   Notation Q := (A * B)%type.
   Definition kperceptron (r:Type) := 
-    @extractible_main A B Params KernelPerceptron.Hypers (seq.seq Q)
-      (list_Foldable Q)
-      (@KernelPerceptron.Learner n m (seq.seq Q) (list_Foldable Q))
-         hypers epochs r
+    @extractible_main A B Params KernelPerceptron.Hypers training_set F
+      (@KernelPerceptron.Learner n m training_set F)
+         hypers epochs (seq.seq Q) (fun T => list_Foldable Q) r
       (fun T => ret T).
 End KPerceptronExtraction.
 
