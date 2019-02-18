@@ -185,15 +185,12 @@ Section KPerceptronExtraction.
   Notation Params := ((KernelParams m)%type).
 
   Variable hypers : KernelPerceptron.Hypers.
-
-  Context {training_set} `{F:Foldable training_set (A * B)}.
-  Variable T : training_set.
-  Notation Q := (A * B)%type.
+  Print list_Foldable.
+  Print Foldable.
 
   Definition kperceptron (r:Type) := 
     @extractible_main A B Params KernelPerceptron.Hypers 
-      (@KernelPerceptron.Learner n m training_set F T)
-         hypers epochs (seq.seq Q) (list_Foldable Q) r
+      (KernelPerceptron.Learner n) hypers epochs _ (@list_Foldable (A*B)%type) r
       (fun T => ret T).
 End KPerceptronExtraction.
 

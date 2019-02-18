@@ -46,8 +46,6 @@ Axiom f32_map2 : forall (n:nat)(f:float32->float32->float32)(a b:float32_arr n),
 Axiom f32_fold2 : forall (T:Type)(n:nat)(t0:T)(f:float32->float32->T->T)(a1 a2:float32_arr n), T.
 Axiom f32_get : forall (n:nat)(i:'I_n)(a:float32_arr n), float32.
 Axiom f32_upd : forall (n:nat)(i:'I_n)(new:float32)(a:float32_arr n), float32_arr n.
-Axiom get_arr : forall (n:nat)(i:'I_n)(a:float32_arr n), float32.
-Axiom upd_arr : forall (n:nat)(i:'I_n)(new:float32)(a:float32_arr n), float32_arr n.
 
 Extract Constant f32_0 => "(0.0 :: Prelude.Float)".
 Extract Constant f32_1 => "(1.0 :: Prelude.Float)".
@@ -61,8 +59,9 @@ Extract Constant f32_map => "(\_ f a -> Prelude.map f a)".
 Extract Constant f32_mapM => "(\_ f a -> Prelude.mapM f a)".
 Extract Constant f32_map2 => "(\_ f a1 a2 -> Prelude.map (\(x,y) -> f x y) (Prelude.zip a1 a2))".
 Extract Constant f32_fold2 => "(\_ t f a1 a2 -> Prelude.foldl (\acc (x, y) -> f x y acc) t (Prelude.zip a1 a2))".
-Extract Constant f32_get => "(\_ i a -> (if (eqn i O) then (Prelude.head a) else (let (S x) = i in (f32_get O x (Prelude.tail a)))))".
-Extract Constant f32_upd => "(\_ i new a -> (if (eqn i O) then ([new] Prelude.++ (Prelude.tail a)) else (let (S x) = i in ([Prelude.head a] Prelude.++ (f32_upd O x new (Prelude.tail a))))))".
+(*FIXME: add extraction for f32_get and f32_upd*)
+Extract Constant f32_get => "(\_ n i a -> a Prelude.!! i)".
+Extract Constant f32_upd => "(\_ n i new a -> let (x,y:z) = splitAt i a in x ++ new : z)".
 
 (*Notation and derived operations*)
 Notation "0" := (f32_0) : f32_scope.
