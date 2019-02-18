@@ -137,7 +137,7 @@ Section PerceptronGeneralization.
     (not_perfectly_learnable : 
        forall p : Params, 0 < expVal d m_gt0 accuracy p < 1)
     (mut_ind : forall p : Params, mutual_independence d (accuracy p)).
-
+  Check main.
   Lemma perceptron_bound eps (eps_gt0 : 0 < eps) init : 
     @main A B Params Perceptron.Hypers m (Perceptron.Learner n) 
       hypers training_set m_gt0 epochs d eps init (fun _ => 1) <=
