@@ -171,28 +171,3 @@ End PerceptronExtraction.
 
 Extraction Language Haskell.
 Extraction "hs/Perceptron.hs" perceptron.
-
-Section KPerceptronExtraction.
-  Variable n : nat. (*The dimensionality*)
-  Variable m : nat. (*#examples*)
-  Notation A := (Ak n m).
-  Notation B := Bk.
-  Variable d : A * B -> R.
-
-  (*Variable m : nat. (*The number of training samples*)*)
-  Variable epochs : nat.
-
-  Notation Params := ((KernelParams m)%type).
-
-  Variable hypers : KernelPerceptron.Hypers.
-  Print list_Foldable.
-  Print Foldable.
-
-  Definition kperceptron (r:Type) := 
-    @extractible_main A B Params KernelPerceptron.Hypers 
-      (KernelPerceptron.Learner n) hypers epochs _ (@list_Foldable (A*B)%type) r
-      (fun T => ret T).
-End KPerceptronExtraction.
-
-Extraction Language Haskell.
-Extraction "hs/KPerceptron.hs" kperceptron.
