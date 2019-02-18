@@ -13,16 +13,18 @@ Require Import MLCert.float32 MLCert.learners MLCert.extraction_hs MLCert.monads
 Section LinearThresholdClassifier.
   Variable n : nat. (*the dimensionality*)
 
-  Definition A := (float32 * float32_arr n)%type. (*examples*)
+  Definition A := float32_arr n. (*examples*)
   Definition B := bool. (*labels*)
-  Definition Params := (bool)%type. (*no longer used*)
+  Definition Params := (list float32 * list float32)%type.
 
   Section predict.
     Open Scope f32_scope.
     Definition predict (p : Params) (a : A) : B :=
-      let (alpha, example) := a in
-      (@f32_fold2 float32 n alpha (fun x y z => x * y * z) 
-         example example) > 0. 
+      let: (w, b) := p in
+      match b with
+      | cons hd tl => f32_mult hd f32_1 > 0(* placeholder for kernel funciton *)
+      | nil => false
+      end.
   End predict.
 End LinearThresholdClassifier.
 
@@ -60,6 +62,7 @@ Module KPerceptron.
     Notation A := (A n).
     Notation B := B.
     Notation Params := Params.
+    Definition Kernel := (float32_arr n -> float32_arr n -> float32).
 
     Record Hypers : Type :=
       mkHypers { 
@@ -70,9 +73,14 @@ Module KPerceptron.
 
     Definition update (h:Hypers) (example_label:A*B) (p:Params) : Params :=
       let: (example, label) := example_label in
+      let: (l1, l2) := p in
+      match l2 with
+      | cons hd tl => 
       let: kpredicted_label := predict p example in
       if Bool.eqb kpredicted_label label then p
-      else p. (*need to figure out Param typing for alpha updates*)
+      else (l1 ++ [f32_add hd f32_1], tl)
+      | nil => ([], [])
+      end.
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
@@ -101,8 +109,6 @@ Section KPerceptronGeneralization.
 
   (*accuracy is 0-1 accuracy applied to Perceptron's prediction function*)
   Notation Params := [finType of A * float32_finType].
-  Print accuracy01.
-  
   Definition accuracy := 
     @accuracy01 A _ m Params (Learner.predict (KPerceptron.Learner n) hypers).
 
