@@ -11,18 +11,6 @@ Require Import OUVerT.chernoff OUVerT.learning OUVerT.bigops OUVerT.dist OUVerT.
 
 Require Import MLCert.monads MLCert.noise MLCert.samplers.
 
-Module Type mkLearner.
-  Parameter X Y : Type.
-  Parameter training_set : Type.
-  Axiom F : Foldable training_set (X*Y).
-End mkLearner.
-
-(*Module Learner.
-  Record t (X Y Hypers Params training_set : Type) :=
-    mk { predict : training_set -> Hypers -> Params -> X -> Y;
-         update : training_set -> Hypers -> X*Y -> Params -> Params }.
-End Learner.*)
-
 Module Learner.
   Record t (X Y Hypers Params : Type) :=
     mk { predict : Hypers -> Params -> X -> Y;
