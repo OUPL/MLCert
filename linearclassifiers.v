@@ -185,35 +185,18 @@ Section KPerceptronGeneralization.
   by rewrite pow_add card_prod mult_INR float32_card float32_arr_card !pow_INR. Qed.*)
   Admitted.
 
-  Lemma Kcard_Params' : INR #|Params| = 2 ^ (m * 32).
-  Proof. (*proof using different bound for KPerceptron*)
-  by rewrite float32_arr_card !pow_INR.
-  Qed.
-
   Variables 
     (not_perfectly_learnable : 
        forall p : Params, 0 < expVal d m_gt0 Kaccuracy p < 1)
     (mut_ind : forall p : Params, mutual_independence d (Kaccuracy p)).
 
   Lemma Kperceptron_bound eps (eps_gt0 : 0 < eps) init : 
-    @main A B Params KernelPerceptron.Hypers 
-      (@KernelPerceptron.Learner n m training_set F T) 
+    @main A B Params KernelPerceptron.Hypers (@KernelPerceptron.Learner n m training_set F T) 
       hypers m m_gt0 epochs d eps init (fun _ => 1) <=
     2^(n*32 + 32) * exp (-2%R * eps^2 * mR m).
   Proof.
     rewrite -Kcard_Params. (* if Kcard_Params can be proved, 
                        rest of proof is same as Perceptron.*)
-    apply: Rle_trans; first by apply: main_bound.
-    apply: Rle_refl.
-  Qed.
-
-  Lemma Kperceptron_bound' eps (eps_gt0 : 0 < eps) init : 
-    @main A B Params KernelPerceptron.Hypers 
-      (@KernelPerceptron.Learner n m training_set F T) 
-      hypers m m_gt0 epochs d eps init (fun _ => 1) <=
-    2^(m*32) * exp (-2%R * eps^2 * mR m).
-  Proof.
-    rewrite -Kcard_Params'. (* changed bound for KPerceptron*)
     apply: Rle_trans; first by apply: main_bound.
     apply: Rle_refl.
   Qed.
