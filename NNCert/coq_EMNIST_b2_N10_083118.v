@@ -13,6 +13,7 @@ Lemma n_gt0 : (0 < N.to_nat 10)%nat. by []. Qed. End Neurons.
 Module Outputs. Definition n : nat := 10. Lemma n_gt0 : (0 < 10)%nat. by []. Qed. End Outputs.
 Module BLow <: BOUND. Definition n := 2. Lemma n_gt0 : 0 < n. Proof. by []. Qed. End BLow.
 Module BLowType : TYPE. Definition t := bitvec BLow.n. End BLowType.
+Module CProof := CardinalityProof TheDimensionality Neurons.
 Import DyadicFloat16.
 
 (*The following function is used only to map 16-bit FP numbers to dyadics 
@@ -8068,7 +8069,6 @@ Section tf_bound.
     (d:XFin*Y -> R) 
     (d_dist : big_sum (enum [finType of XFin*Y]) d = 1)
     (d_nonneg : forall x, 0 <= d x) 
-    (mut_ind : forall p : ParamsFin, mutual_independence (m:=m) d (accuracy p))
     (not_perfectly_learnable : 
       forall p : ParamsFin, 0 < expVal d m_gt0 accuracy p < 1).
 
@@ -8076,7 +8076,7 @@ Lemma tf_main_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
   tf_main d eps init (fun _ => 1) <= 
   INR (2 ^ (4 * 16 + 10 * 784 * 2 + 10 * 10 * 2)) * exp (-2%R * eps^2 * mR m).
 Proof.
-  rewrite -card_bitvec2_EMNIST_10_KernelFinType; apply: Rle_trans; last first.
+  rewrite -CProof.card_bitvec2_EMNIST_10_KernelFinType; apply: Rle_trans; last first.
   { apply oracular_main_bound => //; first by apply: d_dist. }
   apply: Rle_refl.
 Qed.
@@ -8087,7 +8087,6 @@ Section tf_holdout_bound.
     (d:XFin*Y -> R) 
     (d_dist : big_sum (enum [finType of XFin*Y]) d = 1)
     (d_nonneg : forall x, 0 <= d x) 
-    (mut_ind : forall p : ParamsFin, mutual_independence (m:=mtest) d (accuracy_holdout p))
     (not_perfectly_learnable : 
       forall p : ParamsFin, 0 < expVal d mtest_gt0 accuracy_holdout p < 1).
 

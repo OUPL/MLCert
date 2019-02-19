@@ -210,7 +210,6 @@ Section tf_bound.
     (d:XFin*Y -> R) 
     (d_dist : big_sum (enum [finType of XFin*Y]) d = 1)
     (d_nonneg : forall x, 0 <= d x) 
-    (mut_ind : forall p : ParamsFin, mutual_independence (m:=m) d (accuracy p))
     (not_perfectly_learnable : 
       forall p : ParamsFin, 0 < expVal d m_gt0 accuracy p < 1).
 
@@ -229,7 +228,6 @@ Section tf_holdout_bound.
     (d:XFin*Y -> R) 
     (d_dist : big_sum (enum [finType of XFin*Y]) d = 1)
     (d_nonneg : forall x, 0 <= d x) 
-    (mut_ind : forall p : ParamsFin, mutual_independence (m:=mtest) d (accuracy_holdout p))
     (not_perfectly_learnable : 
       forall p : ParamsFin, 0 < expVal d mtest_gt0 accuracy_holdout p < 1).
 

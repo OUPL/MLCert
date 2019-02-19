@@ -11,6 +11,7 @@ Lemma n_gt0 : (0 < N.to_nat 784)%nat. by []. Qed. End TheDimensionality.
 Module Neurons. Definition n : nat := N.to_nat 10.
 Lemma n_gt0 : (0 < N.to_nat 10)%nat. by []. Qed. End Neurons.
 Module Outputs. Definition n : nat := 10. Lemma n_gt0 : (0 < 10)%nat. by []. Qed. End Outputs.
+Module CProof := CardinalityProof TheDimensionality Neurons.
 Import DyadicFloat16.
 
 (*The following function is used only to map 16-bit FP numbers to dyadics 
@@ -8051,7 +8052,7 @@ Lemma tf_main_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
   tf_main d eps init (fun _ => 1) <= 
   INR (2 ^ (4 * 16 + 10 * 784 * 16 + 10 * 10 * 16)) * exp (-2%R * eps^2 * mR m).
 Proof.
-  rewrite -card_bitvec16_EMNIST_10_KernelFinType; apply: Rle_trans; last first.
+  rewrite -CProof.card_bitvec16_EMNIST_10_KernelFinType; apply: Rle_trans; last first.
   { apply oracular_main_bound => //; first by apply: d_dist. }
   apply: Rle_refl.
 Qed.
