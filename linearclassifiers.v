@@ -81,10 +81,9 @@ Section PerceptronGeneralization.
   Lemma card_Params : INR #|Params| = 2^(n*32 + 32).
   Proof. by rewrite pow_add card_prod mult_INR float32_card float32_arr_card !pow_INR. Qed.
 
-  Variables 
+  Variable 
     (not_perfectly_learnable : 
-       forall p : Params, 0 < expVal d m_gt0 accuracy p < 1)
-    (mut_ind : forall p : Params, mutual_independence d (accuracy p)).
+       forall p : Params, 0 < expVal d m_gt0 accuracy p < 1).
 
   Lemma perceptron_bound eps (eps_gt0 : 0 < eps) init : 
     @main A B Params Perceptron.Hypers (Perceptron.Learner n) 

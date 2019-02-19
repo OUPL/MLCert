@@ -141,7 +141,6 @@ Section semantics.
     (d:X*Y -> R) 
     (d_dist : big_sum (enum [finType of X*Y]) d = 1)
     (d_nonneg : forall x, 0 <= d x) 
-    (mut_ind : forall p : Params, mutual_independence d (accuracy p))
     (not_perfectly_learnable : 
       forall p : Params, 0 < expVal d m_gt0 accuracy p < 1).
 
@@ -154,7 +153,6 @@ Section semantics.
     rewrite big_sum_pred2; apply: Rle_trans; last first.
     { apply chernoff_bound_accuracy01 
         with (d:=d) (learn:=fun t => learn_func learner h epochs init t) => //.
-      { move => p; apply: mut_ind. }
       move => p; apply: not_perfectly_learnable. }
     rewrite /probOfR/=. 
     apply big_sum_le => c; rewrite /in_mem Rmult_1_r /= => _; apply: Rle_refl.
@@ -192,7 +190,6 @@ Section holdout_semantics.
     (d:X*Y -> R) 
     (d_dist : big_sum (enum [finType of X*Y]) d = 1)
     (d_nonneg : forall x, 0 <= d x) 
-    (mut_ind : forall p : Params, mutual_independence d (accuracy p))
     (not_perfectly_learnable : 
       forall p : Params, 0 < expVal d m_gt0 accuracy p < 1).
 
@@ -214,7 +211,7 @@ Section holdout_semantics.
     rewrite /learn/observe; case Heps: (eps_hyp_range _ _); last by apply: Rlt_le; apply: exp_pos.
     apply: Rle_trans; last first.
     { apply: (@chernoff_bound_accuracy01_holdout
-                _ _ _ d_dist d_nonneg _ _ _ _ mut_ind not_perfectly_learnable
+                _ _ _ d_dist d_nonneg _ _ _ _ not_perfectly_learnable
                 (learn_func learner h epochs init T_train) eps) => //.
       move: Heps; rewrite /eps_hyp_range; case: (Rlt_le_dec _ _) => // Hlt. }
     rewrite /probOfR big_sum_pred2; apply: big_sum_le => T_test Htest.
@@ -256,7 +253,6 @@ Section oracular_semantics.
     (d:X*Y -> R) 
     (d_dist : big_sum (enum [finType of X*Y]) d = 1)
     (d_nonneg : forall x, 0 <= d x) 
-    (mut_ind : forall p : Params, mutual_independence d (accuracy p))
     (not_perfectly_learnable : 
       forall p : Params, 0 < expVal d m_gt0 accuracy p < 1).
 
@@ -269,7 +265,6 @@ Section oracular_semantics.
     rewrite big_sum_pred2; apply: Rle_trans; last first.
     { apply chernoff_bound_accuracy01 
         with (d:=d) (learn:=fun t => oracle t) => //.
-      { move => p; apply: mut_ind. }
       move => p; apply: not_perfectly_learnable. }
     rewrite /probOfR/=. 
     apply big_sum_le => c; rewrite /in_mem Rmult_1_r /= => _; apply: Rle_refl.
@@ -310,7 +305,6 @@ Section oracular_holdout_semantics.
     (d:X*Y -> R) 
     (d_dist : big_sum (enum [finType of X*Y]) d = 1)
     (d_nonneg : forall x, 0 <= d x) 
-    (mut_ind : forall p : Params, mutual_independence d (accuracy p))
     (not_perfectly_learnable : 
       forall p : Params, 0 < expVal d n_gt0 accuracy p < 1).
 
@@ -332,7 +326,7 @@ Section oracular_holdout_semantics.
     rewrite /observe; case Heps: (eps_hyp_ok _ _); last by apply: Rlt_le; apply: exp_pos.
     apply: Rle_trans; last first.
     { apply: (@chernoff_bound_accuracy01_holdout
-                _ _ _ d_dist d_nonneg n _ _ _ mut_ind not_perfectly_learnable
+                _ _ _ d_dist d_nonneg n _ _ _ not_perfectly_learnable
                 (oracle T_train) eps) => //.
       move: Heps; rewrite /eps_hyp_ok; case: (Rlt_le_dec _ _) => // Hlt. }
     rewrite /probOfR big_sum_pred2. apply: big_sum_le => T_test Htest.
