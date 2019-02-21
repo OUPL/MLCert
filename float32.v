@@ -52,7 +52,10 @@ Extract Constant f32_gt => "(\f1 f2 -> (Prelude.>) f1 f2)".
 Extract Constant f32_add => "(\f1 f2 -> (Prelude.+) f1 f2)".
 Extract Constant f32_mult => "(\f1 f2 -> (Prelude.*) f1 f2)".
 Extract Constant f32_div => "(\f1 f2 -> (Prelude./) f1 f2)".
-Extract Constant f32_init => "(\n init -> Prelude.take n (Prelude.repeat init))".
+Extract Constant f32_init =>
+  "(\n init -> case n of 
+                 O -> []
+                 S n1 -> init : f32_init n1 init)".
 Extract Constant f32_map => "(\_ f a -> Prelude.map f a)".
 Extract Constant f32_mapM => "(\_ f a -> Prelude.mapM f a)".
 Extract Constant f32_map2 => "(\_ f a1 a2 -> Prelude.map (\(x,y) -> f x y) (Prelude.zip a1 a2))".
