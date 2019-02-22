@@ -27,6 +27,30 @@ Section LinearThresholdClassifier.
   End predict.
 End LinearThresholdClassifier.
 
+Section KernelClassifier.
+  Variable n : nat. (*the dimensionality*)
+  Variable m : nat. (*#examples*)
+
+  Definition Ak := ('I_m * float32_arr n)%type. (*examples*)
+  Definition Bk := bool. (*labels*)
+  Context {training_set} `{Foldable training_set (Ak * Bk)}.
+  Definition KernelParams := (training_set * float32_arr m)%type.
+
+  Section predict.
+    Open Scope f32_scope.
+
+    Definition kernel_predict (w : KernelParams) (x : Ak) : Bk :=
+      let T := w.1 in 
+      foldable_foldM
+        (fun xi_yi r =>
+           let: ((i, xi), yi) := xi_yi in
+           let: (j, xj) := x in 
+           let: wi := f32_get i w.2 in 
+           (float32_of_bool yi) * wi * f32_dot xi xj)
+        0 T > 0.
+  End predict.
+End KernelClassifier.
+
 Module Perceptron.
   Section Learner.
     Variable n : nat.
@@ -54,6 +78,32 @@ Module Perceptron.
         update.
   End Learner.
 End Perceptron.
+
+Module KernelPerceptron.
+  Section Learner.
+    Variable n : nat. (*the dimensionality*)
+    Variable m : nat. (*#examples*)
+    Notation A := (Ak n m).
+    Notation B := Bk.
+    Context {training_set} `{F:Foldable training_set (A * B)}.        
+    Definition Params := @KernelParams m training_set.
+
+    Record Hypers : Type := mkHypers { }.
+
+    Open Scope f32_scope.
+
+    Definition kernel_update (h:Hypers) (example_label:A*B) (p:Params) : Params :=
+      let: ((i, example), label) := example_label in 
+      let: predicted_label := kernel_predict p (i, example) in
+      if Bool.eqb predicted_label label then p
+      else (p.1, f32_upd i (f32_get i p.2 + 1) p.2).
+
+    Definition Learner : Learner.t A B Hypers Params :=
+      Learner.mk
+        (fun _ => @kernel_predict n m training_set F)
+        kernel_update.
+  End Learner.
+End KernelPerceptron.
 
 Require Import Reals Fourier.
 Require Import OUVerT.bigops OUVerT.dist OUVerT.chernoff OUVerT.learning.
@@ -96,6 +146,53 @@ Section PerceptronGeneralization.
   Qed.
 End PerceptronGeneralization.
 
+Section KernelPerceptronGeneralization.
+  Variable n : nat. (*The dimensionality*)
+  Variable m : nat. (*#examples*)
+  Notation A := [finType of 'I_m * float32_arr_finType n].
+  Notation B := bool_finType.
+  Variable d : A * B -> R.
+  Variable d_dist : big_sum (enum [finType of A * B]) d = 1.
+  Variable d_nonneg : forall x, 0 <= d x.
+
+  Variable m_gt0 : (0 < m)%nat.
+
+  Variable epochs : nat.
+
+  Variable hypers : KernelPerceptron.Hypers.
+
+  (*Represent the training set as a one-dimensional (flattened) float array.*)
+  Definition training_set := float32_arr_finType (m*n).
+  Context {H: Foldable training_set (A * B)}.
+
+  Notation Params := [finType of {:training_set * float32_arr_finType m}].
+  Definition Kaccuracy := 
+    @accuracy01 A _ m Params (Learner.predict 
+      (@KernelPerceptron.Learner n m training_set H) hypers).
+
+  Lemma Kcard_Params : INR #|Params| = 2 ^ (m*n*32 + m*32).
+  Proof.
+    rewrite /training_set card_prod !float32_arr_card.
+    rewrite mult_INR !pow_INR /= pow_add //.
+  Qed.
+
+  Variables 
+    (not_perfectly_learnable : 
+       forall p : Params, 0 < expVal d m_gt0 Kaccuracy p < 1)
+    (mut_ind : forall p : Params, mutual_independence d (Kaccuracy p)).
+
+  Lemma Kperceptron_bound eps (eps_gt0 : 0 < eps) init : 
+    @main A B Params KernelPerceptron.Hypers 
+      (@KernelPerceptron.Learner n m training_set H)
+      hypers m m_gt0 epochs d eps init (fun _ => 1) <=
+    2^(m*n*32 + m*32) * exp (-2%R * eps^2 * mR m).
+  Proof.
+    rewrite -Kcard_Params.
+    apply: Rle_trans; first by apply: main_bound.
+    apply: Rle_refl.
+  Qed.
+End KernelPerceptronGeneralization.
+
 Section PerceptronExtraction.
   Variable n : nat. (*The dimensionality*)
   Notation A := (float32_arr n).
@@ -117,3 +214,33 @@ End PerceptronExtraction.
 
 Extraction Language Haskell.
 Extraction "hs/Perceptron.hs" perceptron.
+
+Section KPerceptronExtraction.
+  Variable n : nat. (*The dimensionality*)
+  Variable m : nat. (*#examples*)
+  Notation A := (Ak n m).
+  Notation B := Bk.
+  Variable d : A * B -> R.
+
+  (*Variable m : nat. (*The number of training samples*)*)
+  Variable epochs : nat.
+
+  Notation Params := (KernelParams m)%type.
+
+  Variable hypers : KernelPerceptron.Hypers.
+
+  Notation Q := (A * B)%type.
+  Definition kperceptron := 
+    @extractible_main
+      A B Params KernelPerceptron.Hypers
+      (@KernelPerceptron.Learner n m (seq.seq Q) (list_Foldable Q))
+      hypers
+      epochs
+      (seq.seq Q)
+      (list_Foldable Q)
+      (seq.seq Q)
+      (fun T => ret T).
+End KPerceptronExtraction.
+
+Extraction Language Haskell.
+Extraction "hs/KPerceptron.hs" kperceptron.

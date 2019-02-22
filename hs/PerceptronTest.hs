@@ -85,7 +85,7 @@ main =
   do { hyperplane <- training_example n
      ; test <- test_set hyperplane n m 
      ; perceptron n epochs hypers (sampler hyperplane) dist
-         (init_weights, init_bias) (print_generalization_err test) }
+         (\_ -> (init_weights, init_bias)) (print_generalization_err test) }
 
 -- NOTES:
 -- inputs:

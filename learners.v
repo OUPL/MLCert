@@ -46,10 +46,10 @@ Section extractible_semantics.
   Definition learn (init:Params) (T:training_set) : C Params :=
     fun f => f (learn_func init T).
 
-  Definition extractible_main (d:X*Y->R) (init:Params)
+  Definition extractible_main (d:X*Y->R) (init:training_set -> Params)
     : C (Params * training_set) :=
     T <-- noised_sample d;
-    p <-- learn init T;
+    p <-- learn (init T) T;
     ret (p, T).
 End extractible_semantics.
 
@@ -76,7 +76,7 @@ Section rv_impulse_extractible_semantics.
     let: (T,s) := Ts in 
     ret T.
   
-  Definition rv_impulse_extractible_main (d:X*Y->R) (p:D) (init:Params)
+  Definition rv_impulse_extractible_main (d:X*Y->R) (p:D) (init:training_set -> Params)
     : C (Params * training_set) :=
     extractible_main learner h epochs (rv_impulse_noise_model p) sample d init.
 End rv_impulse_extractible_semantics.      
@@ -128,10 +128,10 @@ Section semantics.
     let: (p, T) := pT in 
     Rlt_le_dec (expVal d m_gt0 accuracy p + eps) (empVal accuracy T p).
   
-  Definition semantic_main (d:X*Y -> R) (init:Params) := 
+  Definition semantic_main (d:X*Y -> R) (init:training_set X Y m -> Params) := 
     extractible_main learner h epochs (fun T => ret T) semantic_sample d init.
 
-  Definition main (d:X*Y -> R) (eps:R) (init:Params) 
+  Definition main (d:X*Y -> R) (eps:R) (init:training_set X Y m -> Params) 
     : C (Params * training_set X Y m) :=
     pT <-- semantic_main d init;
     let: (p,T) := pT in
@@ -144,7 +144,7 @@ Section semantics.
     (not_perfectly_learnable : 
       forall p : Params, 0 < expVal d m_gt0 accuracy p < 1).
 
-  Lemma main_bound (eps:R) (eps_gt0 : 0 < eps) (init:Params) :
+  Lemma main_bound (eps:R) (eps_gt0 : 0 < eps) (init:training_set X Y m -> Params) :
     main d eps init (fun _ => 1) <= 
     INR #|Params| * exp (-2%R * eps^2 * mR m).
   Proof.
@@ -152,7 +152,7 @@ Section semantics.
     rewrite /noised_sample/Cbind/=/Cbind/semantic_sample.
     rewrite big_sum_pred2; apply: Rle_trans; last first.
     { apply chernoff_bound_accuracy01 
-        with (d:=d) (learn:=fun t => learn_func learner h epochs init t) => //.
+        with (d:=d) (learn:=fun t => learn_func learner h epochs (init t) t) => //.
       move => p; apply: not_perfectly_learnable. }
     rewrite /probOfR/=. 
     apply big_sum_le => c; rewrite /in_mem Rmult_1_r /= => _; apply: Rle_refl.
@@ -178,10 +178,10 @@ Section holdout_semantics.
       (1 - (expVal (A:=X) (B:=Y) d m_gt0 (Hyp:=Params)
              (accuracy01 (A:=X) (B:=Y) (Params:=Params) (Learner.predict learner h)) p)).      
     
-  Definition main_holdout (d:X*Y -> R) (eps:R) (init:Params) 
+  Definition main_holdout (d:X*Y -> R) (eps:R) (init:training_set X Y m -> Params) 
     : C (Params * training_set X Y m) :=
     T_train <-- semantic_sample m d;
-    p <-- learn learner h epochs init T_train;
+    p <-- learn learner h epochs (init T_train) T_train;
     _ <-- observe (eps_hyp_range d eps p) T_train;            
     T_test <-- semantic_sample m d;
     observe (post d eps) (p,T_test).
@@ -193,7 +193,7 @@ Section holdout_semantics.
     (not_perfectly_learnable : 
       forall p : Params, 0 < expVal d m_gt0 accuracy p < 1).
 
-  Lemma main_holdout_bound (eps:R) (eps_gt0 : 0 < eps) (init:Params) :
+  Lemma main_holdout_bound (eps:R) (eps_gt0 : 0 < eps) (init:training_set X Y m -> Params) :
     main_holdout d eps init (fun _ => 1) <= 
     exp (-2%R * eps^2 * mR m).
   Proof.
@@ -212,7 +212,7 @@ Section holdout_semantics.
     apply: Rle_trans; last first.
     { apply: (@chernoff_bound_accuracy01_holdout
                 _ _ _ d_dist d_nonneg _ _ _ _ not_perfectly_learnable
-                (learn_func learner h epochs init T_train) eps) => //.
+                (learn_func learner h epochs (init T_train) T_train) eps) => //.
       move: Heps; rewrite /eps_hyp_range; case: (Rlt_le_dec _ _) => // Hlt. }
     rewrite /probOfR big_sum_pred2; apply: big_sum_le => T_test Htest.
     by rewrite Rmult_1_r; apply: Rle_refl.
@@ -243,7 +243,7 @@ Section oracular_semantics.
   Notation accuracy := (@accuracy X Y Params Hypers learner h m).
   Notation post := (@post X Y Params Hypers learner h m m_gt0).
   
-  Definition oracular_main (d:X*Y -> R) (eps:R) (init:Params) 
+  Definition oracular_main (d:X*Y -> R) (eps:R)
     : C (Params * training_set X Y m) :=
     T <-- semantic_sample m d;
     p <-- ret (oracle T);
@@ -256,8 +256,8 @@ Section oracular_semantics.
     (not_perfectly_learnable : 
       forall p : Params, 0 < expVal d m_gt0 accuracy p < 1).
 
-  Lemma oracular_main_bound (eps:R) (eps_gt0 : 0 < eps) (init:Params) :
-    oracular_main d eps init (fun _ => 1) <= 
+  Lemma oracular_main_bound (eps:R) (eps_gt0 : 0 < eps) :
+    oracular_main d eps (fun _ => 1) <= 
     INR #|Params| * exp (-2%R * eps^2 * mR m).
   Proof.
     rewrite /oracular_main/bind/=/Cbind/Cret.
@@ -293,7 +293,7 @@ Section oracular_holdout_semantics.
       (1 - (expVal (A:=X) (B:=Y) d m_gt0 (Hyp:=Params)
                   (accuracy01 (A:=X) (B:=Y) (Params:=Params) (Learner.predict learner h)) (oracle t))).      
     
-  Definition oracular_main_holdout (d:X*Y -> R) (eps:R) (init:Params) 
+  Definition oracular_main_holdout (d:X*Y -> R) (eps:R)
     : C (Params * training_set X Y n) :=
     T_train <-- semantic_sample m d;
     _ <-- observe (eps_hyp_ok d eps) T_train;            
@@ -308,8 +308,8 @@ Section oracular_holdout_semantics.
     (not_perfectly_learnable : 
       forall p : Params, 0 < expVal d n_gt0 accuracy p < 1).
 
-  Lemma oracular_main_holdout_bound (eps:R) (eps_gt0 : 0 < eps) (init:Params) :
-    oracular_main_holdout d eps init (fun _ => 1) <= 
+  Lemma oracular_main_holdout_bound (eps:R) (eps_gt0 : 0 < eps) :
+    oracular_main_holdout d eps (fun _ => 1) <= 
     exp (-2%R * eps^2 * mR n).
   Proof.
     rewrite /oracular_main_holdout/bind/=/Cbind/Cret.
