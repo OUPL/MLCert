@@ -46,7 +46,7 @@ Section KernelClassifier.
            let: ((i, xi), yi) := xi_yi in
            let: (j, xj) := x in 
            let: wi := f32_get i w.2 in 
-           (float32_of_bool yi) * wi * f32_dot xi xj)
+           r + (float32_of_bool yi) * wi * f32_dot xi xj)
         0 T > 0.
   End predict.
 End KernelClassifier.
