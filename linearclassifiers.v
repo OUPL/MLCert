@@ -230,7 +230,7 @@ Section KPerceptronExtraction.
   Variable hypers : KernelPerceptron.Hypers.
 
   Notation Q := (A * B)%type.
-  Definition kperceptron := 
+  Definition kperceptron (r:Type) := 
     @extractible_main
       A B Params KernelPerceptron.Hypers
       (@KernelPerceptron.Learner n m (seq.seq Q) (list_Foldable Q))
@@ -238,7 +238,7 @@ Section KPerceptronExtraction.
       epochs
       (seq.seq Q)
       (list_Foldable Q)
-      (seq.seq Q)
+      r
       (fun T => ret T).
 End KPerceptronExtraction.
 
