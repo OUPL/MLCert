@@ -12,7 +12,7 @@ fromInt n | n > 0 = S (fromInt $ n - 1)
 fromNat O = 0
 fromNat (S n) = 1 + fromNat n
 
-n = fromInt 2 --the number of dimensions
+n = fromInt 3 --the number of dimensions
 m = fromInt 200 --the number of samples
 epochs = fromInt 5
 
@@ -24,6 +24,11 @@ init_weights = take (fromNat m) $ repeat 0.0
 makeKernelParams :: [(Ak, Bk)] -> KernelParams [(Ak, Bk)]
 makeKernelParams dataset = (dataset, init_weights)
 
+categorize :: Nat -> (,) Float32_arr Float32 -> [Float32] -> Bk
+categorize n p a =
+  case p of {
+   (,) w b -> f32_gt (f32_add (f32_dot n w a) b) f32_0}
+
 print_training_set [] = return ()
 print_training_set (((i,xs),y) : t) =
   let print_xs [] = return ()
@@ -34,34 +39,39 @@ print_training_set (((i,xs),y) : t) =
      ; putStrLn (show y)
      ; print_training_set t }
 
-sampler data_set _ f =
-  do { putStrLn "Training Set:"
-     ; print_training_set data_set
-     ; f data_set }
-
 kernel_predict_specialized ::
   KernelParams [(Ak, Bk)] ->
   Ak ->
   Bk
 kernel_predict_specialized kparams ak =
   kernel_predict n m list_Foldable kparams ak
+       
+sampler hyperplane _ f =
+  do { t <- training_set hyperplane n m
+     ; putStrLn "Training Set:"
+     ; print_training_set t
+     ; f t }
 
 training_example O = return []
 training_example (S n) =
   do { r <- randomRIO (-1.0,1.0)
      ; e <- training_example n
      ; return $ r : e }
-training_row i n = 
+training_row hyperplane i n = 
   do { example <- training_example n
-     ; label <- randomRIO (False,True)
+     ; let label = categorize n (hyperplane, 0.0) example
      ; return ((i, example), label) }
+  where int2bool :: Int -> Bool
+        int2bool 0 = False
+        int2bool 1 = True
 
-data_set :: Nat -> Nat -> IO [(Ak, Bk)]
-data_set _ O = return []
-data_set n (S m)
-  = do { r <- training_row m n
-       ; t <- data_set n m
+training_set _ _ O = return []
+training_set hyperplane n (S m)
+  = do { r <- training_row hyperplane m n
+       ; t <- training_set hyperplane n m
        ; return $ r : t }
+
+test_set = training_set
 
 print_generalization_err ::
   [(Ak, Bk)] ->
@@ -84,11 +94,10 @@ print_generalization_err test (model, training) =
        ++ "Test: " ++ show percent_correct_test ++ "\n"
        ++ "Generalization Error: "
        ++ show (abs (percent_correct_training - percent_correct_test))
-
-main :: IO ()
-main =
-  do { test <- data_set n m
-     ; train <- data_set n m 
-     ; kperceptron n m epochs (sampler train) dist
-        makeKernelParams (print_generalization_err test)}
+     
+main = 
+  do { hyperplane <- training_example n
+     ; test <- test_set hyperplane n m
+     ; kperceptron n m epochs (sampler hyperplane) dist
+     makeKernelParams (print_generalization_err test) }
          
