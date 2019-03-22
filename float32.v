@@ -39,6 +39,7 @@ Axiom f32_gt : float32 -> float32 -> bool.
 Axiom f32_add : float32 -> float32 -> float32.
 Axiom f32_mult : float32 -> float32 -> float32.
 Axiom f32_div : float32 -> float32 -> float32.
+Axiom f32_pow : float32 -> float32 -> float32.
 Axiom f32_init : forall (n:nat)(init:float32), float32_arr n.
 Axiom f32_map : forall (n:nat)(f:float32->float32)(a:float32_arr n), float32_arr n.
 Axiom f32_mapM : forall (M:Type->Type)(n:nat)(f:float32->M float32)(a:float32_arr n), M (float32_arr n).
@@ -54,6 +55,7 @@ Extract Constant f32_gt => "(\f1 f2 -> (Prelude.>) f1 f2)".
 Extract Constant f32_add => "(\f1 f2 -> (Prelude.+) f1 f2)".
 Extract Constant f32_mult => "(\f1 f2 -> (Prelude.*) f1 f2)".
 Extract Constant f32_div => "(\f1 f2 -> (Prelude./) f1 f2)".
+Extract Constant f32_pow => "(\f1 f2 -> (Prelude.**) f1 f2)".
 Extract Constant f32_init =>
   "(\n init -> case n of 
                  O -> []
@@ -73,6 +75,7 @@ Infix ">" := (f32_gt) : f32_scope.
 Infix "+" := (f32_add) : f32_scope. 
 Infix "*" := (f32_mult) : f32_scope.
 Infix "/" := (f32_div) : f32_scope.
+Infix "**" := (f32_pow) (at level 20, left associativity) : f32_scope.
 
 Definition neg1 : float32 := f32_opp f32_1.
 Definition float32_of_bool (b:bool) := if b then f32_1 else neg1.
