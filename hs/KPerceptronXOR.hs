@@ -12,9 +12,9 @@ fromInt n | n > 0 = S (fromInt $ n - 1)
 fromNat O = 0
 fromNat (S n) = 1 + fromNat n
 
-n = fromInt 3 --the number of dimensions
-m = fromInt 200 --the number of samples
-epochs = fromInt 5
+n = fromInt 2 --the number of dimensions
+m = fromInt 4 --the number of samples
+epochs = fromInt 10
 
 dist _ = -1.0 --not used in sampler below
 
@@ -23,11 +23,6 @@ init_weights = take (fromNat m) $ repeat 0.0
 
 makeKernelParams :: [(Ak, Bk)] -> KernelParams [(Ak, Bk)]
 makeKernelParams dataset = (dataset, init_weights)
-
-categorize :: Nat -> (,) Float32_arr Float32 -> [Float32] -> Bk
-categorize n p a =
-  case p of {
-   (,) w b -> f32_gt (f32_add (f32_dot n w a) b) f32_0}
 
 print_training_set [] = return ()
 print_training_set (((i,xs),y) : t) =
@@ -44,34 +39,12 @@ kernel_predict_specialized ::
   Ak ->
   Bk
 kernel_predict_specialized kparams ak =
-  kernel_predict n m list_Foldable (KPerceptron.linear_kernel n) kparams ak
-       
-sampler hyperplane _ f =
-  do { t <- training_set hyperplane n m
-     ; putStrLn "Training Set:"
-     ; print_training_set t
-     ; f t }
-
-training_example O = return []
-training_example (S n) =
-  do { r <- randomRIO (-1.0,1.0)
-     ; e <- training_example n
-     ; return $ r : e }
-training_row hyperplane i n = 
-  do { example <- training_example n
-     ; let label = categorize n (hyperplane, 0.0) example
-     ; return ((i, example), label) }
-  where int2bool :: Int -> Bool
-        int2bool 0 = False
-        int2bool 1 = True
-
-training_set _ _ O = return []
-training_set hyperplane n (S m)
-  = do { r <- training_row hyperplane m n
-       ; t <- training_set hyperplane n m
-       ; return $ r : t }
-
-test_set = training_set
+  kernel_predict n m list_Foldable (KPerceptron.quadratic_kernel n) kparams ak
+     
+sampler dataset _ f =
+    do { putStrLn "Training Set:"
+       ; print_training_set dataset
+       ; f dataset}
 
 print_generalization_err ::
   [(Ak, Bk)] ->
@@ -94,10 +67,13 @@ print_generalization_err test (model, training) =
        ++ "Test: " ++ show percent_correct_test ++ "\n"
        ++ "Generalization Error: "
        ++ show (abs (percent_correct_training - percent_correct_test))
+    
+xor = [((O, [-1.0, -1.0]), Prelude.True), (((S O), [-1.0, 1.0]), Prelude.False),
+    (((S (S O)), [1.0, -1.0]), Prelude.False), (((S (S (S O))), [1.0, 1.0]), Prelude.True)]
      
-main = 
-  do { hyperplane <- training_example n
-     ; test <- test_set hyperplane n m
-     ; kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler hyperplane) dist
-     makeKernelParams (print_generalization_err test) }
+main =
+    do { kperceptron n m epochs (KPerceptron.quadratic_kernel n) 
+         (sampler xor) dist makeKernelParams (print_generalization_err xor) }
+    
+    
          

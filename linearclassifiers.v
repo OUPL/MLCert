@@ -38,15 +38,20 @@ Section KernelClassifier.
 
   Section predict.
     Open Scope f32_scope.
+    Definition linear_kernel {n} (x y : float32_arr n) : float32 :=
+      f32_dot x y.
+    Definition quadratic_kernel (x y : float32_arr n) : float32 :=
+      (f32_dot x y) ** 2.
 
-    Definition kernel_predict (w : KernelParams) (x : Ak) : Bk :=
+    Definition kernel_predict (K : float32_arr n -> float32_arr n -> float32) 
+        (w : KernelParams) (x : Ak) : Bk :=
       let T := w.1 in 
       foldable_foldM
         (fun xi_yi r =>
            let: ((i, xi), yi) := xi_yi in
            let: (j, xj) := x in 
            let: wi := f32_get i w.2 in 
-           r + (float32_of_bool yi) * wi * f32_dot xi xj)
+           r + (float32_of_bool yi) * wi * (K xi xj))
         0 T > 0.
   End predict.
 End KernelClassifier.
@@ -87,21 +92,24 @@ Module KernelPerceptron.
     Notation B := Bk.
     Context {training_set} `{F:Foldable training_set (A * B)}.        
     Definition Params := @KernelParams m training_set.
+    Variable K : float32_arr n -> float32_arr n -> float32.
 
     Record Hypers : Type := mkHypers { }.
 
     Open Scope f32_scope.
 
-    Definition kernel_update (h:Hypers) (example_label:A*B) (p:Params) : Params :=
+    Definition kernel_update 
+      (K : float32_arr n -> float32_arr n -> float32)
+          (h:Hypers) (example_label:A*B) (p:Params) : Params :=
       let: ((i, example), label) := example_label in 
-      let: predicted_label := kernel_predict p (i, example) in
+      let: predicted_label := kernel_predict K p (i, example) in
       if Bool.eqb predicted_label label then p
       else (p.1, f32_upd i (f32_get i p.2 + 1) p.2).
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
-        (fun _ => @kernel_predict n m training_set F)
-        kernel_update.
+        (fun _ => @kernel_predict n m training_set F K)
+        (kernel_update K).
   End Learner.
 End KernelPerceptron.
 
@@ -160,6 +168,7 @@ Section KernelPerceptronGeneralization.
   Variable epochs : nat.
 
   Variable hypers : KernelPerceptron.Hypers.
+  Variable K : float32_arr n -> float32_arr n -> float32.
 
   (*Represent the training set as a one-dimensional (flattened) float array.*)
   Definition training_set := float32_arr_finType (m*n).
@@ -168,7 +177,7 @@ Section KernelPerceptronGeneralization.
   Notation Params := [finType of {:training_set * float32_arr_finType m}].
   Definition Kaccuracy := 
     @accuracy01 A _ m Params (Learner.predict 
-      (@KernelPerceptron.Learner n m training_set H) hypers).
+      (@KernelPerceptron.Learner n m training_set H K) hypers).
 
   Lemma Kcard_Params : INR #|Params| = 2 ^ (m*n*32 + m*32).
   Proof.
@@ -183,7 +192,7 @@ Section KernelPerceptronGeneralization.
 
   Lemma Kperceptron_bound eps (eps_gt0 : 0 < eps) init : 
     @main A B Params KernelPerceptron.Hypers 
-      (@KernelPerceptron.Learner n m training_set H)
+      (@KernelPerceptron.Learner n m training_set H K)
       hypers m m_gt0 epochs d eps init (fun _ => 1) <=
     2^(m*n*32 + m*32) * exp (-2%R * eps^2 * mR m).
   Proof.
@@ -228,12 +237,13 @@ Section KPerceptronExtraction.
   Notation Params := (KernelParams m)%type.
 
   Variable hypers : KernelPerceptron.Hypers.
+  Variable K : float32_arr n -> float32_arr n -> float32.
 
   Notation Q := (A * B)%type.
   Definition kperceptron (r:Type) := 
     @extractible_main
       A B Params KernelPerceptron.Hypers
-      (@KernelPerceptron.Learner n m (seq.seq Q) (list_Foldable Q))
+      (@KernelPerceptron.Learner n m (seq.seq Q) (list_Foldable Q) K)
       hypers
       epochs
       (seq.seq Q)
@@ -243,4 +253,4 @@ Section KPerceptronExtraction.
 End KPerceptronExtraction.
 
 Extraction Language Haskell.
-Extraction "hs/KPerceptron.hs" kperceptron.
+Extraction "hs/KPerceptron.hs" kperceptron linear_kernel quadratic_kernel.
