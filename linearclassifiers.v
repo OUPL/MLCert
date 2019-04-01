@@ -30,11 +30,14 @@ End LinearThresholdClassifier.
 Section KernelClassifier.
   Variable n : nat. (*the dimensionality*)
   Variable m : nat. (*#examples*)
+  
+  Variable sv : nat. (*#support vectors*)
 
   Definition Ak := ('I_m * float32_arr n)%type. (*examples*)
   Definition Bk := bool. (*labels*)
-  Context {training_set} `{Foldable training_set (Ak * Bk)}.
-  Definition KernelParams := (training_set * float32_arr m)%type.
+  (*Context {support_vectors} `{Foldable support_vectors (Ak * Bk)}.*)
+  Context {support_vectors} `{Foldable support_vectors ('I_sv * float32_arr n * bool)}.
+  Definition KernelParams := (support_vectors * float32_arr sv)%type.
 
   Section predict.
     Open Scope f32_scope.
@@ -88,11 +91,13 @@ Module KernelPerceptron.
   Section Learner.
     Variable n : nat. (*the dimensionality*)
     Variable m : nat. (*#examples*)
+    Variable sv : nat. (*#support vectors*)
     Notation A := (Ak n m).
     Notation B := Bk.
-    Context {training_set} `{F:Foldable training_set (A * B)}.        
-    Definition Params := @KernelParams m training_set.
+    Context {support_vectors} `{F:Foldable support_vectors (A * B)}.        
+    Definition Params := @KernelParams m support_vectors.
     Variable K : float32_arr n -> float32_arr n -> float32.
+    
 
     Record Hypers : Type := mkHypers { }.
 
@@ -108,7 +113,7 @@ Module KernelPerceptron.
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
-        (fun _ => @kernel_predict n m training_set F K)
+        (fun _ => @kernel_predict n m _ support_vectors F K)
         (kernel_update K).
   End Learner.
 End KernelPerceptron.
@@ -157,6 +162,7 @@ End PerceptronGeneralization.
 Section KernelPerceptronGeneralization.
   Variable n : nat. (*The dimensionality*)
   Variable m : nat. (*#examples*)
+  Variable sv : nat.
   Notation A := [finType of 'I_m * float32_arr_finType n].
   Notation B := bool_finType.
   Variable d : A * B -> R.
@@ -171,13 +177,13 @@ Section KernelPerceptronGeneralization.
   Variable K : float32_arr n -> float32_arr n -> float32.
 
   (*Represent the training set as a one-dimensional (flattened) float array.*)
-  Definition training_set := float32_arr_finType (m*n).
-  Context {H: Foldable training_set (A * B)}.
+  Definition support_vectors := float32_arr_finType (m*n).
+  Context {H: Foldable support_vectors (A * B)}.
 
-  Notation Params := [finType of {:training_set * float32_arr_finType m}].
+  Notation Params := [finType of {:support_vectors * float32_arr_finType m}].
   Definition Kaccuracy := 
     @accuracy01 A _ m Params (Learner.predict 
-      (@KernelPerceptron.Learner n m training_set H K) hypers).
+      (@KernelPerceptron.Learner n m support_vectors H K) hypers).
 
   Lemma Kcard_Params : INR #|Params| = 2 ^ (m*n*32 + m*32).
   Proof.
@@ -192,7 +198,7 @@ Section KernelPerceptronGeneralization.
 
   Lemma Kperceptron_bound eps (eps_gt0 : 0 < eps) init : 
     @main A B Params KernelPerceptron.Hypers 
-      (@KernelPerceptron.Learner n m training_set H K)
+      (@KernelPerceptron.Learner n m support_vectors H K)
       hypers m m_gt0 epochs d eps init (fun _ => 1) <=
     2^(m*n*32 + m*32) * exp (-2%R * eps^2 * mR m).
   Proof.
