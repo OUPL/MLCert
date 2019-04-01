@@ -13,14 +13,11 @@ Require Import MLCert.float32 MLCert.learners MLCert.extraction_hs MLCert.monads
 Section KernelClassifier.
   Variable n : nat. (*the dimensionality*)
   Variable m : nat. (*#examples*)
-  
-  Variable sv : nat. (*#support vectors*)
 
   Definition Ak := ('I_m * float32_arr n)%type. (*examples*)
   Definition Bk := bool. (*labels*)
-  (*Context {support_vectors} `{Foldable support_vectors (Ak * Bk)}.*)
-  Context {support_vectors} `{Foldable support_vectors ('I_sv * float32_arr n * bool)}.
-  Definition KernelParams := (support_vectors * float32_arr sv)%type.
+  Context {support_vectors} `{Foldable support_vectors ('I_m * float32_arr n * bool)}.
+  Definition KernelParams := (support_vectors * float32_arr m)%type.
 
   Section predict.
     Open Scope f32_scope.
@@ -42,6 +39,33 @@ Section KernelClassifier.
   End predict.
 End KernelClassifier.
 
+Section KernelClassifierBudget.
+  Variable n : nat. (*the dimensionality*)
+  Variable m : nat. (*#examples*)
+  
+  Variable sv : nat. (*#support vectors*)
+
+  Definition Akb := ('I_m * float32_arr n)%type. (*examples*)
+  Definition Bkb := bool. (*labels*)
+  Context {support_vectors} `{Foldable support_vectors ('I_sv * float32_arr n * bool)}.
+  Definition KernelParamsBudget := (support_vectors * float32_arr sv)%type.
+
+  Section predict.
+    Open Scope f32_scope.
+
+    Definition kernel_predict_budget (K : float32_arr n -> float32_arr n -> float32) 
+        (w : KernelParamsBudget) (x : Akb) : Bkb :=
+      let T := w.1 in 
+      foldable_foldM
+        (fun xi_yi r =>
+           let: ((i, xi), yi) := xi_yi in
+           let: (j, xj) := x in 
+           let: wi := f32_get i w.2 in 
+           r + (float32_of_bool yi) * wi * (K xi xj))
+        0 T > 0.
+  End predict.
+End KernelClassifierBudget.
+
 Module KernelPerceptron.
   Section Learner.
     Variable n : nat. (*the dimensionality*)
@@ -52,7 +76,6 @@ Module KernelPerceptron.
     Context {support_vectors} `{F:Foldable support_vectors (A * B)}.        
     Definition Params := @KernelParams m support_vectors.
     Variable K : float32_arr n -> float32_arr n -> float32.
-    
 
     Record Hypers : Type := mkHypers { }.
 
@@ -68,7 +91,7 @@ Module KernelPerceptron.
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
-        (fun _ => @kernel_predict n m _ support_vectors F K)
+        (fun _ => @kernel_predict n m support_vectors F K)
         (kernel_update K).
   End Learner.
 End KernelPerceptron.
@@ -80,26 +103,30 @@ Module KernelPerceptronBudget.
     Variable sv : nat. (*#support vectors*)
     Notation A := (Ak n m).
     Notation B := Bk.
-    Context {support_vectors} `{F:Foldable support_vectors (A * B)}.        
-    Definition Params := @KernelParams m support_vectors.
+    Context {support_vectors} `{F:Foldable support_vectors ('I_sv * float32_arr n * B)}.        
+    Definition Params := @KernelParams sv support_vectors.
     Variable K : float32_arr n -> float32_arr n -> float32.
+    Variable U : Params -> float32_arr n -> Params. 
     
-
     Record Hypers : Type := mkHypers { }.
 
     Open Scope f32_scope.
-
+    
+    Definition budget_update (p : Params) (e : float32_arr n) : Params :=
+      let: (supports, weights) := p in
+      p.
+      
     Definition kernel_update 
       (K : float32_arr n -> float32_arr n -> float32)
           (h:Hypers) (example_label:A*B) (p:Params) : Params :=
       let: ((i, example), label) := example_label in 
-      let: predicted_label := kernel_predict K p (i, example) in
+      let: predicted_label := kernel_predict_budget K p (i, example) in
       if Bool.eqb predicted_label label then p
-      else (p.1, f32_upd i (f32_get i p.2 + 1) p.2).
+      else (U p example).
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
-        (fun _ => @kernel_predict n m _ support_vectors F K)
+        (fun _ => @kernel_predict_budget n m sv support_vectors F K)
         (kernel_update K).
   End Learner.
 End KernelPerceptronBudget.
@@ -155,6 +182,56 @@ Section KernelPerceptronGeneralization.
     apply: Rle_refl.
   Qed.
 End KernelPerceptronGeneralization.
+
+Section KernelPerceptronGeneralizationBudget.
+  Variable n : nat. (*The dimensionality*)
+  Variable m : nat. (*#examples*)
+  Variable sv : nat.
+  Notation A := [finType of 'I_m * float32_arr_finType n].
+  Notation B := bool_finType.
+  Variable d : A * B -> R.
+  Variable d_dist : big_sum (enum [finType of A * B]) d = 1.
+  Variable d_nonneg : forall x, 0 <= d x.
+
+  Variable m_gt0 : (0 < m)%nat.
+
+  Variable epochs : nat.
+
+  Variable hypers : KernelPerceptronBudget.Hypers.
+  Variable K : float32_arr n -> float32_arr n -> float32.
+
+  (*Represent the training set as a one-dimensional (flattened) float array.*)
+  Definition support_vectors_budget := float32_arr_finType (sv*n).
+  Context {H: Foldable support_vectors_budget ('I_sv * float32_arr n * B)}.
+
+  Notation Params := [finType of {:support_vectors_budget * float32_arr_finType sv}].
+  Variable U : Params -> float32_arr n -> Params.
+  Definition KaccuracyBudget := 
+    @accuracy01 A _ m Params (Learner.predict 
+      (@KernelPerceptronBudget.Learner n m sv support_vectors_budget H K U) hypers).
+
+  Lemma Kcard_Params_Budget : INR #|Params| = 2 ^ (sv*n*32 + sv*32).
+  Proof.
+    rewrite /training_set card_prod !float32_arr_card.
+    rewrite mult_INR !pow_INR /= pow_add //.
+  Qed.
+
+  Variables 
+    (not_perfectly_learnable : 
+       forall p : Params, 0 < expVal d m_gt0 KaccuracyBudget p < 1)
+    (mut_ind : forall p : Params, mutual_independence d (KaccuracyBudget p)).
+
+  Lemma Kperceptron_bound_budget eps (eps_gt0 : 0 < eps) init : 
+    @main A B Params KernelPerceptronBudget.Hypers 
+      (@KernelPerceptronBudget.Learner n m sv support_vectors_budget H K U)
+      hypers m m_gt0 epochs d eps init (fun _ => 1) <=
+    2^(sv*n*32 + sv*32) * exp (-2%R * eps^2 * mR m).
+  Proof.
+    rewrite -Kcard_Params.
+    apply: Rle_trans; first by apply: main_bound.
+    apply: Rle_refl.
+  Qed.
+End KernelPerceptronGeneralizationBudget.
 
 Section KPerceptronExtraction.
   Variable n : nat. (*The dimensionality*)
