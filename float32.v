@@ -40,6 +40,7 @@ Axiom f32_add : float32 -> float32 -> float32.
 Axiom f32_mult : float32 -> float32 -> float32.
 Axiom f32_div : float32 -> float32 -> float32.
 Axiom f32_pow : float32 -> float32 -> float32.
+Axiom f32_eq : float32 -> float32 -> bool.
 Axiom f32_init : forall (n:nat)(init:float32), float32_arr n.
 Axiom f32_map : forall (n:nat)(f:float32->float32)(a:float32_arr n), float32_arr n.
 Axiom f32_mapM : forall (M:Type->Type)(n:nat)(f:float32->M float32)(a:float32_arr n), M (float32_arr n).
@@ -47,6 +48,8 @@ Axiom f32_map2 : forall (n:nat)(f:float32->float32->float32)(a b:float32_arr n),
 Axiom f32_fold2 : forall (T:Type)(n:nat)(t0:T)(f:float32->float32->T->T)(a1 a2:float32_arr n), T.
 Axiom f32_get : forall (n:nat)(i:'I_n)(a:float32_arr n), float32.
 Axiom f32_upd : forall (n:nat)(i:'I_n)(new:float32)(a:float32_arr n), float32_arr n.
+Axiom f32_get_f32 : forall (n:nat)(f:float32)(a:float32_arr n), float32.
+Axiom f32_upd_f32 : forall (n:nat)(f new:float32)(a:float32_arr n), float32_arr n.
 
 Extract Constant f32_0 => "(0.0 :: Prelude.Float)".
 Extract Constant f32_1 => "(1.0 :: Prelude.Float)".
@@ -56,6 +59,7 @@ Extract Constant f32_add => "(\f1 f2 -> (Prelude.+) f1 f2)".
 Extract Constant f32_mult => "(\f1 f2 -> (Prelude.*) f1 f2)".
 Extract Constant f32_div => "(\f1 f2 -> (Prelude./) f1 f2)".
 Extract Constant f32_pow => "(\f1 f2 -> (Prelude.**) f1 f2)".
+Extract Constant f32_eq => "(\f1 f2 -> (Prelude.==) f1 f2)".
 Extract Constant f32_init =>
   "(\n init -> case n of 
                  O -> []
@@ -66,6 +70,8 @@ Extract Constant f32_map2 => "(\_ f a1 a2 -> Prelude.map (\(x,y) -> f x y) (Prel
 Extract Constant f32_fold2 => "(\_ t f a1 a2 -> Prelude.foldl (\acc (x, y) -> f x y acc) t (Prelude.zip a1 a2))".
 Extract Constant f32_get => "(\_ i a -> (if (eqn i O) then (Prelude.head a) else (let (S x) = i in (f32_get O x (Prelude.tail a)))))".
 Extract Constant f32_upd => "(\_ i new a -> (if (eqn i O) then ([new] Prelude.++ (Prelude.tail a)) else (let (S x) = i in ([Prelude.head a] Prelude.++ (f32_upd O x new (Prelude.tail a))))))".
+Extract Constant f32_get_f32 => "(\_ f a -> if (f == 0.0) then (Prelude.head a) else (f32_get_f32 O (f - 1.0) (Prelude.tail a)))".
+Extract Constant f32_upd_f32 => "(\_ f new a -> (if (f == 0.0) then ([new] Prelude.++ (Prelude.tail a)) else ([Prelude.head a] Prelude.++ (f32_upd_f32 O (f - 1.0) new (Prelude.tail a))))".
 
 (*Notation and derived operations*)
 Notation "0" := (f32_0) : f32_scope.
@@ -76,6 +82,7 @@ Infix "+" := (f32_add) : f32_scope.
 Infix "*" := (f32_mult) : f32_scope.
 Infix "/" := (f32_div) : f32_scope.
 Infix "**" := (f32_pow) (at level 20, left associativity) : f32_scope.
+Infix "==" := (f32_eq) : f32_scope.
 
 Definition neg1 : float32 := f32_opp f32_1.
 Definition float32_of_bool (b:bool) := if b then f32_1 else neg1.
