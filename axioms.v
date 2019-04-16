@@ -37,8 +37,9 @@ Definition AxVec_finType (n:nat) (t:finType) : finType :=
   Finite.Pack (AxVec_finite n t) (AxVec n t).
 Axiom AxVec_card : forall m n (t:finType), #|t| = 2^n -> #|AxVec_finType m t| = 2^(m*n).
 
-
 Axiom AxVec_map : forall (n:nat) (s t:Type), (s -> t) -> AxVec n s -> AxVec n t.
+Axiom AxVec_cons: forall (n:nat) (t:Type), t -> AxVec n t -> AxVec (S n) t.
+Axiom AxVec_tail: forall (n:nat) (t:Type), AxVec (S n) t -> AxVec n t.
 
 Definition AxMat A n m := AxVec n (AxVec m A).
 Definition matrix_map {A B n m} (f : A -> B) : AxMat A n m -> AxMat B n m :=
