@@ -175,7 +175,7 @@ Module KernelPerceptronBudget.
       let: ((i, example), label) := example_label in 
       let: predicted_label := kernel_predict_budget K p (i, example) in
       if Bool.eqb predicted_label label then p
-      else (budget_update p example).
+      else (U p example).
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
@@ -323,3 +323,39 @@ End KPerceptronExtraction.
 
 Extraction Language Haskell.
 Extraction "hs/KPerceptron.hs" kperceptron linear_kernel quadratic_kernel.
+
+Section KPerceptronExtractionBudget.
+  Variable n : nat. (*The dimensionality*)
+  Variable m : nat. (*#examples*)
+  Variable sv : nat.
+  Notation A := (Ak n m).
+  Notation B := Bk.
+  Variable d : A * B -> R.
+
+  (*Variable m : nat. (*The number of training samples*)*)
+  Variable epochs : nat.
+
+  Notation Params := (KernelParamsBudget sv)%type.
+
+  Variable hypers : KernelPerceptronBudget.Hypers.
+  Variable K : float32_arr n -> float32_arr n -> float32.
+
+  Notation Q := (A * B)%type.
+  Notation Q' := ('I_sv * float32_arr n * B)%type.
+  Variable U : (@KernelPerceptronBudget.Params sv (seq.seq Q')) -> 
+     float32_arr n -> (@KernelPerceptronBudget.Params sv (seq.seq Q')).
+  Check extractible_main.
+  Definition kperceptronbudget (r:Type) := 
+    @extractible_main
+      A B Params KernelPerceptronBudget.Hypers
+      (@KernelPerceptronBudget.Learner n m sv (seq.seq Q') (list_Foldable Q') K U)
+      hypers
+      epochs
+      (seq.seq Q)
+      (list_Foldable Q)
+      r
+      (fun T => ret T).
+End KPerceptronExtractionBudget.
+
+Extraction Language Haskell.
+Extraction "hs/KPerceptronBudget.hs" kperceptronbudget linear_kernel quadratic_kernel KernelPerceptronBudget.budget_update.
