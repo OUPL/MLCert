@@ -11,8 +11,6 @@ Require Import MLCert.axioms.
 
 Definition bitvec (n:nat) := AxVec n bool.
 
-Definition bitvec_of_list (n:nat) (l:list bool) : bitvec n := AxVec_of_list n l.
-
 Lemma bitvec_finite : forall (n:nat), Finite.class_of (bitvec n).
 Proof. move => n; apply: AxVec_finite. Defined.
 
