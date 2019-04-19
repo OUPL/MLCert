@@ -25,18 +25,31 @@ Require Import Extraction.
   AxVec, given it's instantiated at a finite type.*)
 
 Require Import Vector.
-
-Axiom AxVec : forall (n:nat) (t:Type), Type.
+(*Axiom AxVec : forall (n:nat) (t:Type), Type.
 Axiom AxVec_to_list : forall (n:nat) (t:Type), AxVec n t -> list t.
+Axiom AxVec_of_list : forall (n:nat) (t:Type), list t -> AxVec n t.*)
+
+Definition AxVec (n:nat) (t:Type) := Vector.t t n.
+Definition AxVec_to_list (n:nat) (t:Type) : AxVec n t -> list t := 
+  fun a => Vector.to_list a.
+Definition AxVec_of_list (n:nat) (t:Type) (l:list t) : AxVec (length l) t := 
+  Vector.of_list l.
 
 Axiom AxVec_finite : forall (n:nat) (t:finType), Finite.class_of (AxVec n t).
 Definition AxVec_finType (n:nat) (t:finType) : finType :=
   Finite.Pack (AxVec_finite n t) (AxVec n t).
 Axiom AxVec_card : forall m n (t:finType), #|t| = 2^n -> #|AxVec_finType m t| = 2^(m*n).
 
-Axiom AxVec_map : forall (n:nat) (s t:Type), (s -> t) -> AxVec n s -> AxVec n t.
+(*Axiom AxVec_map : forall (n:nat) (s t:Type), (s -> t) -> AxVec n s -> AxVec n t.
 Axiom AxVec_cons: forall (n:nat) (t:Type), t -> AxVec n t -> AxVec (S n) t.
-Axiom AxVec_tail: forall (n:nat) (t:Type), AxVec (S n) t -> AxVec n t.
+Axiom AxVec_tail: forall (n:nat) (t:Type), AxVec (S n) t -> AxVec n t.*)
+
+Definition AxVec_map (n:nat) (s t:Type) : (s -> t) -> AxVec n s -> AxVec n t:=
+  fun f a => Vector.map f a.
+Definition AxVec_cons (n:nat) (t:Type) : t -> AxVec n t -> AxVec (S n) t := 
+  fun t' a => cons t t' n a.
+Definition AxVec_tail (n:nat) (t:Type) : AxVec (S n) t -> AxVec n t := 
+  fun a => Vector.shiftout a.
 
 Definition AxMat A n m := AxVec n (AxVec m A).
 Definition matrix_map {A B n m} (f : A -> B) : AxMat A n m -> AxMat B n m :=
