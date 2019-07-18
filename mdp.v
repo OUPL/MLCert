@@ -10,8 +10,10 @@ Require Import MLCert.extraction_ocaml.
 Require Import List. Import ListNotations.
 Require Import QArith.
 Require Import OUVerT.extrema.
+Require Import OUVerT.binach.
+Require Import OUVerT.orderedtypes.
 
-Require Import FunctionalExtensionality.
+(**Require Import FunctionalExtensionality.**)
 
 (**Open Scope f32_scope.**)
 
@@ -22,6 +24,19 @@ Require Import OUVerT.dyadic.
 Require Import ProofIrrelevance.
 
 Require Import OUVerT.compile.
+Require Import Reals.SeqProp.
+Require Import Reals.Rseries.
+Require Import Rbase.
+Require Import Reals.Rfunctions.
+Require Import Reals.Rpower.
+Import OUVerT.numerics.Numerics.
+Import OUVerT.extrema.num_Extrema.
+
+Require Import mathcomp.algebra.matrix.
+Require Import Reals.Rcomplete.
+
+Require Import Psatz.
+
 
 From mathcomp Require Import all_ssreflect.
 
@@ -128,40 +143,13 @@ Proof.
   auto.
 Qed.
     
-(***
-
-Definition cons_all {T : Type} (x : T) (l : list (list T)) : list (list T) :=
-map (fun l' => x :: l') l.
-
-Definition cons_all_from {T : Type} (l1 : list T) (l2 : list (list T)) : list (list T) :=
-seq.flatten (map (fun x => cons_all x l2) l1).
-
-
-
-(** |l1| ^ n **)
-Fixpoint all_perm_rep {T : Type} (l : list T) (n : nat) : list (list T) := 
-match n with
-| O => []
-| S O => map (fun x => [x]) l
-| S n' => cons_all_from l (all_perm_rep l n')
-end.
-
-
-Fixpoint  all_perm_rep_funcs {T1 T2 : Type} (l1 : list T1) (l2 : list T2) : list (T1 -> T2) :=
-match l1 with
-| [] => []
-| [x] => (map (fun y=>[(x,y)]) l2)
-| x :: l1' => cons_all_from (map (fun y => (x , y) ) l2) (all_perm_rep_l2 l1' l2)
-end.
-
-**)
 
 
 
 Delimit Scope Numeric_scope with Num.
 Local Open Scope Num.
 Section mdp_numeric. 
-  Context (Nt:Type) `{Numerics.Numeric Nt}.
+  Context {Nt:Type} `{Numerics.Numeric Nt}.
   Record mdp : Type := mdp_mk {
     state : eqType;
     action :  eqType;
@@ -185,138 +173,55 @@ Section mdp_numeric.
     states_nonempty : (0 <> length states)%nat;
     actions_nonempty : (0 <> length actions)%nat;
   }.
+  End mdp_numeric.
+
 
   Section mdp.
+    Context {Nt:Type} `{Numerics.Numeric Nt}.
     Variable p_props : mdp_props.
+
+    Lemma one_minus_discount_gt_0: forall (discount : Nt) {H : 0 <= discount /\ discount < 1}, 0 < 1 + - discount. 
+    Proof.
+      intros.
+      destruct H0.
+      rewrite <- Numerics.plus_neg_r with discount.
+      apply Numerics.plus_lt_compat_r; auto.
+    Qed.
+
+
     Variable discount : Nt.
-    Hypothesis discount_ok: Numerics.plus_id <= discount /\ discount < Numerics.mult_id.
+    Hypothesis discount_ok: 0 <= discount /\ discount < 1.
 
     Notation action_t := (action (p p_props)).
     Notation state_t := (state (p p_props)).
     Notation p_reward := (reward (p p_props)).
     Notation trans_f := (trans (p p_props)).
 
-    
     Definition value_func := state_t -> Nt.
+    (**Definition value_funcR := state_t -> R.**)
     Definition policy := state_t -> action_t.
 
-    (**
-
-    Definition mk_policy_list_aux (s : state_t) (a_list : list action_t) : 
-            list (state_t -> action_t) :=
-    map (fun a => (fun s=>a)) a_list.
-
-    
+    Definition state_list := @enumerable_fun (state_t) (states p_props).
+    Definition state_length := length state_list.
 
 
+      
 
-    Definition mk_policy_list (s_list : list state_t) (a_list : list action_t) : 
-              list (state_t -> action_t) :=
-    fold_left  (fun x y => app x y) (map (fun s => mk_policy_list_aux s a_list) s_list) [].
-
-
-    Definition all_policies := mk_policy_list (states p_props) (actions p_props).
-
-    Lemma policy_aux_nodup: forall s : state_t, SetoidList.NoDupA (fun x y: policy => x = y) 
-          (mk_policy_list_aux s (actions p_props)).
+    Lemma states_In: forall (s : state_t), In s (states p_props).
     Proof.
       intros.
-      rewrite no_dup_iff.
-      unfold mk_policy_list_aux.
-      apply FinFun.Injective_map_NoDup.
-      {
-        unfold FinFun.Injective.
-        intros.
-        
-        destruct x.
-        inversion H0.
-        destruct H0.
-        Print functional_extensionality.
-        rewrite <- functional_extensionality in H0.
-        apply functional_extensionalily
-        
-
- Print FinFun.Injective.
-      SearchAbout NoDup.
-      
-      
-      induction (actions p_props); simpl; auto.
-      constructor.
-      {
-        
-
-    Lemma policy_nodup: SetoidList.NoDupA (fun x y: policy => x = y) all_policies.
-    Proof.
-      unfold all_policies.
-      generalize (actions p_props).
-      induction (states p_props); simpl; auto.
-      intros.
-      apply SetoidList.NoDupA_app; auto.
-      {
-        apply IHe.
-        induction e0; simpl; auto.
-        
-        Print SetoidList.NoDupA .
-        constructor 2.
-        { 
-        apply IHe.
-      apply SetoidList.NoDupA_split.
-      SearchAbout SetoidList.NoDupA.
-      simpl.
-      constructor.
-      induction (actions p_props); simpl; auto.
-      
-      constructor.
-      constructor.
-      unfold not.
-      intros.
-      inversion H0.
-      inversion H2.
-      inversion H2.
-      constructor.
-      unfold not.
-      intros.
-      inversion H0.
-      constructor.
+      destruct (states_ok p_props).
+      apply enum_total.
     Qed.
 
+    Lemma actions_In: forall (a : action_t), In a (actions p_props).
+    Proof.
+      intros.
+      destruct (actions_ok p_props).
+      apply enum_total.
+    Qed.
 
-    Instance policy_enum : Enumerable policy :=
-       mk_policy_list (states p_props) (actions p_props).
-
-     Instance  policy_ok : @Enum_ok policy (mk_policy_list (states p_props) (actions p_props)).
-      
-      constructor.
-      {
-        induction (enumerate policy); auto.
-        inversion IHl.
-        { 
-          constructor; auto.
-          rewrite SetoidList.InA_nil.
-          auto.
-        }
-        inversion H1.
-        { 
-        constructor.
-        { 
-
-        simpl.
-          SearchAbout SetoidList.InA.
-          constructor.
-          simpl.
-        
-        constructor.
-        { 
-        apply SetoidList.NoDupA_cons.
-        { Print SetoidList.NoDupA. in IHl.
-        SearchAbout SetoidList.NoDupA.
-        simpl.        
-        
-
-
-  **)
-
-    Definition value_func0  := (fun (x : state_t) => Numerics.plus_id).
+    Definition value_func0  := (fun (x : state_t) => 0).
 
     Definition discounted_reward (v : value_func) (s : (state_t)) (a : (action_t)) : Nt :=
       (p_reward) s + discount * big_sum (states p_props) (fun  s' =>  (trans_f a s s') * (v s'))%Num.
@@ -324,19 +229,21 @@ Section mdp_numeric.
 
   Definition value_iteration_step (v : value_func) : value_func := 
     (fun (s : state_t) => 
-      num_nonempty_mapmax (fun a => discounted_reward v s a) (actions_nonempty p_props)
+      mapmax_ne (fun a => discounted_reward v s a) (actions_nonempty p_props)
   ).
 
     
   Fixpoint value_iteration_rec (v : value_func) (n : nat):=
   match n with
   | O => v
-  | S n' => value_iteration_rec (value_iteration_step v) n'
+  | S n' => value_iteration_step (value_iteration_rec v  n')
   end.
+
 
   Definition value_iteration  (n : nat) :=
     value_iteration_rec (value_func0) n.
 
+  
 
   Fixpoint evaluate_policy_state (pol : policy) (s : state_t) (i : nat): Nt :=
   match i with 
@@ -344,6 +251,16 @@ Section mdp_numeric.
   | S i' => p_reward s +
           discount * (big_sum (states p_props)  (fun s' =>  ((trans_f) (pol s) s s') * (evaluate_policy_state pol s' i')))
   end.
+
+  Definition evaluate_policy_step (pol : policy) (v : value_func) : value_func :=
+  (fun s => p_reward s + discount * (big_sum (states p_props)) (fun s' => trans_f (pol s) s s' * v s')).
+
+  Definition value_diff  (v1 v2 : value_func) : value_func :=
+  (fun s => v1 s + - v2 s).
+
+  Definition value_dist (v1 v2 : value_func) : Nt :=
+  mapmax_ne  (fun s => Numerics.abs ((value_diff v1 v2) s) ) (states_nonempty p_props) .
+
 
   Fixpoint evaluate_policy_sum (pol : policy) (i : nat): Nt :=
   big_sum (states p_props) (fun s => evaluate_policy_state pol s i).
@@ -359,11 +276,6 @@ Section mdp_numeric.
     apply in_eq.
   Qed.
   
-  Definition value_diff  (v1 v2 : value_func) : value_func :=
-  (fun s => v1 s + - v2 s).
-
-  Definition value_dist (v1 v2 : value_func) : Nt :=
-  num_nonempty_mapmax  (fun s => Numerics.abs ((value_diff v1 v2) s) ) (states_nonempty p_props) .
 
   
   Definition head_action : (action_t).
@@ -373,7 +285,24 @@ Section mdp_numeric.
     exact s.
   Defined.
 
-  Print head.
+  Definition value_func_policy (v: value_func) : policy :=
+  (fun s => argmax_ne
+        (fun a=> big_sum (states p_props) (fun s'=> trans_f a s s' * v s' ))
+       (actions_nonempty p_props)).
+  
+  
+  
+
+  Definition policy_leq_n  (pol1 pol2 : policy) (n : nat) : Prop :=
+  forall (s : state_t), evaluate_policy_state pol1 s n <= evaluate_policy_state pol2 s n.
+
+  Definition policy_leq  (pol1 pol2 : policy) : Prop :=
+  forall (s : state_t), exists (n0 : nat), forall (m : nat), (n0 <= m)%nat -> policy_leq_n pol1 pol2 m.
+
+
+
+  
+
 
   Lemma head_action_correct: Some head_action = hd_error (actions p_props).
   Proof.
@@ -385,37 +314,55 @@ Section mdp_numeric.
     apply actions_nonempty0.
     auto.
   Qed.
- 
-  Definition value_func_policy (v: value_func) : policy :=
-  (fun s => num_nonempty_argmax  (fun a => discounted_reward v s a) (actions_nonempty p_props)).
-  
 
-  
-
-  Definition policy_leq_n  (pol1 pol2 : policy) (n : nat) : Prop :=
-  forall (s : state_t), evaluate_policy_state pol1 s n <= evaluate_policy_state pol2 s n.
-
-  Definition policy_leq  (pol1 pol2 : policy) : Prop :=
-  forall (s : state_t), exists (n0 : nat), forall (m : nat), (n0 <= m)%nat -> policy_leq_n pol1 pol2 m.
-
-  (**Fixpoint policy_opt  (n : nat) : policy :=
-   match n with
-   | O =>
-      (fun s => head_action)
-   | S n' => fun s => (
-      num_nonempty_argmax (fun a => 
-          big_sum (states p_props) (fun s' => trans_f a s s' * evaluate_policy_state (policy_opt n') s' n)   
-        ) (actions_nonempty p_props)
-    )
-   end.**)
 
   Lemma value_iteration_rec_reverse: forall (v : value_func) (n : nat), value_iteration_rec (value_iteration_step v) n = value_iteration_step (value_iteration_rec v n).
   Proof.
     intros.
     generalize v.
-    induction n; simpl; auto. 
+    induction n; intros; simpl; auto; rewrite IHn; auto. 
   Qed.
 
+
+  Theorem evaluate_policy_contraction: forall (pol : policy) (v1 v2 : value_func),
+    value_dist (evaluate_policy_step pol v1) (evaluate_policy_step pol v2) <= discount * value_dist v1 v2.
+  Proof.
+    intros.
+    unfold value_dist.
+    unfold evaluate_policy_step.
+    unfold value_diff.
+    destruct discount_ok.
+    apply mapmax_ne_le_const.
+    intros.
+    rewrite plus_neg_distr.
+    rewrite -> plus_comm with (p_reward n) _.
+    rewrite plus_assoc.
+    rewrite <- plus_assoc with _ (p_reward n) _.
+    rewrite plus_neg_r.
+    rewrite plus_id_r.
+    rewrite neg_mult_distr_r.
+    rewrite <- mult_plus_distr_l.
+    rewrite abs_mult_pos_l; auto.
+    apply mult_le_compat_l; auto.
+    rewrite <- big_sum_nmul.
+    rewrite <- big_sum_plus.
+    rewrite -> big_sum_ext with _ _ state_t (states p_props) (states p_props) _(fun c => trans_f (pol n) n  c * (v1 c + - v2 c)); auto.
+    2: {
+      unfold eqfun.
+      intros.
+      rewrite neg_mult_distr_r.
+      rewrite mult_plus_distr_l. auto.
+    }
+    apply le_trans with (big_sum (states p_props) (fun c => abs (trans_f (pol n) n c * (v1 c + - v2 c)))).
+      apply big_sum_le_abs.
+    rewrite -> big_sum_ext with _ _ state_t (states p_props) (states p_props) _ (fun c => trans_f (pol n) n c * abs (v1 c + - v2 c)); auto.
+    2:{ unfold eqfun. intros. apply abs_mult_pos_l. apply (trans_pos _).  }
+    apply le_trans with (big_sum (states p_props) (trans_f (pol n) n) * mapmax_ne (fun c => abs ( v1 c + - v2 c)) (states_nonempty p_props)).
+      apply big_sum_func_leq_max_l. intros. apply (trans_pos _).
+    rewrite (trans_sum1 _).
+    rewrite mult_id_l.
+    apply le_refl.
+  Qed.
 
   Theorem value_iteration_contraction:  forall  (v1 v2 : value_func),
   value_dist (value_iteration_step v1) (value_iteration_step v2) 
@@ -428,35 +375,35 @@ Section mdp_numeric.
     unfold discounted_reward.
     destruct discount_ok.
     assert (
-      num_nonempty_mapmax (l:=states p_props)
+      mapmax_ne (l:=states p_props)
       (fun s : state_t =>
        Numerics.abs
-         (num_nonempty_mapmax (l:=actions p_props)
+         (mapmax_ne (l:=actions p_props)
             (fun a : action_t =>
              p_reward s + discount * big_sum (states p_props) (fun s' : state_t => trans_f a s s' * v1 s'))
             (actions_nonempty p_props) +
           -
-          num_nonempty_mapmax (l:=actions p_props)
+          mapmax_ne (l:=actions p_props)
             (fun a : action_t =>
              p_reward s + discount * big_sum (states p_props) (fun s' : state_t => trans_f a s s' * v2 s'))
             (actions_nonempty p_props))) (states_nonempty p_props) =
-      num_nonempty_mapmax (l:=states p_props)
+      mapmax_ne (l:=states p_props)
       (fun s : state_t =>
        discount * Numerics.abs
-         (num_nonempty_mapmax (l:=actions p_props)
+         (mapmax_ne (l:=actions p_props)
             (fun a : action_t =>
              big_sum (states p_props) (fun s' : state_t => trans_f a s s' * v1 s'))
             (actions_nonempty p_props) +
           -
-          num_nonempty_mapmax (l:=actions p_props)
+          mapmax_ne (l:=actions p_props)
             (fun a : action_t =>
              big_sum (states p_props) (fun s' : state_t => trans_f a s s' * v2 s'))
             (actions_nonempty p_props))) (states_nonempty p_props)
       ).
       {        
-        apply num_nonempty_mapmax_ext.
+        apply mapmax_ne_ext.
         intros.
-        repeat rewrite <- num_nonempty_mapmax_plus_const_l.
+        repeat rewrite <- mapmax_ne_plus_const_l.
         rewrite Numerics.plus_neg_distr.
         rewrite -> Numerics.plus_comm with (- p_reward x) _.
         repeat rewrite <- Numerics.plus_assoc.
@@ -464,31 +411,31 @@ Section mdp_numeric.
         repeat rewrite <- Numerics.plus_assoc.
         rewrite Numerics.plus_neg_l.
         rewrite Numerics.plus_id_r.
-        repeat rewrite <- num_nonempty_mapmax_mult_pos_l; auto.
+        repeat rewrite <- mapmax_ne_mult_pos_l; auto.
         rewrite Numerics.neg_mult_distr_r.
         rewrite <- Numerics.mult_plus_distr_l.
         rewrite Numerics.abs_mult_pos_l; auto.
       }
       rewrite H2.
-      rewrite <- num_nonempty_mapmax_mult_pos_l; auto.
+      rewrite <- mapmax_ne_mult_pos_l; auto.
       apply Numerics.mult_le_compat_l; auto.
-      apply num_nonempty_mapmax_le_ext'.
+      apply mapmax_ne_le_ext'.
       intros.
       remember (fun a : action_t => big_sum (states p_props) (fun s' : state_t => trans_f a t s' * v1 s')) as f1.
       remember (fun a : action_t => big_sum (states p_props) (fun s' : state_t => trans_f a t s' * v2 s')) as f2.
-      apply Numerics.le_trans with (num_nonempty_mapmax (fun a => Numerics.abs (f1 a + - f2 a)) (actions_nonempty p_props)).
-        apply num_nonempty_mapmax_abs_dist_le.
+      apply Numerics.le_trans with (mapmax_ne (fun a => Numerics.abs (f1 a + - f2 a)) (actions_nonempty p_props)).
+        apply mapmax_ne_abs_dist_le.
       rewrite Heqf1.
       rewrite Heqf2.
       assert ( 
-        num_nonempty_mapmax (l:=actions p_props) (fun a : action_t => Numerics.abs (f1 a + - f2 a)) (actions_nonempty p_props) =
-        num_nonempty_mapmax (l:=actions p_props)
+        mapmax_ne (l:=actions p_props) (fun a : action_t => Numerics.abs (f1 a + - f2 a)) (actions_nonempty p_props) =
+        mapmax_ne (l:=actions p_props)
             (fun a : action_t =>
              Numerics.abs
                (big_sum (states p_props) (fun s' : state_t => trans_f a t s' * (v1 s' + - v2 s')))) (actions_nonempty p_props)     
       ).
       {
-        apply num_nonempty_mapmax_ext.
+        apply mapmax_ne_ext.
         intros.
         rewrite Heqf1.
         rewrite Heqf2.
@@ -509,12 +456,12 @@ Section mdp_numeric.
       rewrite Heqf2 in H4.
       rewrite H4.
       apply Numerics.le_trans with (
-        num_nonempty_mapmax (l:=actions p_props)
+        mapmax_ne (l:=actions p_props)
           (fun a : action_t => (big_sum (states p_props) (fun s' : state_t => trans_f a t s' * Numerics.abs  (v1 s' + - v2 s'))))
           (actions_nonempty p_props) 
       ).
       {
-        apply num_nonempty_mapmax_le_ext.
+        apply mapmax_ne_le_ext.
         intros.
         apply Numerics.le_trans with ((big_sum (states p_props) (fun s' : state_t => Numerics.abs (trans_f t0 t s' * (v1 s' + - v2 s'))))).
           apply big_sum_le_abs.
@@ -526,12 +473,12 @@ Section mdp_numeric.
         apply (trans_pos p_props).
       }
       apply Numerics.le_trans with (
-        num_nonempty_mapmax (l:=actions p_props)
-          (fun a : action_t =>  num_nonempty_mapmax (fun s' => Numerics.abs (v1 s' + - v2 s')) (states_nonempty p_props))
+        mapmax_ne (l:=actions p_props)
+          (fun a : action_t =>  mapmax_ne (fun s' => Numerics.abs (v1 s' + - v2 s')) (states_nonempty p_props))
           (actions_nonempty p_props)
       ).
       {
-        apply num_nonempty_mapmax_le_ext.
+        apply mapmax_ne_le_ext.
         intro a.
         intros.
         rewrite <- Numerics.mult_id_l.
@@ -540,1121 +487,428 @@ Section mdp_numeric.
         intros.
         apply (trans_pos p_props).
       }
-      rewrite num_nonempty_mapmax_const.
+      rewrite mapmax_ne_const.
       apply Numerics.le_refl.
     Qed.
-    
-    
 
-  Theorem value_iteration_monotonic: forall (v : value_func), 
-      policy_value_leq (value_func_policy v) (value_func_policy (value_iteration_step v)).
-  Admitted.
+  Lemma discount_ge0: 0 <= discount.
+  Proof. intuition. Qed.
 
-  Theorem policy_max: forall (p : mdp), exists x : Nt, 
-    (forall (pol : policy) (n : nat), evaluate_policy_all pol n <= x).
-  Admitted.
+  Lemma discount_lt1: discount < 1.
+  Proof. intuition. Qed.
 
-
-  Lemma value_iteration_converge_aux: forall (v : value_func) (n : nat), 
-      value_dist (value_iteration_rec v n) (value_iteration_rec v (S n)) <= (Numerics.pow_nat discount n) * (value_dist v (value_iteration_step v ) ).
+ Lemma value_iteration_step_ext: forall (v1 v2 : value_func),
+    (forall s : state_t, v1 s = v2 s) -> (forall s : state_t, (value_iteration_step v1) s = (value_iteration_step v2) s).
   Proof.
     intros.
-    induction n.
-    {
-      simpl.
-      rewrite Numerics.pow_natO.
-      rewrite Numerics.mult_id_l.
-      apply Numerics.le_refl.
-    }
-    simpl in IHn.
-    rewrite Numerics.pow_nat_rec.
-    simpl.
-    repeat rewrite value_iteration_rec_reverse.
-    apply Numerics.le_trans with (
-      discount *      
-      value_dist ((value_iteration_rec v n))
-      (value_iteration_step ((value_iteration_rec v n)))
-    ).
-    { apply value_iteration_contraction. }
-    destruct discount_ok.
-    apply Numerics.mult_le_compat; auto.
-    { unfold value_dist. 
-
-    SearchAbout Numerics.le.
-    assert (value_dist (value_iteration_step (value_iteration_rec v n))
-      (value_iteration_step (value_iteration_step (value_iteration_rec v n))) <= discount * value_dist ((value_iteration_rec v n))
-      (value_iteration_step ( (value_iteration_rec v n)))).
-    SearchAbout 
-    { apply value_iteration_contraction. }
-    
-
-
-  Theorem value_iteration_converge: forall  (v : value_func) (eps : Nt), exists n0 : nat, 
-       forall (n m : nat), Numerics.abs ( value_dist (value_iteration_rec v n) (value_iteration_rec v m)  ) < eps.
-  Admitted.
-
-  Fixpoint policy_opt_eval (s : state_t) (n : nat)  : Nt :=
-   match n with
-   | O => p_reward s
-   | S n' => (p_reward s) + discount * num_nonempty_mapmax
-       (fun a=> big_sum (states p_props) (fun s' => trans_f a s s' * policy_opt_eval  s' n' ))
-       (actions_nonempty p_props)
-  end.
- 
-  Definition policy_opt (n : nat) := value_func_policy (fun s => policy_opt_eval s n).
-
-  Lemma policy_opt_eval_correct: forall (n : nat) (s : state_t), 
-      evaluate_policy_state (policy_opt n) s n = policy_opt_eval s n.
-  Proof.
+    unfold value_iteration_step.
+    apply mapmax_ne_ext.
     intros.
-    generalize dependent s.
-    induction n; auto.
-    intros.
-    simpl in *.
-    apply Numerics.plus_simpl_l.
-    apply Numerics.mult_simpl_l.
-    unfold policy_opt.
-    unfold value_func_policy.
-    simpl.
-    
-    
-    remember ((num_nonempty_argmax (l:=actions p_props)
-        [eta discounted_reward
-               (fun s0 : state_t =>
-                p_reward s0 +
-                discount *
-                num_nonempty_mapmax (l:=actions p_props)
-                  (fun a0 : action_t =>
-                   big_sum (states p_props) (fun s'0 : state_t => trans_f a0 s0 s'0 * policy_opt_eval s'0 n))
-                  (actions_nonempty p_props)) s] (actions_nonempty p_props))) as f.
-    assert (big_sum (states p_props)
-      (fun s' : state_t =>
-       trans_f f s s' *
-       evaluate_policy_state
-         (fun s0 : state_t =>
-          num_nonempty_argmax (l:=actions p_props)
-            [eta discounted_reward
-                   (fun s1 : state_t =>
-                    p_reward s1 +
-                    discount *
-                    num_nonempty_mapmax (l:=actions p_props)
-                      (fun a0 : action_t =>
-                       big_sum (states p_props) (fun s'0 : state_t => trans_f a0 s1 s'0 * policy_opt_eval s'0 n))
-                      (actions_nonempty p_props)) s0] (actions_nonempty p_props)) s' n) =
-       big_sum (states p_props)
-      (fun s' : state_t =>
-       trans_f f s s' *
-       evaluate_policy_state
-         (fun s0 : state_t =>
-          num_nonempty_argmax (l:=actions p_props)
-            [eta discounted_reward
-                   (fun s1 : state_t =>
-                    p_reward s1 +
-                    discount *
-                    num_nonempty_mapmax (l:=actions p_props)
-                      (fun a0 : action_t =>
-                       big_sum (states p_props) (fun s'0 : state_t => trans_f a0 s1 s'0 * policy_opt_eval s'0 n))
-                      (actions_nonempty p_props)) s0] (actions_nonempty p_props)) s' n)
-
-
-)
-    remember ((fun a : action_t =>
-            big_sum (states p_props) (fun s'0 : state_t => trans_f a s0 s'0 * policy_opt_eval s'0 n))) as f.
-
-
-    remember (fun s => (fun a : action_t =>
-         big_sum (states p_props)
-           (fun s'0 : state_t =>
-            trans_f a s s'0 *
-            (p_reward s'0 +
-             big_sum (states p_props)
-               (fun s'1 : state_t =>
-                trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))) as f.
-    assert (
-        big_sum (states p_props)
-        (fun s' : state_t =>
-         trans_f
-           (num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t =>
-               big_sum (states p_props)
-                 (fun s'0 : state_t =>
-                  trans_f a s s'0 *
-                  (p_reward s'0 +
-                   big_sum (states p_props)
-                     (fun s'1 : state_t =>
-                      trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))
-              (actions_nonempty p_props)) s s' * discount *
-         evaluate_policy_state
-           (fun s0 : state_t =>
-            num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t =>
-               big_sum (states p_props)
-                 (fun s'0 : state_t =>
-                  trans_f a s0 s'0 *
-                  (p_reward s'0 +
-                   big_sum (states p_props)
-                     (fun s'1 : state_t =>
-                      trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))
-              (actions_nonempty p_props)) s' n)
-      =
-       big_sum (states p_props)
-        (fun s' : state_t =>
-         trans_f
-           (num_nonempty_argmax (l:=actions p_props)
-              (f s)
-              (actions_nonempty p_props)) s s' * discount *
-         evaluate_policy_state
-           (fun s0 : state_t =>
-            num_nonempty_argmax (l:=actions p_props)
-              (f s0)
-              (actions_nonempty p_props)) s' n)
-    ). rewrite Heqf. auto.
-    rewrite H0.
-    
-
-
-    remember (fun (s : state_t) (a : action_t) (n' : nat) (f' : state_t -> nat -> Nt) => big_sum (states p_props) (fun s' => trans_f a s s' * discount * f'  s' n' )) as f.
-    assert (
-      big_sum (states p_props)
-        (fun s' : state_t =>
-         trans_f
-           (num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t =>
-               big_sum (states p_props)
-                 (fun s'0 : state_t =>
-                  trans_f a s s'0 *
-                  (p_reward s'0 +
-                   big_sum (states p_props)
-                     (fun s'1 : state_t =>
-                      trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))
-              (actions_nonempty p_props)) s s' * discount *
-         evaluate_policy_state
-           (fun s0 : state_t =>
-            num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t =>
-               big_sum (states p_props)
-                 (fun s'0 : state_t =>
-                  trans_f a s0 s'0 *
-                  (p_reward s'0 +
-                   big_sum (states p_props)
-                     (fun s'1 : state_t =>
-                      trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))
-              (actions_nonempty p_props)) s' n) = 
-        big_sum (states p_props)
-        (fun s' : state_t =>
-         trans_f
-           (num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t =>
-               big_sum (states p_props)
-                 (fun s'0 : state_t =>
-                  trans_f a s s'0 *
-                  (p_reward s'0 +                   
-                  (f s'0 (policy_opt n s'0) n (evaluate_policy_state (policy_opt n)))
-                  (**big_sum (states p_props)
-                     (fun s'1 : state_t =>
-                      trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n) **) )))
-              (actions_nonempty p_props)) s s' * discount *
-         evaluate_policy_state
-           (fun s0 : state_t =>
-            num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t =>
-               big_sum (states p_props)
-                 (fun s'0 : state_t =>
-                  trans_f a s0 s'0 *
-                  (p_reward s'0 +
-                   (f s'0 (policy_opt n s'0) n (evaluate_policy_state (policy_opt n) ))
-                   (**big_sum (states p_props)
-                     (fun s'1 : state_t =>
-                      (trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n) ) **) )))
-              (actions_nonempty p_props)) s' n)
-    ). rewrite Heqf. auto.
-    rewrite H0.
-    
-  
-    apply Numerics.plus_elim_l with (- p_reward s).
-    repeat rewrite Numerics.plus_assoc.
-    rewrite Numerics.plus_neg_l.
-    repeat rewrite Numerics.plus_id_l.
-    remember ((fun a : action_t =>
-         big_sum (states p_props)
-           (fun s'0 : state_t =>
-            trans_f a s s'0 *
-            (p_reward s'0 +
-             big_sum (states p_props)
-               (fun s'1 : state_t =>
-                trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))) as f.
-    assert (
-        big_sum (states p_props)
-        (fun s' : state_t =>
-         trans_f (num_nonempty_argmax (l:=actions p_props) f (actions_nonempty p_props)) s s' * discount *
-         evaluate_policy_state
-           (fun s0 : state_t =>
-            num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t =>
-               big_sum (states p_props)
-                 (fun s'0 : state_t =>
-                  trans_f a s0 s'0 *
-                  (p_reward s'0 +
-                   big_sum (states p_props)
-                     (fun s'1 : state_t =>
-                      trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))
-              (actions_nonempty p_props)) s' n) = 
-
-          f (num_nonempty_argmax f (actions_nonempty p_props))).
-    { 
-      rewrite Heqf.
-      apply big_sum_ext; auto.
-      unfold eqfun.
-      intros.
-      assert ((p_reward x +
- big_sum (states p_props)
-   (fun s'1 : state_t =>
-    trans_f (policy_opt n x) x s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n)) = 
-      apply Numerics.mult_simpl_l.
-      
- auto.
-    rewrite nonempty_argmax_mapmax.
-    rewrite Numerics.mult_comm.
-    rewrite big_sum_mult_right.
+    unfold discounted_reward.
+    apply plus_simpl_l.
+    apply mult_simpl_l.
     apply big_sum_ext; auto.
-    unfold eqfun.
-    intros.
-    repeat rewrite <- Numerics.mult_assoc.
-    rewrite -> Numerics.mult_comm with discount _.
-    repeat rewrite Numerics.mult_assoc.
-    remember 
-
-    assert (
-      (fun a : action_t =>
-      big_sum (states p_props)
-        (fun s' : state_t =>
-         trans_f a s s' *
-         (p_reward s' +
-          big_sum (states p_props)
-            (fun s'0 : state_t =>
-             trans_f (policy_opt n s') s' s'0 * discount * evaluate_policy_state (policy_opt n) s'0 n))))
-      =
-      (fun a : action_t =>
-      big_sum (states p_props)
-        (fun s' : state_t =>
-         trans_f a s s' *
-         (p_reward s' +
-          big_sum (states p_props)
-            (fun s'0 : state_t =>
-             trans_f (policy_opt n s') s' s'0 * discount * policy_opt_eval s'0 n))))
-    ).
-    { 
-      apply functional_extensionality.
-      intros.
-      apply big_sum_ext; auto.
-      unfold eqfun.
-      intros.
-      assert(
-         big_sum (states p_props)
-           (fun s'0 : state_t =>
-            trans_f (policy_opt n x1) x1 s'0 * discount * evaluate_policy_state (policy_opt n) s'0 n) =
-        big_sum (states p_props)
-           (fun s'0 : state_t => trans_f (policy_opt n x1) x1 s'0 * discount * policy_opt_eval s'0 n)
-      ).
-      { apply big_sum_ext; auto. unfold eqfun. intros. rewrite IHn; auto. }
-      rewrite H0.
-      auto.
-    }
+    unfold eqfun. intros.
     rewrite H0.
-    assert (
-      (fun s0 : state_t =>
-         num_nonempty_argmax (l:=actions p_props)
-           (fun a : action_t =>
-            big_sum (states p_props)
-              (fun s' : state_t =>
-               trans_f a s0 s' *
-               (p_reward s' +
-                big_sum (states p_props)
-                  (fun s'0 : state_t =>
-                   trans_f (policy_opt n s') s' s'0 * discount * evaluate_policy_state (policy_opt n) s'0 n)))))
-           = 
-        (fun s0 : state_t =>
-         num_nonempty_argmax (l:=actions p_props)
-           (fun a : action_t =>
-            big_sum (states p_props)
-              (fun s' : state_t =>
-               trans_f a s0 s' *
-               (p_reward s' +
-                big_sum (states p_props)
-                  (fun s'0 : state_t =>
-                   trans_f (policy_opt n s') s' s'0 * discount * policy_opt_eval s'0 n)))))
-    ).
-    {
-      apply functional_extensionality.
-      intros.
-      assert (
-        (fun a : action_t =>
-           big_sum (states p_props)
-             (fun s' : state_t =>
-              trans_f a x0 s' *
-              (p_reward s' +
-               big_sum (states p_props)
-                 (fun s'0 : state_t =>
-                  trans_f (policy_opt n s') s' s'0 * discount * evaluate_policy_state (policy_opt n) s'0 n))))
-        =
-        (fun a : action_t =>
-           big_sum (states p_props)
-             (fun s' : state_t =>
-              trans_f a x0 s' *
-              (p_reward s' +
-               big_sum (states p_props)
-                 (fun s'0 : state_t =>
-                  trans_f (policy_opt n s') s' s'0 * discount * policy_opt_eval s'0 n))))
-      ).
-      { 
-        apply functional_extensionality. 
-        intros. 
-        apply big_sum_ext; auto. 
-        unfold eqfun. intros.
-        assert (
-        (fun s'0 : state_t => trans_f (policy_opt n x2) x2 s'0 * discount * evaluate_policy_state (policy_opt n) s'0 n) =
-        (fun s'0 : state_t => trans_f (policy_opt n x2) x2 s'0 * discount * policy_opt_eval s'0 n)
-      ).
-      { apply functional_extensionality. intros. rewrite IHn. auto. }
-      rewrite H1.
-      auto.
-    }
-    rewrite H1.
     auto.
-  }
-  rewrite H1.  
-
-      rewrite 
-           (actions_nonempty p_props))
-      rewrite IHn; auto.
- rewrite IHn.
-
-
-    assert (
-      trans_f
-        (num_nonempty_argmax (l:=actions p_props)
-           (fun a : action_t =>
-            big_sum (states p_props)
-              (fun s' : state_t =>
-               trans_f a s s' *
-               (p_reward s' +
-                big_sum (states p_props)
-                  (fun s'0 : state_t =>
-                   trans_f (policy_opt n s') s' s'0 * discount * evaluate_policy_state (policy_opt n) s'0 n))))
-           (actions_nonempty p_props)) s x *
-      evaluate_policy_state
-        (fun s0 : state_t =>
-         num_nonempty_argmax (l:=actions p_props)
-           (fun a : action_t =>
-            big_sum (states p_props)
-              (fun s' : state_t =>
-               trans_f a s0 s' *
-               (p_reward s' +
-                big_sum (states p_props)
-                  (fun s'0 : state_t =>
-                   trans_f (policy_opt n s') s' s'0 * discount * evaluate_policy_state (policy_opt n) s'0 n))))
-           (actions_nonempty p_props)) x n =
-      trans_f
-        (num_nonempty_argmax (l:=actions p_props)
-           (fun a : action_t => big_sum (states p_props) (fun s' : state_t => trans_f a s s' * policy_opt_eval s' n))
-           (actions_nonempty p_props)) s x * policy_opt_eval x n).
-    
-    destruct discount_ok.
-    destruct H0.
-    2: { rewrite <- H0. repeat rewrite Numerics.mult_plus_id_r. auto. }
-    
-    
-    rewrite <- IHn.
-    
-    Print Forall.
-
-    remember ((num_nonempty_argmax (l:=actions p_props)
-        (fun a : action_t =>
-         big_sum (states p_props)
-           (fun s'0 : state_t =>
-            trans_f a s s'0 *
-            (p_reward s'0 +
-             big_sum (states p_props)
-               (fun s'1 : state_t =>
-                trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))
-        (actions_nonempty p_props))) as f.
-    
-    
-    rewrite <- nonempty_argmax_mapmax.
-    rewrite Numerics.plus_le_compat.
-    rewrite IHn.
-  
-
-  Theorem policy_opt_is_opt_n: forall (p' : policy) (n : nat), policy_leq_n p' (policy_opt n) n.
-  Proof.
-    intros.
-    generalize dependent p'.
-    destruct discount_ok.
-    induction n.
-    { intros. unfold policy_leq_n. intros. simpl. apply Numerics.le_refl. }
-    unfold policy_leq_n.
-    intros.
-    simpl.
-    apply Numerics.plus_le_compat.
-      apply Numerics.le_refl.
-    destruct H0.
-    2: { 
-      rewrite <- H0.
-      apply big_sum_le.
-      intros.      
-      repeat rewrite Numerics.mult_plus_id_r.
-      repeat rewrite Numerics.mult_plus_id_l.
-      apply Numerics.le_refl.
-    }
-    remember (fun s0 => (fun a : action_t =>
-         big_sum (states p_props)
-           (fun s'0 : state_t =>
-            trans_f a s0 s'0 *
-            (p_reward s'0 +
-             big_sum (states p_props)
-               (fun s'1 : state_t =>
-                trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))) as f.
-    assert (
-         big_sum (states p_props)
-        (fun s' : state_t =>
-         trans_f
-           (num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t =>
-               big_sum (states p_props)
-                 (fun s'0 : state_t =>
-                  trans_f a s s'0 *
-                  (p_reward s'0 +
-                   big_sum (states p_props)
-                     (fun s'1 : state_t =>
-                      trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))
-              (actions_nonempty p_props)) s s' * discount *
-         evaluate_policy_state
-           (fun s0 : state_t =>
-            num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t =>
-               big_sum (states p_props)
-                 (fun s'0 : state_t =>
-                  trans_f a s0 s'0 *
-                  (p_reward s'0 +
-                   big_sum (states p_props)
-                     (fun s'1 : state_t =>
-                      trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))
-              (actions_nonempty p_props)) s' n)
-        =
-        big_sum (states p_props)
-          (fun s' : state_t =>
-           trans_f
-             (num_nonempty_argmax (l:=actions p_props)
-                (f s)
-                (actions_nonempty p_props)) s s' * discount *
-           evaluate_policy_state
-             (fun s0 : state_t =>
-              num_nonempty_argmax (l:=actions p_props)
-                (f s0)
-                (actions_nonempty p_props)) s' n)
-    ). rewrite Heqf. auto.
-    rewrite H2.
-    
-    rewrite -> num_nonempty_argmax_mult_pos with Nt H action_t (actions p_props) _ discount _; auto.
-      
-
-  (**Fixpoint policy_opt  (n : nat) : policy :=
-   match n with
-   | O =>
-      (fun s => num_nonempty_argmax (fun a => big_sum (states p_props) (fun s' => trans_f a s s' * p_reward s')) (actions_nonempty p_props))
-   | S n' => fun s => (
-      num_nonempty_argmax (fun a => 
-          big_sum (states p_props) (fun s' => trans_f a s s' * evaluate_policy_state (policy_opt n') s' n)   
-        ) (actions_nonempty p_props)
-    )
-   end.
-
-  Fixpoint policy_opt_value (n : nat)
-
-  Theorem policy_opt_is_opt_n: forall (p' : policy) (n : nat), policy_leq_n p' (policy_opt n) (S n).
-  Proof.
-    intros.
-    generalize dependent p'.
-    induction n.
-    {
-      unfold policy_leq_n.
-      simpl.
-      intros.
-      apply Numerics.plus_le_compat.
-      { apply Numerics.le_refl. }
-      destruct discount_ok.
-      unfold Numerics.le in H0.
-      destruct H0.
-      2: {
-        rewrite <- H0.
-        assert ((fun s' : state_t => trans_f (p' s) s s' * 0 * p_reward s') = 
-          (fun s' : state_t =>
-         trans_f
-           (num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t => big_sum (states p_props) (fun s'0 : state_t => trans_f a s s'0 * p_reward s'0))
-              (actions_nonempty p_props)) s s' * 0 * p_reward s')).
-        {
-          apply functional_extensionality.
-          intros.
-          repeat (rewrite Numerics.mult_plus_id_r; rewrite Numerics.mult_plus_id_l).
-          auto.
-        }
-        rewrite <- H2.
-        apply Numerics.le_refl.
-      }
-      rewrite -> num_nonempty_argmax_mult_pos with Nt H action_t (actions p_props) _ discount _; auto.
-      assert (
-        (fun s' : state_t =>
-         trans_f
-           (num_nonempty_argmax (l:=actions p_props)
-              (fun n : action_t =>
-               big_sum (states p_props) (fun s'0 : state_t => trans_f n s s'0 * p_reward s'0) * discount)
-              (actions_nonempty p_props)) s s' * discount * p_reward s') =
-        (fun s' : state_t =>
-         trans_f
-           (num_nonempty_argmax (l:=actions p_props)
-              (fun n : action_t =>
-               big_sum (states p_props) (fun s'0 : state_t => trans_f n s s'0 * discount * p_reward s'0))
-              (actions_nonempty p_props)) s s' * discount * p_reward s')
-      ).
-      {
-        apply functional_extensionality.
-        intros.
-        assert(
-          (fun n : action_t =>
-              big_sum (states p_props) (fun s'0 : state_t => trans_f n s s'0 * p_reward s'0) * discount) =
-          (fun n : action_t =>
-              big_sum (states p_props) (fun s'0 : state_t => trans_f n s s'0 * discount * p_reward s'0))
-        ).
-        {
-          apply functional_extensionality. intros.
-          rewrite big_sum_mult_right.
-          assert ( 
-              (fun x1 : state_t => trans_f x0 s x1 * p_reward x1 * discount) = 
-              (fun x1 : state_t => trans_f x0 s x1 * discount * p_reward x1)
-          ).
-          { apply functional_extensionality. 
-            intros. 
-            repeat rewrite <- Numerics.mult_assoc. 
-            rewrite -> Numerics.mult_comm with discount (p_reward x1).
-            auto.
-          }
-          rewrite H2.
-          auto.
-        }
-        rewrite H2.
-      auto.
-    }
-    rewrite H2.
-    remember (fun n : action_t =>
-       big_sum (states p_props) (fun s'0 : state_t => trans_f n s s'0 * discount * p_reward s'0)) as f.
-    assert (big_sum (states p_props) (fun s' : state_t => trans_f (p' s) s s' * discount * p_reward s') = f  (p' s)).
-    { rewrite Heqf. auto. }
-    rewrite H3.
-    assert (
-      big_sum (states p_props)
-      (fun s' : state_t =>
-       trans_f (num_nonempty_argmax (l:=actions p_props) f (actions_nonempty p_props)) s s' * discount *
-       p_reward s') =
-      f (num_nonempty_argmax f (actions_nonempty p_props))).
-    { rewrite Heqf. auto. }
-    rewrite H4.
-    rewrite <- nonempty_argmax_mapmax.
-    apply num_nonempty_mapmax_correct.
-    destruct (actions_ok p_props).
-    apply enum_total.
-  }
-    destruct discount_ok.
-    intros.
-    unfold policy_leq_n in *.
-    intros.
-    simpl (policy_opt n.+1).
-    simpl (evaluate_policy_state p' s n.+2).
-    assert ( (fun s' =>
-              trans_f (p' s) s s' * discount *
-              (p_reward s' + big_sum (states p_props) 
-                (fun s'0 : state_t => trans_f (p' s') s' s'0 * discount * evaluate_policy_state p' s'0 n))) =
-              (fun s' => trans_f (p' s) s s' * discount * evaluate_policy_state p' s' n.+1) ).
-    { auto. }
-    rewrite H2.
-    assert (
-      p_reward s + 
-      big_sum (states p_props) 
-      (fun s' : state_t => trans_f (p' s) s s' * discount * evaluate_policy_state p' s' n.+1) <=
-      p_reward s + 
-      big_sum (states p_props) 
-      (fun s' : state_t => trans_f (p' s) s s' * discount * evaluate_policy_state (policy_opt n) s' n.+1)
-    ).
-    {
-      apply Numerics.plus_le_compat.
-        apply Numerics.le_refl.
-      apply big_sum_le.
-      intros.
-      apply Numerics.mult_le_compat_l; auto.
-      rewrite <- Numerics.mult_plus_id_l with 0.
-      apply Numerics.mult_le_compat; try apply Numerics.le_refl; auto.
-      apply (trans_pos (p_props)).
-    }
-    apply Numerics.le_trans with ( p_reward s +
-        big_sum (states p_props)
-       (fun s' : state_t => trans_f (p' s) s s' * discount * evaluate_policy_state (policy_opt n) s' n.+1)); auto.
-    simpl (evaluate_policy_state _ _ n.+2).
-    apply Numerics.plus_le_compat_l.
-    
-
-
-
-
-
-
-
-    apply big_sum_le.
-    intros.
-    
-    
-    apply functional_extensionality.
-    SearchAbout big_sum.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    remember (fun s0 : state_t => (fun a : action_t =>
-             big_sum (states p_props)
-               (fun s'1 : state_t =>
-                trans_f a s0 s'1 *
-                (p_reward s'1 +
-                 big_sum (states p_props)
-                   (fun s'2 : state_t =>
-                    trans_f (policy_opt n s'1) s'1 s'2 * discount * evaluate_policy_state (policy_opt n) s'2 n)))))
-        as f.
-    assert( forall (s0 : state_t),
-      (fun a : action_t =>
-             big_sum (states p_props)
-            (fun s'1 : state_t =>
-                trans_f a s0 s'1 *
-                (p_reward s'1 +
-                 big_sum (states p_props)
-                   (fun s'2 : state_t =>
-                    trans_f (policy_opt n s'1) s'1 s'2 * discount * evaluate_policy_state (policy_opt n) s'2 n)))) =
-      (f s0)
-    ).
-    { rewrite Heqf. auto. }
-    rewrite H4.
-    assert(
-          (fun s0 : state_t =>
-          num_nonempty_argmax (l:=actions p_props)
-            (fun a : action_t =>
-             big_sum (states p_props)
-               (fun s'1 : state_t =>
-                trans_f a s0 s'1 *
-                (p_reward s'1 +
-                 big_sum (states p_props)
-                   (fun s'2 : state_t =>
-                    trans_f (policy_opt n s'1) s'1 s'2 * discount * evaluate_policy_state (policy_opt n) s'2 n))))
-            (actions_nonempty p_props)) =
-        (fun s0 : state_t => num_nonempty_argmax (l:=actions p_props) (f s0) (actions_nonempty p_props))
-    ). rewrite Heqf. auto.
-    rewrite H5.
-    assert ( forall s' : state_t,
-      (fun s'0 : state_t =>
-       trans_f
-         (num_nonempty_argmax (l:=actions p_props)
-            (fun a : action_t =>
-             big_sum (states p_props)
-               (fun s'1 : state_t =>
-                trans_f a s' s'1 *
-                (p_reward s'1 +
-                 big_sum (states p_props)
-                   (fun s'2 : state_t =>
-                    trans_f (policy_opt n s'1) s'1 s'2 * discount * evaluate_policy_state (policy_opt n) s'2 n))))
-            (actions_nonempty p_props)) s' s'0 * discount *
-       evaluate_policy_state
-         (fun s0 : state_t => num_nonempty_argmax (l:=actions p_props) (f s0) (actions_nonempty p_props)) s'0
-         n) =
-        (fun s'0 : state_t =>
-       trans_f
-         (num_nonempty_argmax (l:=actions p_props)
-            (f s'0)
-            (actions_nonempty p_props)) s' s'0 * discount *
-       evaluate_policy_state
-         (fun s0 : state_t => num_nonempty_argmax (l:=actions p_props) (f s0) (actions_nonempty p_props)) s'0
-         n) 
-    ). intros. rewrite Heqf. auto.
-    
-    rewrite H5.
-    
-          
-
-
-
-    assert(
-
-
-
-       (fun s0 : state_t =>
-          num_nonempty_argmax (l:=actions p_props)
-            (fun a : action_t =>
-             big_sum (states p_props)
-               (fun s'1 : state_t =>
-                trans_f a s0 s'1 *
-                (p_reward s'1 +
-                 big_sum (states p_props)
-                   (fun s'2 : state_t =>
-                    trans_f (policy_opt n s'1) s'1 s'2 * discount * evaluate_policy_state (policy_opt n) s'2 n))))
-            (actions_nonempty p_props))
-       =
-        (fun s0 : state_t =>
-          num_nonempty_argmax (l:=actions p_props)
-            (f s0)
-            (actions_nonempty p_props))
-       ).  rewrite Heqf. auto.
-       
-       rewrite H4.
-       assert (
-         (fun s' : state_t =>
-           trans_f
-             (num_nonempty_argmax (l:=actions p_props)
-                (fun a : action_t =>
-                 big_sum (states p_props)
-                   (fun s'0 : state_t =>
-                    trans_f a s s'0 *
-                    (p_reward s'0 +
-                     big_sum (states p_props)
-                       (fun s'1 : state_t =>
-                        trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))
-                (actions_nonempty p_props)) s s' * discount *
-           (p_reward s' +
-            big_sum (states p_props)
-              (fun s'0 : state_t =>
-               trans_f
-                 (num_nonempty_argmax (l:=actions p_props)
-                    (fun a : action_t =>
-                     big_sum (states p_props)
-                       (fun s'1 : state_t =>
-                        trans_f a s' s'1 *
-                        (p_reward s'1 +
-                         big_sum (states p_props)
-                           (fun s'2 : state_t =>
-                            trans_f (policy_opt n s'1) s'1 s'2 * discount * evaluate_policy_state (policy_opt n) s'2 n))))
-                    (actions_nonempty p_props)) s' s'0 * discount *
-               evaluate_policy_state
-                 (fun s0 : state_t => num_nonempty_argmax (l:=actions p_props) (f s0) (actions_nonempty p_props)) s'0
-                 n))) = 
-           (fun s' : state_t =>
-           trans_f
-             (num_nonempty_argmax (l:=actions p_props)
-                (fun a : action_t =>
-                 big_sum (states p_props)
-                   (fun s'0 : state_t =>
-                    trans_f a s s'0 *
-                    (p_reward s'0 +
-                     big_sum (states p_props)
-                       (fun s'1 : state_t =>
-                        trans_f (policy_opt n s'0) s'0 s'1 * discount * evaluate_policy_state (policy_opt n) s'1 n))))
-                (actions_nonempty p_props)) s s' * discount *
-           (p_reward s' +
-            big_sum (states p_props)
-              (fun s'0 : state_t =>
-               trans_f
-                 (num_nonempty_argmax (l:=actions p_props)
-                    (fun a : action_t =>
-                     big_sum (states p_props)
-                       (fun s'1 : state_t =>
-                        trans_f a s' s'1 *
-                        (p_reward s'1 +
-                         big_sum (states p_props)
-                           (fun s'2 : state_t =>
-                            trans_f (policy_opt n s'1) s'1 s'2 * discount * evaluate_policy_state (policy_opt n) s'2 n))))
-                    (actions_nonempty p_props)) s' s'0 * discount *
-               evaluate_policy_state
-                 (fun s0 : state_t => num_nonempty_argmax (l:=actions p_props) (f s0) (actions_nonempty p_props)) s'0
-                 n)))
-       ).
-       rewrite H4.
-       
-       trans_f
-         (num_nonempty_argmax (l:=actions p_props)
-            (fun a : action_t =>
-             big_sum (states p_props)
-               (fun s'1 : state_t =>
-                trans_f a s' s'1 *
-                (p_reward s'1 +
-                 big_sum (states p_props)
-                   (fun s'2 : state_t =>
-                    trans_f (policy_opt n s'1) s'1 s'2 * discount * evaluate_policy_state (policy_opt n) s'2 n))))
-            (actions_nonempty p_props)) s' s'0 * discount *
-       evaluate_policy_state
-         (fun s0 : state_t =>
-          num_nonempty_argmax (l:=actions p_props)
-            (fun a : action_t =>
-             big_sum (states p_props)
-               (fun s'1 : state_t =>
-                trans_f a s0 s'1 *
-                (p_reward s'1 +
-                 big_sum (states p_props)
-                   (fun s'2 : state_t =>
-                    trans_f (policy_opt n s'1) s'1 s'2 * discount * evaluate_policy_state (policy_opt n) s'2 n))))
-            (actions_nonempty p_props)) s'0 n = 0).
-        (fun s'0 : state_t =>
-       trans_f
-         (num_nonempty_argmax (l:=actions p_props)
-            (fun a : action_t =>
-             big_sum (states p_props)
-               (fun s'1 : state_t =>
-                trans_f a s' s'1 *
-                (p_reward s'1 +
-                 big_sum (states p_props)
-                   (fun s'2 : state_t =>
-                    trans_f (policy_opt n s'1) s'1 s'2 * discount * evaluate_policy_state (policy_opt n) s'2 n))))
-            (actions_nonempty p_props)) s' s'0 * discount *
-       evaluate_policy_state
-         (fun s0 : state_t =>
-          num_nonempty_argmax (l:=actions p_props)
-            (fun a : action_t =>
-             big_sum (states p_props)
-               (fun s'1 : state_t =>
-                trans_f a s0 s'1 *
-                (p_reward s'1 +
-                 big_sum (states p_props)
-                   (fun s'2 : state_t =>
-                    trans_f (policy_opt n s'1) s'1 s'2 * discount * evaluate_policy_state (policy_opt n) s'2 n))))
-            (actions_nonempty p_props)) s'0 n)) = 0
-    ).
-    
-    
-    assert (
-        evaluate_policy_state
-        (fun s0 : state_t =>
-         num_nonempty_argmax (l:=actions p_props)
-           (fun a : action_t =>
-            big_sum (states p_props)
-              (fun s' : state_t =>
-               trans_f a s0 s' *
-               (p_reward s' +
-                big_sum (states p_props)
-                  (fun s'0 : state_t =>
-                   trans_f (policy_opt n s') s' s'0 * discount * evaluate_policy_state (policy_opt n) s'0 n))))
-           (actions_nonempty p_props)) s n.+2
-         =
-        evaluate_policy_state
-        (fun s0 : state_t =>
-         num_nonempty_argmax (l:=actions p_props)
-           (fun a : action_t =>
-            big_sum (states p_props)
-              (fun s' : state_t =>
-               trans_f a s0 s' *
-               (p_reward s' +
-                big_sum (states p_props)
-                  (fun s'0 : state_t =>
-                   trans_f (policy_opt n s') s' s'0 * discount * evaluate_policy_state (policy_opt n) s'0 n))))
-           (actions_nonempty p_props)) s n.+2
-        
-    )
-    unfold Numerics.le.
-    right.
-    simpl.
-    auto.
-    
-      auto.
-
-
-        SearchAbout Numerics.le. 
-    SearchAbout big_sum.
-
-      Print evaluate_policy_state.
-      fold (evalate_policy_state p' s       
-      assert (forall s'0: state_t, evaluate_policy_state p' s'0 n <= evaluate_policy_state (policy_opt n) s'0 n).
-      {
-        intros.
-        
-        
-        simpl.
-      { 
-        intros.
-        destruct n0.
-         apply Numerics.le_refl.
-        simpl.
- apply H2.
-      remember (fun a : action_t => big_sum (states p_props)
-        (fun s' : state_t => trans_f a s s' * discount * evaluate_policy_state p'0 s' n0)
-      
-      
-    2:{
-      induction n.
-      apply H0.
-      destruct n.
-      intros.
-      apply H1 with p'.
-      auto.
-      apply IHn.
-      intros.
-      apply H1 with p'.
-      auto.
-      auto.
-    }
-      simpl.
-      intros.
-  
-    
-    intros.
-    simpl.
-    unfold policy_leq_n in *.
-    intros.
-    
-    rewrite H0.
-
-)
-    simpl in *.
-    
-    
-    rewrite IHn.
-    
-      auto.
-      2: { rewrite H4. rewrite <- nonempty_argmax_mapmax.
-      
-
- rewrite Heqf.
-      auto.
-        rewrite H2.
-        auto.
-
-          assert( 
-
- apply functional_extensionality. intros. rewrite <- plus_assoc.
-        rewrite big_sum_mult_right.
-        auto.
-
-      rewrite <- nonempty_argmax_mapmax.
-      
-      2: { apply Numerics.le_lt_weak; auto.
-      assert(
-        (fun s' : state_t =>
-         trans_f
-           (num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t => big_sum (states p_props) (fun s'0 : state_t => trans_f a s s'0 * p_reward s'0))
-              (actions_nonempty p_props)) s s' * discount * p_reward s') =
-        (fun s' : state_t =>
-         trans_f
-           (num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t => big_sum (states p_props) (fun s'0 : state_t => trans_f a s s'0 * p_reward s'0))
-              (actions_nonempty p_props)) s s'  * p_reward s' )
-        ).
-        {
-          apply functional_extensionality.
-          intros.
-          rewrite <- Numerics.mult_assoc with _ (p_reward x) discount.
-          rewrite -> Numerics.mult_comm with (p_reward x) discount.
-          rewrite Numerics.mult_assoc.
-          auto.
-        }
-        rewrite H0.
-
-        
-      assert (
-        big_sum (states p_props)
-        (fun s' : state_t =>
-         trans_f
-           (num_nonempty_argmax (l:=actions p_props)
-              (fun a : action_t => big_sum (states p_props) (fun s'0 : state_t => trans_f a s s'0 *  p_reward s'0))
-              (actions_nonempty p_props)) s s' * discount * p_reward s')
-        =
-        num_nonempty_mapmax 
-          (fun a : action_t =>
-            (big_sum (states p_props) (fun s' : state_t => trans_f
-               a s s' * p_reward s'))) (actions_nonempty p_props)
-           
-        ).
-        {
-          assert (num_nonempty_mapmax 
-          (fun a : action_t =>
-            (big_sum (states p_props) (fun s' : state_t => trans_f
-               a s s' * p_reward s'))) (actions_nonempty p_props)
-           =
-          num_nonempty_mapmax 
-          (fun a : action_t =>
-            (big_sum (states p_props) (fun s' : state_t => trans_f
-               a s s' * p_reward s' * discount))) (actions_nonempty p_props)
-           
-          ).
-          {
-            (**assert (
-              (fun a : action_t => big_sum (states p_props) 
-                  (fun s' : state_t => trans_f a s s' * p_reward s' * discount)) =
-              (fun a : action_t => big_sum (states p_props) 
-                  (fun s' : state_t => (fun s'' => trans_f a s s'' * p_reward s'') s' * discount))
-              
-            ).
-            { apply functional_extensionality. auto. }
-            rewrite H0.
-            
-        )). **)
-          rewrite nonempty_argmax_mapmax.
-          apply 
-          rewrite -> num_nonempty_argmax_mult_pos with discount.
-
-
-          apply big_sum_ext; auto.
-        }
-        rewrite H0.
-          unfold eqfun.
-          intros.
-          auto.
-        
-      rewrite <- Heqf.
-      
-      
-      remember ((num_nonempty_argmax (l:=actions p_props)
-        (fun a : action_t => big_sum (states p_props) (fun s'0 : state_t => trans_f a s s'0 * p_reward s'0))
-        (actions_nonempty p_props))) as a.
-      induct
-      apply big_sum_le.
-      intros.
-      
-      **)
-      
-    
-
-  (**
-
-  Definition policy_leq_sum  (pol1 pol2 : policy) : Prop :=
-  exists (n0 : nat), forall (m : nat), (n0 <= m)%nat -> evaluate_policy_sum pol1 m <= evaluate_policy_sum pol2 m.
-
-  Lemma policy_leq_sum_trans: forall (pol1 pol2 pol3 : policy), policy_leq_sum pol1 pol2 -> policy_leq_sum pol2 pol3 -> policy_leq_sum pol1 pol3.
-  Proof.
-    unfold policy_leq_sum.
-    intros.
-    destruct H0.
-    destruct H1.
-    exists (Nat.max x x0).
-    intros.
-    apply Numerics.le_trans with (evaluate_policy_sum pol2 m).
-    {
-      apply H0.
-      apply Nat.max_lub_l with x0; auto.
-    }
-    apply H1.
-    apply Nat.max_lub_r with x; auto.
   Qed.
 
-  Lemma poliy_leq_sum_asymm: forall (pol1 pol2 : policy) policy_leq_sum pol1 pol2 -> policy_leq_sum pol2 pol1
-  **)
+  Lemma evaluate_policy_step_ext: forall (pol : policy) (v1 v2 : value_func) ,
+    (forall s : state_t, v1 s = v2 s) -> (forall s : state_t, (evaluate_policy_step pol v1) s = (evaluate_policy_step pol v2) s).
+  Proof.
+    intros.
+    unfold evaluate_policy_step.
+    rewrite -> big_sum_ext with _ _ _ _ (states p_props) _ (fun s' => trans_f (pol s) s s' * v2 s'); auto.
+    unfold eqfun.
+    intros.
+    rewrite H0.
+    auto.
+  Qed.
+    
+
+  Definition value_iteration_binach : binach.contraction_func :=
+    binach.contraction_mk 
+      Nt _
+      state_t
+      (states p_props)
+      (states_ok p_props)
+      discount
+      (states_nonempty p_props)
+      value_iteration_step
+      discount_ge0
+      discount_lt1
+      value_iteration_step_ext
+      value_iteration_contraction
+    .
 
 
+  Definition evaluate_policy_binach (pol : policy) : binach.contraction_func :=
+    binach.contraction_mk 
+      Nt _
+      state_t
+      (states p_props)
+      (states_ok p_props)
+      discount
+      (states_nonempty p_props)
+      (evaluate_policy_step pol)
+      discount_ge0
+      discount_lt1
+      (evaluate_policy_step_ext pol)
+      (evaluate_policy_contraction pol)
+    .
+
+  Definition evaluate_policy_rec (pol : policy) := binach.rec_f (evaluate_policy_binach pol).
+
+  Lemma evaluate_policy_rec_state_same: forall (pol : policy) (n : nat) (s : state_t),
+      evaluate_policy_state pol s n = (evaluate_policy_rec pol (fun s' => p_reward s') n) s.
+  Proof.
+    intros.
+    generalize s.
+    induction n; auto.
+    intros.
+    unfold evaluate_policy_rec in *.
+    simpl in *.
+    unfold evaluate_policy_step.
+    rewrite -> big_sum_ext with _ _ _ _ (states p_props) _ 
+      (fun s' => trans_f (pol s0) s0 s' * binach.rec_f (evaluate_policy_binach pol) [eta p_reward] n s'); auto.
+    unfold eqfun.
+    intros.
+    rewrite IHn.
+    auto.
+  Qed.
+
+
+  Lemma value_dist_binach_dist: forall (v1 v2 : value_func), value_dist v1 v2 = binach.max_dist _ (states_nonempty p_props) v1 v2.
+  Proof. auto. Qed.
+
+  Lemma value_iteration_rec_binach_rec: forall (v : state_t -> Nt) (n : nat), 
+      value_iteration_rec v n = binach.rec_f value_iteration_binach v n.
+  Proof. auto. Qed.
+
+  Lemma value_dist_same_0: forall (v1 v2 : value_func), (forall s : state_t, v1 s = v2 s) -> value_dist v1 v2 = 0.
+  Proof. apply (binach.eq_dist_0 value_iteration_binach). Qed.
+
+  Lemma value_dist_triangle: forall (v1 v2 v3: value_func), value_dist v1 v3 <= 
+        value_dist v1 v2 + value_dist v2 v3.
+  Proof. intros. apply (binach.dist_triangle (value_iteration_binach)). Qed.
+
+  Lemma value_dist_ge0: forall (v1 v2 : value_func), 0 <= value_dist v1 v2.
+  Proof.
+    intros.
+    unfold value_dist.
+    rewrite <- mapmax_ne_const with _ _ _ _ 0 (states_nonempty p_props).
+    apply mapmax_ne_le_ext.
+    intros.
+    apply Numerics.abs_ge_0.
+  Qed.
+
+
+  Lemma value_dist_comm: forall (v1 v2 : value_func), value_dist v1 v2 = value_dist v2 v1.
+  Proof. 
+    intros.
+    unfold value_dist.
+    apply mapmax_ne_ext.
+    intros.
+    unfold value_diff.
+    rewrite <- abs_neg.
+    rewrite plus_neg_distr. rewrite double_neg. rewrite plus_comm. auto.
+  Qed. 
+
+    Lemma value_iteration_converge_aux: forall (v1 v2 : value_func) (n : nat), 
+      value_dist (value_iteration_rec v1 n) (value_iteration_rec v2 n) <= (Numerics.pow_nat discount n) * (value_dist v1 v2).
+    Proof. intros. apply (binach.rec_dist value_iteration_binach). Qed.
+
+
+    Lemma value_dist_rec_ub: forall (v : value_func) (n : nat),
+      (1 + - discount) * value_dist (value_iteration_rec v n) v <= (1 + - pow_nat discount n) * value_dist v (value_iteration_step v).
+    Proof. intros. apply (binach.dist_step_rec_n_ub value_iteration_binach). Qed.  
+
+  Lemma value_iteration_rec_plus: forall (v : value_func) (n m: nat), value_iteration_rec v (n + m) = value_iteration_rec (value_iteration_rec v n) m.
+  Proof.
+    intros.
+    induction m.
+    { rewrite addn0. auto. }
+    rewrite addnS.
+    simpl.
+    rewrite IHm.
+    auto.
+  Qed.
+
+  Lemma value_dist_0_same: forall (v1 v2 : value_func), value_dist v1 v2 = 0 -> forall s, v1 s = v2 s.
+  Proof. apply (binach.dist_0_eq value_iteration_binach). Qed.
+
+  Lemma discount0_no_change: forall (v1 v2 : value_func) (n m : nat) (s : state_t), 
+      discount = 0 -> (value_iteration_rec v1 (S n)) s = (value_iteration_rec v2 (S m)) s.
+  Proof. intros. apply value_dist_0_same. apply (binach.q0_rec0 value_iteration_binach). auto. Qed.
+
+  
+  Lemma value_iteration_converge_aux': forall (v : value_func) (n m : nat),
+    (1 + - discount) * value_dist (value_iteration_rec v n) (value_iteration_rec v (n+m)%nat) <=
+    value_dist v (value_iteration_step v) *  Numerics.pow_nat discount n. 
+  Proof. apply (binach.rec_f_nm_ub value_iteration_binach). Qed. 
+
+ Lemma value_dist_ub: forall (s : state_t) (v1 v2 : value_func), Numerics.abs ((v1 s) + - (v2 s)) <= value_dist v1 v2.
+  Proof. 
+    intros.
+    unfold value_dist.
+    unfold value_diff.
+    remember (fun s' => Numerics.abs (v1 s' + - v2 s')) as f.
+    assert (Numerics.abs (v1 s + - v2 s) = f s).
+      rewrite Heqf. auto.
+    rewrite H0.
+    apply mapmax_ne_correct.
+    apply states_In.
+  Qed.
+
+
+  Lemma value_func_eval_ub: forall (s : state_t)(p : policy) (n : nat),
+    evaluate_policy_state p s n <=  (value_iteration_rec p_reward n) s.
+  Proof.
+    intros.
+    generalize p0 s.
+    induction n; intros.
+      simpl. apply le_refl.
+    simpl.
+    destruct discount_ok.
+    unfold value_iteration_step.
+    unfold discounted_reward.
+    rewrite <- mapmax_ne_plus_const_l.
+    apply plus_le_compat_l.
+    rewrite <- mapmax_ne_mult_pos_l; auto.
+    apply mult_le_compat_l; auto.
+    remember ((fun n0 : action_t =>
+       big_sum (states p_props) (fun s' : state_t => trans_f n0 s0 s' * value_iteration_rec p_reward n s')))
+      as f.
+    apply le_trans with (f (p1 s0)).
+    2: { apply mapmax_ne_correct. apply actions_In. }
+    rewrite Heqf.
+    apply big_sum_le.
+    intros.
+    apply mult_le_compat_l.
+      apply (trans_pos p_props).
+    apply IHn.
+  Qed.
+
+ 
+
+
+  Fixpoint policy_value_iteration (n : nat) (s : state_t) :=
+  match n with
+  | O=> argmax_ne (l:=actions p_props) (fun f => 0) (actions_nonempty p_props)
+  | S n' => argmax_ne (fun a=> big_sum 
+      (states p_props) (fun s' => trans_f a s s' * evaluate_policy_state (policy_value_iteration n') s' n'))
+      (actions_nonempty p_props)
+  end.
+
+ End mdp.
+
+  Section mdp_to_R.
+    Context {Nt:Type} `{Numerics.Numeric Nt}.
+
+    Definition mdp_to_R (p : @mdp Nt) : @mdp R :=
+     mdp_mk (state p) (action p) (fun a s s' => to_R ((trans p) a s s')) (fun s => to_R ((reward p) s)).
+
+
+    Program Definition mdp_prop_to_R (m : @mdp_props Nt H) : @mdp_props R _ :=
+      mdp_prop_mk (mdp_to_R (p m)) (states m) (actions m) (states_ok m) (actions_ok m) _ _ (states_nonempty m) (actions_nonempty m).
+    Next Obligation.
+      rewrite to_R_big_sum.
+      rewrite (trans_sum1 m).
+      apply to_R_mult_id.
+    Qed.
+    Next Obligation.
+      rewrite <- to_R_plus_id.
+      rewrite <- to_R_le.
+      apply (trans_pos m).
+    Qed.
+
+
+
+    Variable p_props : mdp_props.
+    Variable discount : Nt.
+    Hypothesis discount_ok: 0 <= discount /\ discount < 1.
+
+    Notation action_t := (action (p p_props)).
+    Notation state_t := (state (p p_props)).
+    Notation p_reward := (reward (p p_props)).
+    Notation trans_f := (trans (p p_props)).
+
+
+
+  Lemma to_R_value_iteration_step: forall (v : value_func p_props) (s : state_t), 
+      to_R ((value_iteration_step _ discount v) s)  = (value_iteration_step (mdp_prop_to_R p_props) (to_R discount) (fun s' : state_t => to_R (v s'))) s.
+  Proof.
+    intros.
+    destruct discount_ok.
+    unfold value_iteration_step.
+    rewrite to_R_mapmax_ne.
+    apply mapmax_ne_ext.
+    intros.
+    unfold discounted_reward.
+    simpl.
+    rewrite -> big_sum_ext with R _ state_t (states p_props) (states p_props) _  (fun s' : state_t => to_R ((trans_f x s s') * (v s'))); auto.
+    2: { unfold eqfun. intros. apply to_R_mult. }
+    rewrite to_R_big_sum.
+    rewrite to_R_mult.
+    rewrite to_R_plus.
+    auto.
+  Qed.
+      
+
+  Lemma to_R_value_iteration_rec: forall (v : value_func p_props) (s : state_t) (n : nat), 
+      to_R ((value_iteration_rec _ discount v n) s)  = (value_iteration_rec (mdp_prop_to_R p_props) (to_R discount) (fun s' : state_t => to_R (v s')) n) s.
+  Proof.
+    intros.
+    generalize s.
+    induction n; intros; simpl; auto.
+    repeat rewrite value_iteration_rec_reverse.
+    rewrite to_R_value_iteration_step.
+    apply value_iteration_step_ext.
+    apply IHn.
+  Qed.
+
+
+
+
+  End mdp_to_R.
+  Section mdp_R. 
+    Variable p_props : @mdp_props R _.
+    Variable discount : R.
+    Hypothesis discount_ok: 0 <= discount /\ discount < 1.
+
+    Lemma R_discount_ge0: 0 <= discount.
+    Proof. destruct discount_ok. auto. Qed.
+
+    Lemma R_discount_lt1: discount < 1.
+    Proof. destruct discount_ok. auto. Qed.
+
+
+    Definition value_iteration_R_binach : @binach.contraction_func R _:=
+      binach.contraction_mk 
+        R _
+        (state (p p_props))
+        (states p_props)
+        (states_ok p_props)
+        discount
+        (states_nonempty p_props)
+        (value_iteration_step p_props discount)
+        R_discount_ge0
+        R_discount_lt1
+        (value_iteration_step_ext p_props discount)
+        (value_iteration_contraction p_props discount discount_ok).
+      
+
+    Definition evaluate_policy_R_binach (pol : policy p_props) : @binach.contraction_func R _:=
+      binach.contraction_mk 
+        R _
+        (state (p p_props))
+        (states p_props)
+        (states_ok p_props)
+        discount
+        (states_nonempty p_props)
+        (evaluate_policy_step p_props discount pol)
+        R_discount_ge0
+        R_discount_lt1
+        (evaluate_policy_step_ext p_props discount pol)
+        (evaluate_policy_contraction p_props discount discount_ok pol).
+      
 
     
 
-End mdp_numeric.
+
+    Lemma value_iteration_R_cauchy_crit_aux: forall (v : value_func p_props) (n m : nat) (e: R), 
+      0 < e -> 
+      0 < value_dist p_props v (value_iteration_step p_props discount v) ->
+      pow_nat discount n < e * (1 + - discount) * Rinv  (value_dist p_props v (value_iteration_step p_props discount v)) ->
+      value_dist p_props (value_iteration_rec p_props discount v n) (value_iteration_rec p_props discount v (n + m)) < e.
+    Proof. apply (binach.contraction_cauchy_crit_aux value_iteration_R_binach). Qed.
+
+    Lemma value_iteration_R_cauchy_crit: forall (v : value_func p_props) (s : (state (p p_props))), Cauchy_crit (fun n => (value_iteration_rec _ discount v n s)).
+    Proof. intros. apply (binach.contraction_cauchy_crit value_iteration_R_binach). Qed.
+
+    
+    Lemma value_iteration_R_limit_same: forall (v1 v2 : value_func p_props) (s : (state (p p_props))) (x : R), 
+      Un_cv (fun n => (value_iteration_rec _ discount v1 n) s) x -> Un_cv (fun n => (value_iteration_rec _ discount v2 n) s) x.
+    Proof. apply (binach.limit_unique value_iteration_R_binach). Qed.
+
+     
+    Definition converge_value_func := binach.converge_func value_iteration_R_binach.
+    Definition converge_eval_func (p : policy p_props) := binach.converge_func (evaluate_policy_R_binach p).
+
+   
+    Lemma converge_value_func_correct: forall (v : value_func p_props) (s : state (p p_props)),
+      Un_cv (fun n => (value_iteration_rec _ discount v n) s) (converge_value_func s).
+    Proof. apply (binach.converge_func_correct value_iteration_R_binach). Qed.
+
+    
+    Lemma value_iteration_step_converge_0: forall (v : value_func p_props), Un_cv (fun n => value_dist p_props (value_iteration_rec _ discount v n)
+         (value_iteration_step _ discount (value_iteration_rec _ discount v n))) 0.
+    Proof.  apply (binach.step_converge0 value_iteration_R_binach). Qed. 
+
+
+
+    Lemma value_func_converge_strong: forall (v : value_func p_props) (eps : R),
+            0 < eps -> exists N : nat, forall (s : state (p p_props)), forall n : nat, (n >= N)%coq_nat ->
+              R_dist (value_iteration_rec p_props discount v n s)
+                 (converge_value_func s) < eps.
+    Proof. apply (binach.func_converge_strong value_iteration_R_binach). Qed.
+
+    Lemma value_iteration_fixpoint: forall (s : (state (p p_props))),
+      (value_iteration_step p_props discount converge_value_func) s = converge_value_func s.
+    Proof. apply (binach.rec_fixpoint value_iteration_R_binach). Qed.
+
+    Lemma value_iteration_R_converge: forall (v : value_func p_props) (s : (state (p p_props))), exists r : R, Un_cv (fun n => (value_iteration_rec _ discount v n) s) r.
+    Proof.
+     intros.
+      destruct R_complete with ((value_iteration_rec p_props discount v)^~ s); eauto.
+      apply value_iteration_R_cauchy_crit.
+    Qed.
+
+    Lemma value_iteration_eval_step_fixpoint: forall s : state (p p_props),
+      evaluate_policy_step _ discount (value_func_policy _ converge_value_func) converge_value_func s =
+      converge_value_func s.
+    Proof.
+      intros.
+      unfold evaluate_policy_step.
+      destruct discount_ok.
+      rewrite <- value_iteration_fixpoint.
+      unfold value_iteration_step.
+      unfold discounted_reward.
+      rewrite <- mapmax_ne_plus_const_l.
+      apply plus_simpl_l.
+      rewrite <- mapmax_ne_mult_pos_l; auto.
+      apply mult_simpl_l.
+      unfold value_func_policy.
+      rewrite argmax_ne_mapmax_ne.
+      apply big_sum_ext; auto.
+    Qed.
+
+    Lemma value_iteration_eval_limit_same: forall s, converge_value_func s = converge_eval_func (value_func_policy _ converge_value_func)  s.
+    Proof.
+      intros.
+      apply (binach.fixpoint_unique (evaluate_policy_R_binach  (value_func_policy p_props converge_value_func))).
+      intros.
+      simpl.
+      rewrite <- value_iteration_eval_step_fixpoint. auto.
+    Qed.
+
+    Lemma value_iteration_limit_opt: forall (s : state (p p_props)) pol,
+      converge_eval_func pol s <= converge_eval_func (value_func_policy _ converge_value_func) s.
+    Proof.
+      intros.
+      rewrite <- value_iteration_eval_limit_same.
+      apply RiemannInt.Rle_cv_lim with 
+        (fun n => (evaluate_policy_rec _ discount discount_ok pol (reward (p p_props)) n) s)
+        (fun n => (value_iteration_rec _ discount (reward (p p_props)) n) s).
+      2: { apply (binach.converge_func_correct (evaluate_policy_R_binach pol)). }
+      2: { apply converge_value_func_correct. }
+      intros.
+      rewrite <- evaluate_policy_rec_state_same.
+      rewrite <- R_le_same.
+      apply value_func_eval_ub. auto.
+    Qed.
+
+
 
 (**
   
