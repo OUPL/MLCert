@@ -10,7 +10,7 @@ Require Import MLCert.extraction_ocaml.
 Require Import List. Import ListNotations.
 Require Import QArith.
 Require Import OUVerT.extrema.
-Require Import OUVerT.binach.
+Require Import OUVerT.banach.
 Require Import OUVerT.orderedtypes.
 
 (**Require Import FunctionalExtensionality.**)
@@ -526,8 +526,8 @@ Section mdp_numeric.
   Qed.
     
 
-  Definition value_iteration_binach : binach.contraction_func :=
-    binach.contraction_mk 
+  Definition value_iteration_banach : banach.contraction_func :=
+    banach.contraction_mk 
       Nt _
       state_t
       (states p_props)
@@ -542,8 +542,8 @@ Section mdp_numeric.
     .
 
 
-  Definition evaluate_policy_binach (pol : policy) : binach.contraction_func :=
-    binach.contraction_mk 
+  Definition evaluate_policy_banach (pol : policy) : banach.contraction_func :=
+    banach.contraction_mk 
       Nt _
       state_t
       (states p_props)
@@ -557,7 +557,7 @@ Section mdp_numeric.
       (evaluate_policy_contraction pol)
     .
 
-  Definition evaluate_policy_rec (pol : policy) := binach.rec_f (evaluate_policy_binach pol).
+  Definition evaluate_policy_rec (pol : policy) := banach.rec_f (evaluate_policy_banach pol).
 
   Lemma evaluate_policy_rec_state_same: forall (pol : policy) (n : nat) (s : state_t),
       evaluate_policy_state pol s n = (evaluate_policy_rec pol (fun s' => p_reward s') n) s.
@@ -570,7 +570,7 @@ Section mdp_numeric.
     simpl in *.
     unfold evaluate_policy_step.
     rewrite -> big_sum_ext with _ _ _ _ (states p_props) _ 
-      (fun s' => trans_f (pol s0) s0 s' * binach.rec_f (evaluate_policy_binach pol) [eta p_reward] n s'); auto.
+      (fun s' => trans_f (pol s0) s0 s' * banach.rec_f (evaluate_policy_banach pol) [eta p_reward] n s'); auto.
     unfold eqfun.
     intros.
     rewrite IHn.
@@ -578,19 +578,19 @@ Section mdp_numeric.
   Qed.
 
 
-  Lemma value_dist_binach_dist: forall (v1 v2 : value_func), value_dist v1 v2 = binach.max_dist _ (states_nonempty p_props) v1 v2.
+  Lemma value_dist_banach_dist: forall (v1 v2 : value_func), value_dist v1 v2 = banach.max_dist _ (states_nonempty p_props) v1 v2.
   Proof. auto. Qed.
 
-  Lemma value_iteration_rec_binach_rec: forall (v : state_t -> Nt) (n : nat), 
-      value_iteration_rec v n = binach.rec_f value_iteration_binach v n.
+  Lemma value_iteration_rec_banach_rec: forall (v : state_t -> Nt) (n : nat), 
+      value_iteration_rec v n = banach.rec_f value_iteration_banach v n.
   Proof. auto. Qed.
 
   Lemma value_dist_same_0: forall (v1 v2 : value_func), (forall s : state_t, v1 s = v2 s) -> value_dist v1 v2 = 0.
-  Proof. apply (binach.eq_dist_0 value_iteration_binach). Qed.
+  Proof. apply (banach.eq_dist_0 value_iteration_banach). Qed.
 
   Lemma value_dist_triangle: forall (v1 v2 v3: value_func), value_dist v1 v3 <= 
         value_dist v1 v2 + value_dist v2 v3.
-  Proof. intros. apply (binach.dist_triangle (value_iteration_binach)). Qed.
+  Proof. intros. apply (banach.dist_triangle (value_iteration_banach)). Qed.
 
   Lemma value_dist_ge0: forall (v1 v2 : value_func), 0 <= value_dist v1 v2.
   Proof.
@@ -616,12 +616,12 @@ Section mdp_numeric.
 
     Lemma value_iteration_converge_aux: forall (v1 v2 : value_func) (n : nat), 
       value_dist (value_iteration_rec v1 n) (value_iteration_rec v2 n) <= (Numerics.pow_nat discount n) * (value_dist v1 v2).
-    Proof. intros. apply (binach.rec_dist value_iteration_binach). Qed.
+    Proof. intros. apply (banach.rec_dist value_iteration_banach). Qed.
 
 
     Lemma value_dist_rec_ub: forall (v : value_func) (n : nat),
       (1 + - discount) * value_dist (value_iteration_rec v n) v <= (1 + - pow_nat discount n) * value_dist v (value_iteration_step v).
-    Proof. intros. apply (binach.dist_step_rec_n_ub value_iteration_binach). Qed.  
+    Proof. intros. apply (banach.dist_step_rec_n_ub value_iteration_banach). Qed.  
 
   Lemma value_iteration_rec_plus: forall (v : value_func) (n m: nat), value_iteration_rec v (n + m) = value_iteration_rec (value_iteration_rec v n) m.
   Proof.
@@ -635,17 +635,17 @@ Section mdp_numeric.
   Qed.
 
   Lemma value_dist_0_same: forall (v1 v2 : value_func), value_dist v1 v2 = 0 -> forall s, v1 s = v2 s.
-  Proof. apply (binach.dist_0_eq value_iteration_binach). Qed.
+  Proof. apply (banach.dist_0_eq value_iteration_banach). Qed.
 
   Lemma discount0_no_change: forall (v1 v2 : value_func) (n m : nat) (s : state_t), 
       discount = 0 -> (value_iteration_rec v1 (S n)) s = (value_iteration_rec v2 (S m)) s.
-  Proof. intros. apply value_dist_0_same. apply (binach.q0_rec0 value_iteration_binach). auto. Qed.
+  Proof. intros. apply value_dist_0_same. apply (banach.q0_rec0 value_iteration_banach). auto. Qed.
 
   
   Lemma value_iteration_converge_aux': forall (v : value_func) (n m : nat),
     (1 + - discount) * value_dist (value_iteration_rec v n) (value_iteration_rec v (n+m)%nat) <=
     value_dist v (value_iteration_step v) *  Numerics.pow_nat discount n. 
-  Proof. apply (binach.rec_f_nm_ub value_iteration_binach). Qed. 
+  Proof. apply (banach.rec_f_nm_ub value_iteration_banach). Qed. 
 
  Lemma value_dist_ub: forall (s : state_t) (v1 v2 : value_func), Numerics.abs ((v1 s) + - (v2 s)) <= value_dist v1 v2.
   Proof. 
@@ -783,8 +783,8 @@ Section mdp_numeric.
     Proof. destruct discount_ok. auto. Qed.
 
 
-    Definition value_iteration_R_binach : @binach.contraction_func R _:=
-      binach.contraction_mk 
+    Definition value_iteration_R_banach : @banach.contraction_func R _:=
+      banach.contraction_mk 
         R _
         (state (p p_props))
         (states p_props)
@@ -798,8 +798,8 @@ Section mdp_numeric.
         (value_iteration_contraction p_props discount discount_ok).
       
 
-    Definition evaluate_policy_R_binach (pol : policy p_props) : @binach.contraction_func R _:=
-      binach.contraction_mk 
+    Definition evaluate_policy_R_banach (pol : policy p_props) : @banach.contraction_func R _:=
+      banach.contraction_mk 
         R _
         (state (p p_props))
         (states p_props)
@@ -821,29 +821,29 @@ Section mdp_numeric.
       0 < value_dist p_props v (value_iteration_step p_props discount v) ->
       pow_nat discount n < e * (1 + - discount) * Rinv  (value_dist p_props v (value_iteration_step p_props discount v)) ->
       value_dist p_props (value_iteration_rec p_props discount v n) (value_iteration_rec p_props discount v (n + m)) < e.
-    Proof. apply (binach.contraction_cauchy_crit_aux value_iteration_R_binach). Qed.
+    Proof. apply (banach.contraction_cauchy_crit_aux value_iteration_R_banach). Qed.
 
     Lemma value_iteration_R_cauchy_crit: forall (v : value_func p_props) (s : (state (p p_props))), Cauchy_crit (fun n => (value_iteration_rec _ discount v n s)).
-    Proof. intros. apply (binach.contraction_cauchy_crit value_iteration_R_binach). Qed.
+    Proof. intros. apply (banach.contraction_cauchy_crit value_iteration_R_banach). Qed.
 
     
     Lemma value_iteration_R_limit_same: forall (v1 v2 : value_func p_props) (s : (state (p p_props))) (x : R), 
       Un_cv (fun n => (value_iteration_rec _ discount v1 n) s) x -> Un_cv (fun n => (value_iteration_rec _ discount v2 n) s) x.
-    Proof. apply (binach.limit_unique value_iteration_R_binach). Qed.
+    Proof. apply (banach.limit_unique value_iteration_R_banach). Qed.
 
      
-    Definition converge_value_func := binach.converge_func value_iteration_R_binach.
-    Definition converge_eval_func (p : policy p_props) := binach.converge_func (evaluate_policy_R_binach p).
+    Definition converge_value_func := banach.converge_func value_iteration_R_banach.
+    Definition converge_eval_func (p : policy p_props) := banach.converge_func (evaluate_policy_R_banach p).
 
    
     Lemma converge_value_func_correct: forall (v : value_func p_props) (s : state (p p_props)),
       Un_cv (fun n => (value_iteration_rec _ discount v n) s) (converge_value_func s).
-    Proof. apply (binach.converge_func_correct value_iteration_R_binach). Qed.
+    Proof. apply (banach.converge_func_correct value_iteration_R_banach). Qed.
 
     
     Lemma value_iteration_step_converge_0: forall (v : value_func p_props), Un_cv (fun n => value_dist p_props (value_iteration_rec _ discount v n)
          (value_iteration_step _ discount (value_iteration_rec _ discount v n))) 0.
-    Proof.  apply (binach.step_converge0 value_iteration_R_binach). Qed. 
+    Proof.  apply (banach.step_converge0 value_iteration_R_banach). Qed. 
 
 
 
@@ -851,11 +851,11 @@ Section mdp_numeric.
             0 < eps -> exists N : nat, forall (s : state (p p_props)), forall n : nat, (n >= N)%coq_nat ->
               R_dist (value_iteration_rec p_props discount v n s)
                  (converge_value_func s) < eps.
-    Proof. apply (binach.func_converge_strong value_iteration_R_binach). Qed.
+    Proof. apply (banach.func_converge_strong value_iteration_R_banach). Qed.
 
     Lemma value_iteration_fixpoint: forall (s : (state (p p_props))),
       (value_iteration_step p_props discount converge_value_func) s = converge_value_func s.
-    Proof. apply (binach.rec_fixpoint value_iteration_R_binach). Qed.
+    Proof. apply (banach.rec_fixpoint value_iteration_R_banach). Qed.
 
     Lemma value_iteration_R_converge: forall (v : value_func p_props) (s : (state (p p_props))), exists r : R, Un_cv (fun n => (value_iteration_rec _ discount v n) s) r.
     Proof.
@@ -886,7 +886,7 @@ Section mdp_numeric.
     Lemma value_iteration_eval_limit_same: forall s, converge_value_func s = converge_eval_func (value_func_policy _ converge_value_func)  s.
     Proof.
       intros.
-      apply (binach.fixpoint_unique (evaluate_policy_R_binach  (value_func_policy p_props converge_value_func))).
+      apply (banach.fixpoint_unique (evaluate_policy_R_banach  (value_func_policy p_props converge_value_func))).
       intros.
       simpl.
       rewrite <- value_iteration_eval_step_fixpoint. auto.
@@ -900,7 +900,7 @@ Section mdp_numeric.
       apply RiemannInt.Rle_cv_lim with 
         (fun n => (evaluate_policy_rec _ discount discount_ok pol (reward (p p_props)) n) s)
         (fun n => (value_iteration_rec _ discount (reward (p p_props)) n) s).
-      2: { apply (binach.converge_func_correct (evaluate_policy_R_binach pol)). }
+      2: { apply (banach.converge_func_correct (evaluate_policy_R_banach pol)). }
       2: { apply converge_value_func_correct. }
       intros.
       rewrite <- evaluate_policy_rec_state_same.
@@ -908,7 +908,7 @@ Section mdp_numeric.
       apply value_func_eval_ub. auto.
     Qed.
 
-
+End mdp_R.
 
 (**
   
