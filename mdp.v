@@ -150,12 +150,11 @@ Delimit Scope Numeric_scope with Num.
 Local Open Scope Num.
 Section mdp_numeric. 
   Context {Nt:Type} `{Numerics.Numeric Nt}.
-  Record mdp : Type := mdp_mk {
+  Record mdp: Type := mdp_mk {
     state : eqType;
     action :  eqType;
-    trans : action -> state -> state -> Nt;
-    reward : state -> Nt;
-    
+    trans : state -> action -> state -> Nt;
+    reward : state -> action -> state -> Nt
   }.
 
 
@@ -167,16 +166,18 @@ Section mdp_numeric.
     states_ok : @Enum_ok _ states;
     actions_ok : @Enum_ok _ actions;
     trans_sum1: forall (s : (state p)) (a : (action p)), 
-        big_sum states (fun s' => (trans p) a s s') = Numerics.mult_id;
+        big_sum states (fun s' => (trans p) s a s') = Numerics.mult_id;
     trans_pos: forall (s1 s2 : (state p)) (a : (action p)),
-        0 <= (trans p) a s1 s2 ;
+        0 <= (trans p) s1 a s2 ;
     states_nonempty : (0 <> length states)%nat;
     actions_nonempty : (0 <> length actions)%nat;
   }.
-  End mdp_numeric.
 
 
-  Section mdp.
+End mdp_numeric.
+
+
+  Section mdp_reward_s.
     Context {Nt:Type} `{Numerics.Numeric Nt}.
     Variable p_props : mdp_props.
 
@@ -194,8 +195,16 @@ Section mdp_numeric.
 
     Notation action_t := (action (p p_props)).
     Notation state_t := (state (p p_props)).
-    Notation p_reward := (reward (p p_props)).
+    Notation reward_f := (reward (p p_props)).
     Notation trans_f := (trans (p p_props)).
+    
+    Notation sts := (states p_props).
+    Notation acts := (actions p_props).
+    
+    Notation s_ne := (states_nonempty p_props).
+    Notation a_ne := (actions_nonempty p_props).
+
+    
 
     Definition value_func := state_t -> Nt.
     (**Definition value_funcR := state_t -> R.**)
@@ -224,7 +233,7 @@ Section mdp_numeric.
     Definition value_func0  := (fun (x : state_t) => 0).
 
     Definition discounted_reward (v : value_func) (s : (state_t)) (a : (action_t)) : Nt :=
-      (p_reward) s + discount * big_sum (states p_props) (fun  s' =>  (trans_f a s s') * (v s'))%Num.
+      big_sum (states p_props) (fun  s' =>  (trans_f s a s') * ( reward_f s a s' +  discount *  (v s')))%Num.
 
 
   Definition value_iteration_step (v : value_func) : value_func := 
@@ -247,13 +256,14 @@ Section mdp_numeric.
 
   Fixpoint evaluate_policy_state (pol : policy) (s : state_t) (i : nat): Nt :=
   match i with 
-  | O => p_reward s
-  | S i' => p_reward s +
-          discount * (big_sum (states p_props)  (fun s' =>  ((trans_f) (pol s) s s') * (evaluate_policy_state pol s' i')))
+  | O => 0
+  | S i' => (big_sum (states p_props)  
+    (fun s' =>  ((trans_f) s (pol s)  s') * (reward_f s (pol s) s' + discount *  evaluate_policy_state pol s' i')))
   end.
 
   Definition evaluate_policy_step (pol : policy) (v : value_func) : value_func :=
-  (fun s => p_reward s + discount * (big_sum (states p_props)) (fun s' => trans_f (pol s) s s' * v s')).
+  (fun s => discounted_reward v s (pol s)).
+  (**fun s => (big_sum (states p_props)) (fun s' => trans_f s (pol s)  s' * ( reward_f s (pol s) s' + discount * v s'))**)
 
   Definition value_diff  (v1 v2 : value_func) : value_func :=
   (fun s => v1 s + - v2 s).
@@ -286,24 +296,8 @@ Section mdp_numeric.
   Defined.
 
   Definition value_func_policy (v: value_func) : policy :=
-  (fun s => argmax_ne
-        (fun a=> big_sum (states p_props) (fun s'=> trans_f a s s' * v s' ))
-       (actions_nonempty p_props)).
-  
-  
-  
-
-  Definition policy_leq_n  (pol1 pol2 : policy) (n : nat) : Prop :=
-  forall (s : state_t), evaluate_policy_state pol1 s n <= evaluate_policy_state pol2 s n.
-
-  Definition policy_leq  (pol1 pol2 : policy) : Prop :=
-  forall (s : state_t), exists (n0 : nat), forall (m : nat), (n0 <= m)%nat -> policy_leq_n pol1 pol2 m.
-
-
-
-  
-
-
+  (fun s => argmax_ne (discounted_reward v s) a_ne).
+       
   Lemma head_action_correct: Some head_action = hd_error (actions p_props).
   Proof.
     unfold head_action.
@@ -334,31 +328,42 @@ Section mdp_numeric.
     destruct discount_ok.
     apply mapmax_ne_le_const.
     intros.
+    unfold discounted_reward.
+    remember (reward_f n (pol n)) as r.
+    remember (trans_f n (pol n)) as t.
+    rewrite -> big_sum_ext with _ _ _ _ sts _  (fun s' => t s' * r s' + t s' * discount * v1 s'); auto.
+    2:{ unfold eqfun. intros. rewrite mult_plus_distr_l. rewrite mult_assoc. auto. }
+    rewrite -> big_sum_ext with _ _ _ _ sts
+         (fun s' => t s' * (r s' + discount * v2 s'))  (fun s' => t s' * r s' + t s' * discount * v2 s'); auto.
+    2:{ unfold eqfun. intros. rewrite mult_plus_distr_l. rewrite mult_assoc. auto. }
+    repeat rewrite big_sum_plus.
     rewrite plus_neg_distr.
-    rewrite -> plus_comm with (p_reward n) _.
-    rewrite plus_assoc.
-    rewrite <- plus_assoc with _ (p_reward n) _.
-    rewrite plus_neg_r.
-    rewrite plus_id_r.
-    rewrite neg_mult_distr_r.
-    rewrite <- mult_plus_distr_l.
-    rewrite abs_mult_pos_l; auto.
+    rewrite -> plus_comm with (big_sum _ (fun c : state_t => t c * r c)) _.
+    rewrite <- plus_assoc with (big_sum _ (fun c : state_t => t c * discount * v1 c)) _ _.
+    rewrite -> plus_assoc with _  (- big_sum (states p_props) (fun c : state_t => t c * r c)) _.
+    rewrite plus_neg_r. rewrite plus_id_l.
+    rewrite -> big_sum_ext with _ _ _ _ (states p_props) _ (fun s' : state_t => t s' * v1 s' * discount); auto.
+    2:{ unfold eqfun. intros. rewrite <- mult_assoc. rewrite -> mult_comm with discount _. apply mult_assoc. } 
+    rewrite -> big_sum_ext with _ _ _ _ (states p_props) 
+      (fun s' => t  s' * discount * v2 s') (fun s' => t s' * v2 s' * discount); auto.
+    2:{ unfold eqfun. intros. rewrite <- mult_assoc. rewrite -> mult_comm with discount _. apply mult_assoc. } 
+    repeat rewrite <- big_sum_mult_right.
+    rewrite neg_mult_distr_l.
+    rewrite <- plus_mult_distr_r.
+    rewrite abs_mult_pos_r; auto.
+    rewrite mult_comm.
     apply mult_le_compat_l; auto.
     rewrite <- big_sum_nmul.
     rewrite <- big_sum_plus.
-    rewrite -> big_sum_ext with _ _ state_t (states p_props) (states p_props) _(fun c => trans_f (pol n) n  c * (v1 c + - v2 c)); auto.
-    2: {
-      unfold eqfun.
-      intros.
-      rewrite neg_mult_distr_r.
-      rewrite mult_plus_distr_l. auto.
-    }
-    apply le_trans with (big_sum (states p_props) (fun c => abs (trans_f (pol n) n c * (v1 c + - v2 c)))).
+    rewrite -> big_sum_ext with _ _ _ _ (states p_props) _ (fun s' => t s' * (v1 s' + - v2 s')); auto.
+    2:{ unfold eqfun. intros. rewrite neg_mult_distr_r. rewrite mult_plus_distr_l. auto. }
+    apply le_trans with (big_sum (states p_props) (fun s' => abs (t s' * (v1 s' + - v2 s')))).
       apply big_sum_le_abs.
-    rewrite -> big_sum_ext with _ _ state_t (states p_props) (states p_props) _ (fun c => trans_f (pol n) n c * abs (v1 c + - v2 c)); auto.
-    2:{ unfold eqfun. intros. apply abs_mult_pos_l. apply (trans_pos _).  }
-    apply le_trans with (big_sum (states p_props) (trans_f (pol n) n) * mapmax_ne (fun c => abs ( v1 c + - v2 c)) (states_nonempty p_props)).
-      apply big_sum_func_leq_max_l. intros. apply (trans_pos _).
+    rewrite -> big_sum_ext with _ _ _ _ (states p_props) _ (fun s' => t s' * abs (v1 s' + - v2 s')); auto.
+    2:{ unfold eqfun. intros. apply abs_mult_pos_l. rewrite Heqt. apply (trans_pos _). }
+    apply le_trans with (big_sum (states p_props) t * mapmax_ne (fun c => abs ( v1 c + - v2 c)) (states_nonempty p_props)).
+      apply big_sum_func_leq_max_l. intros. rewrite Heqt. apply (trans_pos _).
+    rewrite Heqt.
     rewrite (trans_sum1 _).
     rewrite mult_id_l.
     apply le_refl.
@@ -374,122 +379,74 @@ Section mdp_numeric.
     unfold value_diff.
     unfold discounted_reward.
     destruct discount_ok.
-    assert (
-      mapmax_ne (l:=states p_props)
-      (fun s : state_t =>
-       Numerics.abs
-         (mapmax_ne (l:=actions p_props)
-            (fun a : action_t =>
-             p_reward s + discount * big_sum (states p_props) (fun s' : state_t => trans_f a s s' * v1 s'))
-            (actions_nonempty p_props) +
-          -
-          mapmax_ne (l:=actions p_props)
-            (fun a : action_t =>
-             p_reward s + discount * big_sum (states p_props) (fun s' : state_t => trans_f a s s' * v2 s'))
-            (actions_nonempty p_props))) (states_nonempty p_props) =
-      mapmax_ne (l:=states p_props)
-      (fun s : state_t =>
-       discount * Numerics.abs
-         (mapmax_ne (l:=actions p_props)
-            (fun a : action_t =>
-             big_sum (states p_props) (fun s' : state_t => trans_f a s s' * v1 s'))
-            (actions_nonempty p_props) +
-          -
-          mapmax_ne (l:=actions p_props)
-            (fun a : action_t =>
-             big_sum (states p_props) (fun s' : state_t => trans_f a s s' * v2 s'))
-            (actions_nonempty p_props))) (states_nonempty p_props)
-      ).
-      {        
-        apply mapmax_ne_ext.
-        intros.
-        repeat rewrite <- mapmax_ne_plus_const_l.
-        rewrite Numerics.plus_neg_distr.
-        rewrite -> Numerics.plus_comm with (- p_reward x) _.
-        repeat rewrite <- Numerics.plus_assoc.
-        rewrite -> Numerics.plus_comm with (p_reward x) _.
-        repeat rewrite <- Numerics.plus_assoc.
-        rewrite Numerics.plus_neg_l.
-        rewrite Numerics.plus_id_r.
-        repeat rewrite <- mapmax_ne_mult_pos_l; auto.
-        rewrite Numerics.neg_mult_distr_r.
-        rewrite <- Numerics.mult_plus_distr_l.
-        rewrite Numerics.abs_mult_pos_l; auto.
-      }
-      rewrite H2.
-      rewrite <- mapmax_ne_mult_pos_l; auto.
-      apply Numerics.mult_le_compat_l; auto.
-      apply mapmax_ne_le_ext'.
-      intros.
-      remember (fun a : action_t => big_sum (states p_props) (fun s' : state_t => trans_f a t s' * v1 s')) as f1.
-      remember (fun a : action_t => big_sum (states p_props) (fun s' : state_t => trans_f a t s' * v2 s')) as f2.
-      apply Numerics.le_trans with (mapmax_ne (fun a => Numerics.abs (f1 a + - f2 a)) (actions_nonempty p_props)).
-        apply mapmax_ne_abs_dist_le.
-      rewrite Heqf1.
-      rewrite Heqf2.
-      assert ( 
-        mapmax_ne (l:=actions p_props) (fun a : action_t => Numerics.abs (f1 a + - f2 a)) (actions_nonempty p_props) =
-        mapmax_ne (l:=actions p_props)
-            (fun a : action_t =>
-             Numerics.abs
-               (big_sum (states p_props) (fun s' : state_t => trans_f a t s' * (v1 s' + - v2 s')))) (actions_nonempty p_props)     
-      ).
-      {
-        apply mapmax_ne_ext.
-        intros.
-        rewrite Heqf1.
-        rewrite Heqf2.
-        rewrite <- big_sum_nmul.
-        assert (big_sum (states p_props) (fun c : state_t => - (trans_f x t c * v2 c)) =
-                big_sum (states p_props) (fun c : state_t => trans_f x t c * - v2 c)
-        ).
-        { apply big_sum_ext; auto. unfold eqfun. intros. rewrite Numerics.neg_mult_distr_r. auto. }
-        rewrite H4.
-        rewrite <- big_sum_plus.
-        assert (big_sum (states p_props) (fun c : state_t => trans_f x t c * v1 c + trans_f x t c * - v2 c) 
-                = big_sum (states p_props) (fun s' : state_t => trans_f x t s' * (v1 s' + - v2 s'))).
-        { apply big_sum_ext; auto. unfold eqfun. intros. rewrite Numerics.mult_plus_distr_l. auto. }
-        rewrite H5.
-        auto.
-      }
-      rewrite Heqf1 in H4.
-      rewrite Heqf2 in H4.
-      rewrite H4.
-      apply Numerics.le_trans with (
-        mapmax_ne (l:=actions p_props)
-          (fun a : action_t => (big_sum (states p_props) (fun s' : state_t => trans_f a t s' * Numerics.abs  (v1 s' + - v2 s'))))
-          (actions_nonempty p_props) 
-      ).
-      {
-        apply mapmax_ne_le_ext.
-        intros.
-        apply Numerics.le_trans with ((big_sum (states p_props) (fun s' : state_t => Numerics.abs (trans_f t0 t s' * (v1 s' + - v2 s'))))).
-          apply big_sum_le_abs.
-        apply big_sum_le; auto.
-        intros.
-        unfold Numerics.le.
-        right.
-        apply Numerics.abs_mult_pos_l.
-        apply (trans_pos p_props).
-      }
-      apply Numerics.le_trans with (
-        mapmax_ne (l:=actions p_props)
-          (fun a : action_t =>  mapmax_ne (fun s' => Numerics.abs (v1 s' + - v2 s')) (states_nonempty p_props))
-          (actions_nonempty p_props)
-      ).
-      {
-        apply mapmax_ne_le_ext.
-        intro a.
-        intros.
-        rewrite <- Numerics.mult_id_l.
-        rewrite <- (trans_sum1 p_props) with t a.
-        apply big_sum_func_leq_max_l.
-        intros.
-        apply (trans_pos p_props).
-      }
-      rewrite mapmax_ne_const.
-      apply Numerics.le_refl.
-    Qed.
+    apply le_trans with (mapmax_ne (fun s : state_t =>
+      mapmax_ne (fun a : action_t => abs (
+       big_sum sts (fun s' : state_t => trans_f s a s' * (reward_f s a s' + discount * v1 s')) + -
+       big_sum sts (fun s' : state_t => trans_f s a s' * (reward_f s a s' + discount * v2 s')))) a_ne) s_ne).
+        apply mapmax_ne_le_ext; auto. intros. apply mapmax_ne_abs_dist_le.
+    rewrite -> mapmax_ne_ext with _ _ _ _ (fun s : state_t => discount * mapmax_ne
+          (fun a : action_t => abs (
+           big_sum (states p_props) (fun s' : state_t => trans_f s a s' * v1 s') + -
+           big_sum (states p_props) (fun s' : state_t => trans_f s a s' * v2 s')
+           )) a_ne ) _ s_ne.
+    2: {
+      intro s.
+      rewrite mapmax_ne_mult_pos_l; auto.
+      apply mapmax_ne_ext.
+      intro a.
+      rewrite -> big_sum_ext with _ _ _ _ sts _ (fun s' => trans_f s a s' * reward_f s a s' + trans_f s a s' * discount * v1 s'); auto.
+      2:{ unfold eqfun. intros. rewrite mult_plus_distr_l. rewrite mult_assoc. auto. }
+      rewrite -> big_sum_ext with _ _ _ _ sts 
+          (fun s' => trans_f s a s' * (reward_f s a s' + discount * v2 s'))          
+          (fun s' => trans_f s a s' * reward_f s a s' + trans_f s a s' * discount * v2 s'); auto.
+      2:{ unfold eqfun. intros. rewrite mult_plus_distr_l. rewrite mult_assoc. auto. }
+      repeat rewrite big_sum_plus.
+      rewrite plus_neg_distr.
+      rewrite -> plus_comm with (big_sum sts (fun c : state_t => trans_f s a c * reward_f s a c)) _.
+      rewrite plus_assoc.
+      rewrite <- plus_assoc with (big_sum sts (fun c : state_t => trans_f s a c * discount * v1 c)) _ _.      
+      rewrite plus_neg_r.
+      rewrite plus_id_r.
+      rewrite mult_comm.
+      rewrite <- abs_mult_pos_r; auto.
+      rewrite plus_mult_distr_r.
+      rewrite <- neg_mult_distr_l.
+      repeat rewrite big_sum_mult_right.
+      rewrite -> big_sum_ext with _ _ _ _ sts (fun x : state_t => trans_f s a x * v1 x * discount)
+          (fun x : state_t => trans_f s a x * discount * v1 x); auto.
+      2:{ unfold eqfun. intros. rewrite <- mult_assoc. rewrite -> mult_comm with _ discount. rewrite mult_assoc. auto. }
+      rewrite -> big_sum_ext with _ _ _ _ sts (fun x : state_t => trans_f s a x * v2 x * discount)
+          (fun x : state_t => trans_f s a x * discount * v2 x); auto.
+      unfold eqfun. intros. rewrite <- mult_assoc. rewrite -> mult_comm with _ discount. rewrite mult_assoc. auto.
+    }
+    rewrite <- mapmax_ne_mult_pos_l; auto.
+    apply mult_le_compat_l; auto.
+    apply mapmax_ne_le_const.
+    intros s H2.
+    rewrite -> mapmax_ne_ext with _ _ _ _ (fun a => abs (big_sum sts  (fun s' => trans_f s a s' * (v1 s' + - v2 s')))) _ a_ne.
+    2:{
+      intro a.
+      rewrite <- big_sum_nmul.
+      rewrite <- big_sum_plus.
+      rewrite -> big_sum_ext with _ _ _ _ sts _ (fun s' => trans_f s a s' * (v1 s' + - v2 s')); auto.
+      unfold eqfun. intros. rewrite neg_mult_distr_r. rewrite <- mult_plus_distr_l. auto.
+    }
+    apply le_trans with (mapmax_ne (fun a=> big_sum sts (fun s' => abs (trans_f s a s' * (v1 s' + - v2 s')))) a_ne).
+    { apply mapmax_ne_le_ext. intros. apply big_sum_le_abs. }
+    apply mapmax_ne_le_const.
+    intros a H3.
+    rewrite -> big_sum_ext with _ _ _ _ sts _ (fun s' => trans_f s a s' * abs (v1 s' + - v2 s')); auto.
+    2:{ 
+      unfold eqfun. intros.
+      rewrite abs_mult_pos_l; auto.
+      apply (trans_pos p_props).
+    }
+    rewrite <- mult_id_l.
+    rewrite <- (trans_sum1 p_props) with s a.
+    apply big_sum_func_leq_max_l.
+    intros.
+    apply trans_pos.
+  Qed.
 
   Lemma discount_ge0: 0 <= discount.
   Proof. intuition. Qed.
@@ -505,12 +462,9 @@ Section mdp_numeric.
     apply mapmax_ne_ext.
     intros.
     unfold discounted_reward.
-    apply plus_simpl_l.
-    apply mult_simpl_l.
     apply big_sum_ext; auto.
-    unfold eqfun. intros.
-    rewrite H0.
-    auto.
+    unfold eqfun.
+    intros. rewrite H0. auto.
   Qed.
 
   Lemma evaluate_policy_step_ext: forall (pol : policy) (v1 v2 : value_func) ,
@@ -518,7 +472,8 @@ Section mdp_numeric.
   Proof.
     intros.
     unfold evaluate_policy_step.
-    rewrite -> big_sum_ext with _ _ _ _ (states p_props) _ (fun s' => trans_f (pol s) s s' * v2 s'); auto.
+    unfold discounted_reward.
+    apply big_sum_ext; auto.
     unfold eqfun.
     intros.
     rewrite H0.
@@ -541,7 +496,6 @@ Section mdp_numeric.
       value_iteration_contraction
     .
 
-
   Definition evaluate_policy_banach (pol : policy) : banach.contraction_func :=
     banach.contraction_mk 
       Nt _
@@ -560,7 +514,7 @@ Section mdp_numeric.
   Definition evaluate_policy_rec (pol : policy) := banach.rec_f (evaluate_policy_banach pol).
 
   Lemma evaluate_policy_rec_state_same: forall (pol : policy) (n : nat) (s : state_t),
-      evaluate_policy_state pol s n = (evaluate_policy_rec pol (fun s' => p_reward s') n) s.
+      evaluate_policy_state pol s n = (evaluate_policy_rec pol (fun _ => 0) n) s.
   Proof.
     intros.
     generalize s.
@@ -569,8 +523,8 @@ Section mdp_numeric.
     unfold evaluate_policy_rec in *.
     simpl in *.
     unfold evaluate_policy_step.
-    rewrite -> big_sum_ext with _ _ _ _ (states p_props) _ 
-      (fun s' => trans_f (pol s0) s0 s' * banach.rec_f (evaluate_policy_banach pol) [eta p_reward] n s'); auto.
+    unfold discounted_reward.
+    apply big_sum_ext; auto.
     unfold eqfun.
     intros.
     rewrite IHn.
@@ -662,7 +616,7 @@ Section mdp_numeric.
 
 
   Lemma value_func_eval_ub: forall (s : state_t)(p : policy) (n : nat),
-    evaluate_policy_state p s n <=  (value_iteration_rec p_reward n) s.
+    evaluate_policy_state p s n <=  (value_iteration_rec (fun _ => 0) n) s.
   Proof.
     intros.
     generalize p0 s.
@@ -672,41 +626,46 @@ Section mdp_numeric.
     destruct discount_ok.
     unfold value_iteration_step.
     unfold discounted_reward.
-    rewrite <- mapmax_ne_plus_const_l.
-    apply plus_le_compat_l.
-    rewrite <- mapmax_ne_mult_pos_l; auto.
-    apply mult_le_compat_l; auto.
-    remember ((fun n0 : action_t =>
-       big_sum (states p_props) (fun s' : state_t => trans_f n0 s0 s' * value_iteration_rec p_reward n s')))
-      as f.
-    apply le_trans with (f (p1 s0)).
-    2: { apply mapmax_ne_correct. apply actions_In. }
-    rewrite Heqf.
-    apply big_sum_le.
-    intros.
-    apply mult_le_compat_l.
-      apply (trans_pos p_props).
-    apply IHn.
+    apply le_trans with (big_sum sts
+     (fun s' : state_t =>
+      trans_f s0 (p1 s0) s' *
+      (reward_f s0 (p1 s0) s' + discount * value_iteration_rec (fun _ : state_t => 0) n s'))); auto.
+    {
+      apply big_sum_le.
+      intros s' H2.
+      apply mult_le_compat_l; auto.
+        apply (trans_pos p_props).
+      apply plus_le_compat_l.
+      apply mult_le_compat_l; auto.
+    }
+    remember (fun a : action_t => big_sum sts (fun s' : state_t => trans_f s0 a s' *
+      (reward_f s0 a s' + discount * value_iteration_rec (fun _ : state_t => 0) n s'))) as f.
+    assert (big_sum sts (fun s' : state_t => trans_f s0 (p1 s0) s' * 
+        (reward_f s0 (p1 s0) s' + discount * value_iteration_rec (fun _ : state_t => 0) n s')) = f (p1 s0)).
+      rewrite Heqf. auto.
+    rewrite H2.
+    clear H2.
+    apply mapmax_ne_correct.
+    apply actions_In.
   Qed.
-
- 
 
 
   Fixpoint policy_value_iteration (n : nat) (s : state_t) :=
   match n with
   | O=> argmax_ne (l:=actions p_props) (fun f => 0) (actions_nonempty p_props)
   | S n' => argmax_ne (fun a=> big_sum 
-      (states p_props) (fun s' => trans_f a s s' * evaluate_policy_state (policy_value_iteration n') s' n'))
+      (states p_props) (fun s' => trans_f s a s' * evaluate_policy_state (policy_value_iteration n') s' n'))
       (actions_nonempty p_props)
   end.
 
- End mdp.
+ End mdp_reward_s.
 
   Section mdp_to_R.
     Context {Nt:Type} `{Numerics.Numeric Nt}.
+    
 
     Definition mdp_to_R (p : @mdp Nt) : @mdp R :=
-     mdp_mk (state p) (action p) (fun a s s' => to_R ((trans p) a s s')) (fun s => to_R ((reward p) s)).
+     mdp_mk (state p) (action p) (fun a s s' => to_R ((trans p) a s s')) (fun s a s' => to_R ((reward p) s a s')).
 
 
     Program Definition mdp_prop_to_R (m : @mdp_props Nt H) : @mdp_props R _ :=
@@ -745,12 +704,13 @@ Section mdp_numeric.
     apply mapmax_ne_ext.
     intros.
     unfold discounted_reward.
-    simpl.
-    rewrite -> big_sum_ext with R _ state_t (states p_props) (states p_props) _  (fun s' : state_t => to_R ((trans_f x s s') * (v s'))); auto.
-    2: { unfold eqfun. intros. apply to_R_mult. }
-    rewrite to_R_big_sum.
+    rewrite <- to_R_big_sum.
+    apply big_sum_ext; auto.
+    unfold eqfun.
+    intros s'. simpl.
+    rewrite <- to_R_mult.
+    rewrite <- to_R_plus.
     rewrite to_R_mult.
-    rewrite to_R_plus.
     auto.
   Qed.
       
@@ -864,42 +824,47 @@ Section mdp_numeric.
       apply value_iteration_R_cauchy_crit.
     Qed.
 
+    Definition value_iteration_converge_policy := value_func_policy _ discount converge_value_func.
+
+    Lemma reward_value_iteration_policy_same: forall s : state (p p_props),
+       converge_value_func s = discounted_reward _ discount converge_value_func s (value_iteration_converge_policy s).
+    Proof. 
+      intros.
+      rewrite <- value_iteration_fixpoint.
+      unfold value_iteration_step.
+      unfold value_iteration_converge_policy.
+      unfold value_func_policy.
+      apply argmax_ne_mapmax_ne.
+    Qed.
+
     Lemma value_iteration_eval_step_fixpoint: forall s : state (p p_props),
-      evaluate_policy_step _ discount (value_func_policy _ converge_value_func) converge_value_func s =
+      evaluate_policy_step _ discount (value_func_policy _ discount converge_value_func) converge_value_func s =
       converge_value_func s.
     Proof.
       intros.
       unfold evaluate_policy_step.
-      destruct discount_ok.
-      rewrite <- value_iteration_fixpoint.
-      unfold value_iteration_step.
-      unfold discounted_reward.
-      rewrite <- mapmax_ne_plus_const_l.
-      apply plus_simpl_l.
-      rewrite <- mapmax_ne_mult_pos_l; auto.
-      apply mult_simpl_l.
-      unfold value_func_policy.
-      rewrite argmax_ne_mapmax_ne.
-      apply big_sum_ext; auto.
+      rewrite reward_value_iteration_policy_same.
+      auto.
     Qed.
 
-    Lemma value_iteration_eval_limit_same: forall s, converge_value_func s = converge_eval_func (value_func_policy _ converge_value_func)  s.
+
+    Lemma value_iteration_eval_limit_same: forall s, converge_value_func s = converge_eval_func (value_func_policy _ discount converge_value_func)  s.
     Proof.
       intros.
-      apply (banach.fixpoint_unique (evaluate_policy_R_banach  (value_func_policy p_props converge_value_func))).
+      apply (banach.fixpoint_unique (evaluate_policy_R_banach  (value_func_policy p_props discount converge_value_func))).
       intros.
       simpl.
       rewrite <- value_iteration_eval_step_fixpoint. auto.
     Qed.
 
     Lemma value_iteration_limit_opt: forall (s : state (p p_props)) pol,
-      converge_eval_func pol s <= converge_eval_func (value_func_policy _ converge_value_func) s.
+      converge_eval_func pol s <= converge_eval_func (value_func_policy _  discount converge_value_func) s.
     Proof.
       intros.
       rewrite <- value_iteration_eval_limit_same.
       apply RiemannInt.Rle_cv_lim with 
-        (fun n => (evaluate_policy_rec _ discount discount_ok pol (reward (p p_props)) n) s)
-        (fun n => (value_iteration_rec _ discount (reward (p p_props)) n) s).
+        (fun n => (evaluate_policy_rec _ discount discount_ok pol (fun _ => 0) n) s)
+        (fun n => (value_iteration_rec _ discount (fun _ => 0) n) s).
       2: { apply (banach.converge_func_correct (evaluate_policy_R_banach pol)). }
       2: { apply converge_value_func_correct. }
       intros.
@@ -909,6 +874,12 @@ Section mdp_numeric.
     Qed.
 
 End mdp_R.
+
+  
+
+    .
+
+  
 
 (**
   
