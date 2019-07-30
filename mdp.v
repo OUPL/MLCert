@@ -161,6 +161,8 @@ Section mdp_numeric.
 
   Record mdp_props : Type := mdp_prop_mk {
     p : mdp;
+    state_eq_dec: forall (s1 s2 : state p), {s1 = s2} + {s1 <> s2};
+    action_eq_dec: forall (a1 a2 : action p), {a1 = a2} + {a1 <> a2};
     states : Enumerable (state p);
     actions : Enumerable (action p);
     states_ok : @Enum_ok _ states;
@@ -172,6 +174,7 @@ Section mdp_numeric.
     states_nonempty : (0 <> length states)%nat;
     actions_nonempty : (0 <> length actions)%nat;
   }.
+
 
 
 End mdp_numeric.
@@ -214,26 +217,96 @@ End mdp_numeric.
     Definition state_length := length state_list.
 
 
-      
+    Definition value_table : Type := @Enum_table.table state_t Nt sts.
+    Definition value_func_to_table (v : value_func) : value_table := 
+        Enum_table.map_to_table sts v.
 
-    Lemma states_In: forall (s : state_t), In s (states p_props).
-    Proof.
-      intros.
-      destruct (states_ok p_props).
-      apply enum_total.
+    Definition value_table_lookup (v : value_table) (s : state_t) : Nt :=
+      Enum_table.lookup (states_nonempty p_props) (state_eq_dec p_props) v s.
+
+
+    Definition state_eqb (s1 s2 : state_t) : bool := 
+      (state_eq_dec p_props) s1 s2.
+
+    Lemma state_eqb_refl: forall s : state_t, state_eqb s s.
+    Proof. intros. unfold state_eqb.
+      destruct ((state_eq_dec p_props) s s); auto.
     Qed.
 
-    Lemma actions_In: forall (a : action_t), In a (actions p_props).
-    Proof.
+    Lemma state_eqb_true_iff: forall (s1 s2 : state_t), state_eqb s1 s2 <-> s1 = s2.
+    Proof. 
       intros.
-      destruct (actions_ok p_props).
-      apply enum_total.
+      split; intros.
+      { 
+        unfold state_eqb in H0.
+        destruct ((state_eq_dec p_props) s1 s2); auto.
+        inversion H0.
+      }
+      rewrite H0. apply state_eqb_refl.
     Qed.
 
-    Definition value_func0  := (fun (x : state_t) => 0).
+  
 
-    Definition discounted_reward (v : value_func) (s : (state_t)) (a : (action_t)) : Nt :=
-      big_sum (states p_props) (fun  s' =>  (trans_f s a s') * ( reward_f s a s' +  discount *  (v s')))%Num.
+  Lemma exists_action:  exists a : action_t, In a (actions p_props).
+  Proof.
+    intros.
+    destruct (actions p_props) eqn:a_l.
+    { exfalso. apply (actions_nonempty p_props). rewrite a_l.  auto. }
+    exists s.
+    apply in_eq.
+  Qed.
+  
+  Definition head_action : (action_t).
+    destruct p_props.
+    destruct actions0.
+    { simpl in *. exfalso. auto. }
+    exact s.
+  Defined.
+
+  Lemma exists_state:  exists s : state_t, In s (states p_props).
+  Proof.
+    intros.
+    destruct (states p_props) eqn:s_l.
+    { exfalso. apply (states_nonempty p_props). rewrite s_l.  auto. }
+    exists s.
+    apply in_eq.
+  Qed.
+
+  
+  Definition head_state : (state_t).
+    destruct p_props.
+    destruct states0.
+    { simpl in *. exfalso. auto. }
+    exact s.
+  Defined.
+
+
+  Lemma states_In: forall (s : state_t), In s (states p_props).
+  Proof.
+    intros.
+    destruct (states_ok p_props).
+    apply enum_total.
+  Qed.
+
+  Lemma actions_In: forall (a : action_t), In a (actions p_props).
+  Proof.
+    intros.
+    destruct (actions_ok p_props).
+    apply enum_total.
+  Qed.
+
+  Definition value_func0  := (fun (x : state_t) => 0).
+  
+
+
+  Definition discounted_reward (v : value_func) (s : (state_t)) (a : (action_t)) : Nt :=
+    big_sum (states p_props) (fun  s' =>  (trans_f s a s') * ( reward_f s a s' +  discount *  (v s')))%Num.
+  
+
+
+  (** Should be O(|states|) assuming trans func and reward func are O(1) **)  
+  Definition discounted_reward_tb (v : value_table) (s : state_t) (a : action_t) : Nt :=
+      big_sum ( Enum_table.zip_table v ) (fun x => (trans_f s a x.1) * (reward_f s a x.1 + discount * x.2)).
 
 
   Definition value_iteration_step (v : value_func) : value_func := 
@@ -241,18 +314,99 @@ End mdp_numeric.
       mapmax_ne (fun a => discounted_reward v s a) (actions_nonempty p_props)
   ).
 
+  (**Should be O(|states|^2 * |actions|) **)
+  Definition value_iteration_step_tb (v : value_table) : value_table := 
+   value_func_to_table (fun s => mapmax_ne (fun a : action_t => discounted_reward_tb v s a) (actions_nonempty p_props) ).
     
   Fixpoint value_iteration_rec (v : value_func) (n : nat):=
   match n with
   | O => v
   | S n' => value_iteration_step (value_iteration_rec v  n')
   end.
+  
+  Definition value_func_table_eq (vf : value_func) (vt : value_table) : Prop :=
+  forall s : state_t,  vf s = value_table_lookup vt s.
 
+  Lemma discounted_reward_tb_same: forall (vf : value_func) (vt : value_table) (s : state_t) (a : action_t),
+      value_func_table_eq vf vt -> discounted_reward vf s a = discounted_reward_tb vt s a.
+  Proof.
+    intros.
+    unfold discounted_reward_tb.
+    unfold discounted_reward.
+    unfold value_func_table_eq in H0.
+    unfold value_table_lookup in H0.
+    apply big_sum_ext'.
+      rewrite Enum_table.zip_table_length. auto.
+    rewrite Forall_forall.
+    intros.
+    destruct x.
+    destruct p0.
+    simpl.
+    rewrite  H0.
+    apply In_nth with _ _ _ (s0,(s1,n)) in H1.
+    destruct H1.
+    destruct H1.
+    assert(x < length sts)%coq_nat.
+    {
+      rewrite Enum_table.length_size_eq in H1.
+      rewrite size_zip in H1.
+      rewrite minnC in H1.
+      rewrite <- Enum_table.length_size_eq in H1.
+      rewrite Enum_table.zip_table_length in H1.
+      rewrite  Enum_table.length_size_eq in H1.
+      rewrite minnn in H1.
+      auto.
+    }
+    rewrite Enum_table.nth_seq_nth_same in H2.
+    rewrite -> nth_zip in H2.
+    2:{
+      symmetry. 
+      rewrite <- Enum_table.length_size_eq.
+      rewrite Enum_table.zip_table_length. auto. 
+    }
+    inversion H2.
+    unfold Enum_table.zip_table in H6.
+    rewrite -> nth_zip in H6.
+    2: { apply (Enum_table.t_list_length vt). }
+    inversion H6.
+    rewrite H5.
+    rewrite <- Enum_table.nth_seq_nth_same in H5.
+    rewrite -> nth_indep with _ _ _ _ s1 in H5; auto.
+    rewrite Enum_table.nth_seq_nth_same in H5.
+    rewrite H5.
+    apply mult_simpl_l.
+    apply plus_simpl_l.
+    apply mult_simpl_l.
+    apply Enum_table.nth_lookup with x s0 n; auto.
+      apply states_ok.
+    2:{ apply Enum_table.nth_seq_nth_same. }
+    remember (List.nth x sts s0).
+    rewrite <- H5.
+    rewrite Heqs2.
+    rewrite <- Enum_table.nth_seq_nth_same.
+    apply nth_indep; auto.
+  Qed.
+
+  Lemma value_iteration_step_tb_same: forall (vf : value_func) (vt : value_table),
+      value_func_table_eq vf vt -> value_func_table_eq (value_iteration_step vf) (value_iteration_step_tb vt).
+  Proof.
+    intros.
+    unfold value_iteration_step_tb.
+    unfold value_iteration_step.
+    unfold value_func_table_eq.
+    intros.
+    unfold value_table_lookup in *.
+    unfold value_func_to_table.
+    rewrite -> Enum_table.lookup_map; auto.
+    { apply mapmax_ne_ext. intros. apply discounted_reward_tb_same. auto. }
+    apply states_ok.
+  Qed. 
+  
 
   Definition value_iteration  (n : nat) :=
     value_iteration_rec (value_func0) n.
 
-  
+    
 
   Fixpoint evaluate_policy_state (pol : policy) (s : state_t) (i : nat): Nt :=
   match i with 
@@ -263,7 +417,27 @@ End mdp_numeric.
 
   Definition evaluate_policy_step (pol : policy) (v : value_func) : value_func :=
   (fun s => discounted_reward v s (pol s)).
-  (**fun s => (big_sum (states p_props)) (fun s' => trans_f s (pol s)  s' * ( reward_f s (pol s) s' + discount * v s'))**)
+
+  Definition evaluate_policy_step_tb (pol : policy) (v : value_table) : value_table :=
+     value_func_to_table (fun s => discounted_reward_tb v s (pol s)).
+
+  Lemma evaluate_policy_step_tb_same: forall (pol : policy) (vf : value_func) (vt : value_table),
+      value_func_table_eq vf vt -> value_func_table_eq (evaluate_policy_step pol vf) (evaluate_policy_step_tb pol vt).
+  Proof.
+    intros.
+    unfold value_func_table_eq.
+    intros.
+    unfold evaluate_policy_step.
+    unfold evaluate_policy_step_tb.
+    unfold value_table_lookup.
+    rewrite -> Enum_table.lookup_map; auto; auto.
+      apply discounted_reward_tb_same. auto.
+    apply states_ok.
+  Qed.
+    
+
+
+  
 
   Definition value_diff  (v1 v2 : value_func) : value_func :=
   (fun s => v1 s + - v2 s).
@@ -272,28 +446,6 @@ End mdp_numeric.
   mapmax_ne  (fun s => Numerics.abs ((value_diff v1 v2) s) ) (states_nonempty p_props) .
 
 
-  Fixpoint evaluate_policy_sum (pol : policy) (i : nat): Nt :=
-  big_sum (states p_props) (fun s => evaluate_policy_state pol s i).
-
-  Lemma exists_action:  exists a : action_t, In a (actions p_props).
-  Proof.
-    intros.
-    destruct p_props.
-    simpl in *.
-    destruct actions0.
-    { unfold not in actions_nonempty0. exfalso. auto. }
-    exists s.
-    apply in_eq.
-  Qed.
-  
-
-  
-  Definition head_action : (action_t).
-    destruct p_props.
-    destruct actions0.
-    { simpl in *. exfalso. auto. }
-    exact s.
-  Defined.
 
   Definition value_func_policy (v: value_func) : policy :=
   (fun s => argmax_ne (discounted_reward v s) a_ne).
@@ -479,7 +631,17 @@ End mdp_numeric.
     rewrite H0.
     auto.
   Qed.
-    
+
+  Lemma value_iteration_step_policy_eval_same: forall (v : value_func) (s : state_t),
+     value_iteration_step v s = evaluate_policy_step (value_func_policy v ) v s.
+  Proof.
+    intros.
+    unfold value_iteration_step.
+    unfold evaluate_policy_step.
+    unfold value_func_policy.
+    rewrite argmax_ne_mapmax_ne. auto.
+  Qed.
+
 
   Definition value_iteration_banach : banach.contraction_func :=
     banach.contraction_mk 
@@ -511,7 +673,7 @@ End mdp_numeric.
       (evaluate_policy_contraction pol)
     .
 
-  Definition evaluate_policy_rec (pol : policy) := banach.rec_f (evaluate_policy_banach pol).
+  Definition evaluate_policy_rec (pol : policy) := banach.rec_f (evaluate_policy_step pol).
 
   Lemma evaluate_policy_rec_state_same: forall (pol : policy) (n : nat) (s : state_t),
       evaluate_policy_state pol s n = (evaluate_policy_rec pol (fun _ => 0) n) s.
@@ -536,8 +698,12 @@ End mdp_numeric.
   Proof. auto. Qed.
 
   Lemma value_iteration_rec_banach_rec: forall (v : state_t -> Nt) (n : nat), 
-      value_iteration_rec v n = banach.rec_f value_iteration_banach v n.
-  Proof. auto. Qed.
+      value_iteration_rec v n = banach.rec_f value_iteration_step v n.
+  Proof. 
+    intros.
+    induction n; auto.
+    simpl. rewrite IHn. auto.
+  Qed.
 
   Lemma value_dist_same_0: forall (v1 v2 : value_func), (forall s : state_t, v1 s = v2 s) -> value_dist v1 v2 = 0.
   Proof. apply (banach.eq_dist_0 value_iteration_banach). Qed.
@@ -570,12 +736,12 @@ End mdp_numeric.
 
     Lemma value_iteration_converge_aux: forall (v1 v2 : value_func) (n : nat), 
       value_dist (value_iteration_rec v1 n) (value_iteration_rec v2 n) <= (Numerics.pow_nat discount n) * (value_dist v1 v2).
-    Proof. intros. apply (banach.rec_dist value_iteration_banach). Qed.
+    Proof. intros. repeat rewrite value_iteration_rec_banach_rec. apply (banach.rec_dist value_iteration_banach). Qed.
 
 
     Lemma value_dist_rec_ub: forall (v : value_func) (n : nat),
       (1 + - discount) * value_dist (value_iteration_rec v n) v <= (1 + - pow_nat discount n) * value_dist v (value_iteration_step v).
-    Proof. intros. apply (banach.dist_step_rec_n_ub value_iteration_banach). Qed.  
+    Proof. intros. rewrite value_iteration_rec_banach_rec. apply (banach.dist_step_rec_n_ub value_iteration_banach). Qed.  
 
   Lemma value_iteration_rec_plus: forall (v : value_func) (n m: nat), value_iteration_rec v (n + m) = value_iteration_rec (value_iteration_rec v n) m.
   Proof.
@@ -593,13 +759,14 @@ End mdp_numeric.
 
   Lemma discount0_no_change: forall (v1 v2 : value_func) (n m : nat) (s : state_t), 
       discount = 0 -> (value_iteration_rec v1 (S n)) s = (value_iteration_rec v2 (S m)) s.
-  Proof. intros. apply value_dist_0_same. apply (banach.q0_rec0 value_iteration_banach). auto. Qed.
+  Proof. intros. apply value_dist_0_same. repeat rewrite value_iteration_rec_banach_rec. 
+    apply (banach.q0_rec0 value_iteration_banach). auto. Qed.
 
   
   Lemma value_iteration_converge_aux': forall (v : value_func) (n m : nat),
     (1 + - discount) * value_dist (value_iteration_rec v n) (value_iteration_rec v (n+m)%nat) <=
     value_dist v (value_iteration_step v) *  Numerics.pow_nat discount n. 
-  Proof. apply (banach.rec_f_nm_ub value_iteration_banach). Qed. 
+  Proof. intros. repeat rewrite value_iteration_rec_banach_rec. apply (banach.rec_f_nm_ub value_iteration_banach). Qed. 
 
  Lemma value_dist_ub: forall (s : state_t) (v1 v2 : value_func), Numerics.abs ((v1 s) + - (v2 s)) <= value_dist v1 v2.
   Proof. 
@@ -669,7 +836,8 @@ End mdp_numeric.
 
 
     Program Definition mdp_prop_to_R (m : @mdp_props Nt H) : @mdp_props R _ :=
-      mdp_prop_mk (mdp_to_R (p m)) (states m) (actions m) (states_ok m) (actions_ok m) _ _ (states_nonempty m) (actions_nonempty m).
+      mdp_prop_mk (mdp_to_R (p m)) (state_eq_dec m) (action_eq_dec m)  (states m) (actions m) 
+     (states_ok m) (actions_ok m) _ _ (states_nonempty m) (actions_nonempty m).
     Next Obligation.
       rewrite to_R_big_sum.
       rewrite (trans_sum1 m).
@@ -781,15 +949,32 @@ End mdp_numeric.
       0 < value_dist p_props v (value_iteration_step p_props discount v) ->
       pow_nat discount n < e * (1 + - discount) * Rinv  (value_dist p_props v (value_iteration_step p_props discount v)) ->
       value_dist p_props (value_iteration_rec p_props discount v n) (value_iteration_rec p_props discount v (n + m)) < e.
-    Proof. apply (banach.contraction_cauchy_crit_aux value_iteration_R_banach). Qed.
+    Proof. intros. repeat rewrite value_iteration_rec_banach_rec. apply (banach.contraction_cauchy_crit_aux value_iteration_R_banach); auto. Qed.
 
     Lemma value_iteration_R_cauchy_crit: forall (v : value_func p_props) (s : (state (p p_props))), Cauchy_crit (fun n => (value_iteration_rec _ discount v n s)).
-    Proof. intros. apply (banach.contraction_cauchy_crit value_iteration_R_banach). Qed.
-
+    Proof. 
+      intros. 
+      unfold Cauchy_crit.
+      intros.
+      destruct (banach.contraction_cauchy_crit value_iteration_R_banach) with s v eps; auto.
+      exists x; auto. intros. 
+      repeat rewrite value_iteration_rec_banach_rec. auto.
+    Qed.
     
     Lemma value_iteration_R_limit_same: forall (v1 v2 : value_func p_props) (s : (state (p p_props))) (x : R), 
       Un_cv (fun n => (value_iteration_rec _ discount v1 n) s) x -> Un_cv (fun n => (value_iteration_rec _ discount v2 n) s) x.
-    Proof. apply (banach.limit_unique value_iteration_R_banach). Qed.
+    Proof.
+      unfold Un_cv. intros. 
+      destruct banach.limit_unique with value_iteration_R_banach v1 v2 s x eps; auto.
+      {
+        unfold Un_cv. intros.  destruct H with eps0; auto.
+        exists x0. intros. simpl.
+        rewrite <- value_iteration_rec_banach_rec. auto.
+      }
+      exists x0; auto.
+      intros.
+      rewrite value_iteration_rec_banach_rec. auto.
+    Qed.
 
      
     Definition converge_value_func := banach.converge_func value_iteration_R_banach.
@@ -798,20 +983,36 @@ End mdp_numeric.
    
     Lemma converge_value_func_correct: forall (v : value_func p_props) (s : state (p p_props)),
       Un_cv (fun n => (value_iteration_rec _ discount v n) s) (converge_value_func s).
-    Proof. apply (banach.converge_func_correct value_iteration_R_banach). Qed.
-
+    Proof. 
+      intros.
+      unfold Un_cv.
+      intros.
+      destruct banach.converge_func_correct with value_iteration_R_banach v s eps; auto.
+      exists x. intros.
+      rewrite value_iteration_rec_banach_rec. auto.
+    Qed.
     
     Lemma value_iteration_step_converge_0: forall (v : value_func p_props), Un_cv (fun n => value_dist p_props (value_iteration_rec _ discount v n)
          (value_iteration_step _ discount (value_iteration_rec _ discount v n))) 0.
-    Proof.  apply (banach.step_converge0 value_iteration_R_banach). Qed. 
-
-
+    Proof. 
+      intros.
+      unfold Un_cv.  intros. 
+      destruct banach.step_converge0 with value_iteration_R_banach v eps; auto.
+      exists x. intros.
+      repeat rewrite value_iteration_rec_banach_rec.
+      rewrite value_dist_banach_dist. simpl in H0. auto.
+    Qed.
 
     Lemma value_func_converge_strong: forall (v : value_func p_props) (eps : R),
             0 < eps -> exists N : nat, forall (s : state (p p_props)), forall n : nat, (n >= N)%coq_nat ->
               R_dist (value_iteration_rec p_props discount v n s)
                  (converge_value_func s) < eps.
-    Proof. apply (banach.func_converge_strong value_iteration_R_banach). Qed.
+    Proof.
+      intros.
+      destruct banach.func_converge_strong with value_iteration_R_banach v eps; auto.
+      exists x; auto.
+      intros. repeat rewrite value_iteration_rec_banach_rec. auto.
+    Qed.
 
     Lemma value_iteration_fixpoint: forall (s : (state (p p_props))),
       (value_iteration_step p_props discount converge_value_func) s = converge_value_func s.
@@ -863,7 +1064,7 @@ End mdp_numeric.
       intros.
       rewrite <- value_iteration_eval_limit_same.
       apply RiemannInt.Rle_cv_lim with 
-        (fun n => (evaluate_policy_rec _ discount discount_ok pol (fun _ => 0) n) s)
+        (fun n => (evaluate_policy_rec _ discount pol (fun _ => 0) n) s)
         (fun n => (value_iteration_rec _ discount (fun _ => 0) n) s).
       2: { apply (banach.converge_func_correct (evaluate_policy_R_banach pol)). }
       2: { apply converge_value_func_correct. }
