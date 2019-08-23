@@ -24,6 +24,7 @@ Require Import OUVerT.dyadic.
 Require Import ProofIrrelevance.
 
 Require Import OUVerT.compile.
+Require Import OUVerT.enumerables.
 Require Import Reals.SeqProp.
 Require Import Reals.Rseries.
 Require Import Rbase.
@@ -161,8 +162,8 @@ Section mdp_numeric.
 
   Record mdp_props : Type := mdp_prop_mk {
     p : mdp;
-    state_eq_dec: forall (s1 s2 : state p), {s1 = s2} + {s1 <> s2};
-    action_eq_dec: forall (a1 a2 : action p), {a1 = a2} + {a1 <> a2};
+    (**state_eq_dec: forall (s1 s2 : state p), {s1 = s2} + {s1 <> s2};
+    action_eq_dec: forall (a1 a2 : action p), {a1 = a2} + {a1 <> a2};**)
     states : Enumerable (state p);
     actions : Enumerable (action p);
     states_ok : @Enum_ok _ states;
@@ -183,6 +184,8 @@ End mdp_numeric.
   Section mdp_reward_s.
     Context {Nt:Type} `{Numerics.Numeric Nt}.
     Variable p_props : mdp_props.
+
+
 
     Lemma one_minus_discount_gt_0: forall (discount : Nt) {H : 0 <= discount /\ discount < 1}, 0 < 1 + - discount. 
     Proof.
@@ -216,16 +219,20 @@ End mdp_numeric.
     Definition state_list := @enumerable_fun (state_t) (states p_props).
     Definition state_length := length state_list.
 
-
     Definition value_table : Type := @Enum_table.table state_t Nt sts.
     Definition value_func_to_table (v : value_func) : value_table := 
         Enum_table.map_to_table sts v.
 
     Definition value_table_lookup (v : value_table) (s : state_t) : Nt :=
-      Enum_table.lookup (states_nonempty p_props) (state_eq_dec p_props) v s.
+      Enum_table.lookup (states_nonempty p_props) v s.
 
 
-    Definition state_eqb (s1 s2 : state_t) : bool := 
+    Definition policy_table : Type := @Enum_table.table state_t action_t sts.
+
+    Definition policy_table_lookup (v : policy_table) (s : state_t) : action_t :=
+      Enum_table.lookup (states_nonempty p_props) v s.
+
+    (**Definition state_eqb (s1 s2 : state_t) : bool := 
       (state_eq_dec p_props) s1 s2.
 
     Lemma state_eqb_refl: forall s : state_t, state_eqb s s.
@@ -243,7 +250,7 @@ End mdp_numeric.
         inversion H0.
       }
       rewrite H0. apply state_eqb_refl.
-    Qed.
+    Qed.**)
 
   
 
@@ -295,6 +302,10 @@ End mdp_numeric.
     apply enum_total.
   Qed.
 
+  Hint Resolve actions_In.
+  Hint Resolve states_In.
+
+
   Definition value_func0  := (fun (x : state_t) => 0).
   
 
@@ -318,14 +329,21 @@ End mdp_numeric.
   Definition value_iteration_step_tb (v : value_table) : value_table := 
    value_func_to_table (fun s => mapmax_ne (fun a : action_t => discounted_reward_tb v s a) (actions_nonempty p_props) ).
     
+
+
   Fixpoint value_iteration_rec (v : value_func) (n : nat):=
   match n with
   | O => v
   | S n' => value_iteration_step (value_iteration_rec v  n')
   end.
+
   
+
   Definition value_func_table_eq (vf : value_func) (vt : value_table) : Prop :=
-  forall s : state_t,  vf s = value_table_lookup vt s.
+    @Enum_table.eq_func _ _ _ (states_nonempty _) vt vf.
+
+  Definition policy_func_table_eq (pf : policy) (pt : policy_table) : Prop :=
+    @Enum_table.eq_func _ _ _ (states_nonempty _) pt pf.
 
   Lemma discounted_reward_tb_same: forall (vf : value_func) (vt : value_table) (s : state_t) (a : action_t),
       value_func_table_eq vf vt -> discounted_reward vf s a = discounted_reward_tb vt s a.
@@ -334,6 +352,7 @@ End mdp_numeric.
     unfold discounted_reward_tb.
     unfold discounted_reward.
     unfold value_func_table_eq in H0.
+    unfold Enum_table.eq_func in H0.
     unfold value_table_lookup in H0.
     apply big_sum_ext'.
       rewrite Enum_table.zip_table_length. auto.
@@ -342,7 +361,7 @@ End mdp_numeric.
     destruct x.
     destruct p0.
     simpl.
-    rewrite  H0.
+    rewrite <-  H0.
     apply In_nth with _ _ _ (s0,(s1,n)) in H1.
     destruct H1.
     destruct H1.
@@ -394,11 +413,12 @@ End mdp_numeric.
     unfold value_iteration_step_tb.
     unfold value_iteration_step.
     unfold value_func_table_eq.
+    unfold Enum_table.eq_func.
     intros.
     unfold value_table_lookup in *.
     unfold value_func_to_table.
     rewrite -> Enum_table.lookup_map; auto.
-    { apply mapmax_ne_ext. intros. apply discounted_reward_tb_same. auto. }
+    { apply mapmax_ne_ext. intros. symmetry. apply discounted_reward_tb_same. auto. }
     apply states_ok.
   Qed. 
   
@@ -421,6 +441,10 @@ End mdp_numeric.
   Definition evaluate_policy_step_tb (pol : policy) (v : value_table) : value_table :=
      value_func_to_table (fun s => discounted_reward_tb v s (pol s)).
 
+  Definition evaluate_policy_tb_step_tb (pol : policy_table) (v : value_table) : value_table :=
+     value_func_to_table (fun s => discounted_reward_tb v s (policy_table_lookup pol s)).
+
+
   Lemma evaluate_policy_step_tb_same: forall (pol : policy) (vf : value_func) (vt : value_table),
       value_func_table_eq vf vt -> value_func_table_eq (evaluate_policy_step pol vf) (evaluate_policy_step_tb pol vt).
   Proof.
@@ -429,15 +453,25 @@ End mdp_numeric.
     intros.
     unfold evaluate_policy_step.
     unfold evaluate_policy_step_tb.
-    unfold value_table_lookup.
+    unfold Enum_table.eq_func. intros.
     rewrite -> Enum_table.lookup_map; auto; auto.
-      apply discounted_reward_tb_same. auto.
+      symmetry. apply discounted_reward_tb_same. auto.
     apply states_ok.
   Qed.
-    
 
-
-  
+  Lemma evaluate_policy_tb_step_tb_same: forall (pf : policy) (pt : policy_table) (vt : value_table),
+    policy_func_table_eq pf pt -> (evaluate_policy_step_tb pf vt) = (evaluate_policy_tb_step_tb pt vt).
+  Proof.
+    intros.
+    unfold evaluate_policy_step_tb.
+    unfold evaluate_policy_tb_step_tb.
+    unfold value_func_to_table.
+    unfold policy_func_table_eq in H0.
+    unfold Enum_table.eq_func in H0.
+    apply Enum_table.map_to_table_ext.
+    intros. unfold policy_table_lookup.
+    rewrite H0. auto.
+  Qed.
 
   Definition value_diff  (v1 v2 : value_func) : value_func :=
   (fun s => v1 s + - v2 s).
@@ -712,6 +746,17 @@ End mdp_numeric.
         value_dist v1 v2 + value_dist v2 v3.
   Proof. intros. apply (banach.dist_triangle (value_iteration_banach)). Qed.
 
+  Lemma value_dist_triangle2: forall (v1 v2 v3 v4 : value_func), value_dist v1 v4 <=
+      value_dist v1 v2 + value_dist v2 v3 + value_dist v3 v4.
+  Proof.
+    intros.
+    eapply le_trans.
+      eapply value_dist_triangle.
+    rewrite <- plus_assoc.
+    eapply plus_le_compat_l.
+    apply value_dist_triangle.
+  Qed.
+
   Lemma value_dist_ge0: forall (v1 v2 : value_func), 0 <= value_dist v1 v2.
   Proof.
     intros.
@@ -777,11 +822,71 @@ End mdp_numeric.
     assert (Numerics.abs (v1 s + - v2 s) = f s).
       rewrite Heqf. auto.
     rewrite H0.
-    apply mapmax_ne_correct.
-    apply states_In.
+    apply mapmax_ne_correct; auto.
   Qed.
 
 
+  Lemma value_func_eval_ub: forall (s : state_t)(p : policy) (n : nat) (v : value_func),
+    (evaluate_policy_rec p v n) s <=  (value_iteration_rec v n) s.
+  Proof.
+    intros.
+    generalize dependent s.
+    generalize dependent p0.
+    generalize dependent v.
+    induction n.
+    { intros. unfold evaluate_policy_rec. simpl. apply le_refl. }
+    intros.
+    unfold evaluate_policy_rec.
+    simpl.    
+    unfold evaluate_policy_step.
+    unfold value_iteration_step.
+    apply le_trans with ( mapmax_ne  [eta discounted_reward (evaluate_policy_rec p0 v n) s] a_ne).
+    2:{ 
+      apply mapmax_ne_le_ext. intros.
+      unfold discounted_reward.
+      apply big_sum_le.
+      intros.
+      apply mult_le_compat_l. apply trans_pos.
+      apply plus_le_compat_l.
+      destruct discount_ok.
+      apply mult_le_compat_l; auto.
+    }
+    unfold evaluate_policy_rec in *.
+    unfold evaluate_policy_step.
+    apply mapmax_ne_correct; auto.
+  Qed.
+
+  Lemma value_dist_ext_l: forall (v1 v2 v3 : value_func),
+    (forall s : state_t, v1 s = v3 s) -> value_dist v1 v2 = value_dist v3 v2.
+  Proof.
+    intros.
+    unfold value_dist. apply mapmax_ne_ext. intros.
+    unfold value_diff. rewrite H0. auto.
+  Qed.
+
+  Lemma value_dist_ext_r: forall (v1 v2 v3 : value_func),
+    (forall s : state_t, v2 s = v3 s) -> value_dist v1 v2 = value_dist v1 v3.
+  Proof. 
+    intros. rewrite -> value_dist_comm with v1 v2.
+    erewrite value_dist_ext_l; eauto. apply value_dist_comm.
+  Qed.
+
+
+  Lemma eval_step_value_iteration_step_contraction: forall (v1 v2 : value_func), 
+    value_dist (evaluate_policy_step (value_func_policy v1) v2) (value_iteration_step v1) <=
+    discount * value_dist v1 v2. 
+  Proof.
+    intros.
+    erewrite value_dist_ext_r.
+    2:{ intros. rewrite value_iteration_step_policy_eval_same. auto. }
+    rewrite value_dist_comm.
+    apply evaluate_policy_contraction.
+  Qed.  
+
+
+
+
+  (**
   Lemma value_func_eval_ub: forall (s : state_t)(p : policy) (n : nat),
     evaluate_policy_state p s n <=  (value_iteration_rec (fun _ => 0) n) s.
   Proof.
@@ -814,7 +919,7 @@ End mdp_numeric.
     clear H2.
     apply mapmax_ne_correct.
     apply actions_In.
-  Qed.
+  Qed.**)
 
 
   Fixpoint policy_value_iteration (n : nat) (s : state_t) :=
@@ -824,6 +929,26 @@ End mdp_numeric.
       (states p_props) (fun s' => trans_f s a s' * evaluate_policy_state (policy_value_iteration n') s' n'))
       (actions_nonempty p_props)
   end.
+
+  Definition enumerate_policies := 
+    (@enumerate_table state_t action_t sts acts (states_ok _) (actions_ok _) s_ne).
+
+  Lemma policies_nonempty: O <> length enumerate_policies.
+  Proof.
+    unfold enumerate_policies.
+    apply enumerate_table_nonempty.
+    apply actions_nonempty.
+  Qed.
+
+  Lemma evaluate_policy_step_pol_ext: forall (p1 p2 : policy) (v : value_func),
+      (forall s, p1 s = p2 s) -> (forall s, evaluate_policy_step p1 v s = evaluate_policy_step p2 v s).
+  Proof.
+    intros.
+    unfold evaluate_policy_step. rewrite H0. auto.
+  Qed.
+  
+  Lemma enumerate_policies_ok: @Enum_ok policy_table enumerate_policies.
+  Proof. apply enum_table_ok. Qed.
 
  End mdp_reward_s.
 
@@ -836,7 +961,7 @@ End mdp_numeric.
 
 
     Program Definition mdp_prop_to_R (m : @mdp_props Nt H) : @mdp_props R _ :=
-      mdp_prop_mk (mdp_to_R (p m)) (state_eq_dec m) (action_eq_dec m)  (states m) (actions m) 
+      mdp_prop_mk (mdp_to_R (p m))   (states m) (actions m) 
      (states_ok m) (actions_ok m) _ _ (states_nonempty m) (actions_nonempty m).
     Next Obligation.
       rewrite to_R_big_sum.
@@ -979,7 +1104,7 @@ End mdp_numeric.
      
     Definition converge_value_func := banach.converge_func value_iteration_R_banach.
     Definition converge_eval_func (p : policy p_props) := banach.converge_func (evaluate_policy_R_banach p).
-
+    
    
     Lemma converge_value_func_correct: forall (v : value_func p_props) (s : state (p p_props)),
       Un_cv (fun n => (value_iteration_rec _ discount v n) s) (converge_value_func s).
@@ -1017,6 +1142,11 @@ End mdp_numeric.
     Lemma value_iteration_fixpoint: forall (s : (state (p p_props))),
       (value_iteration_step p_props discount converge_value_func) s = converge_value_func s.
     Proof. apply (banach.rec_fixpoint value_iteration_R_banach). Qed.
+
+    Lemma evaluate_policy_fixpoint: forall (pol : policy _) (s : (state (p _))),
+      (evaluate_policy_step _ discount pol (converge_eval_func pol)) s = (converge_eval_func pol) s.
+    Proof. intros.  apply (banach.rec_fixpoint (evaluate_policy_R_banach pol)). Qed.
+
 
     Lemma value_iteration_R_converge: forall (v : value_func p_props) (s : (state (p p_props))), exists r : R, Un_cv (fun n => (value_iteration_rec _ discount v n) s) r.
     Proof.
@@ -1071,10 +1201,372 @@ End mdp_numeric.
       intros.
       rewrite <- evaluate_policy_rec_state_same.
       rewrite <- R_le_same.
-      apply value_func_eval_ub. auto.
+      rewrite evaluate_policy_rec_state_same.
+      apply value_func_eval_ub; auto.
     Qed.
 
+
+    Lemma policy_eval_value_iteration_diff: forall (v1 v2 : value_func _),
+        value_dist _ (value_iteration_step p_props discount v1)
+          (evaluate_policy_step p_props discount (value_func_policy p_props discount v1) v2) <=
+        discount * value_dist _ v1 v2.
+    Proof.
+      intros.
+      destruct discount_ok.
+      unfold value_dist.
+      apply mapmax_ne_le_const.
+      intros.
+      unfold value_diff.
+      rewrite value_iteration_step_policy_eval_same.
+      unfold evaluate_policy_step.
+      unfold discounted_reward.
+      rewrite <- big_sum_nmul.
+      rewrite <- big_sum_plus.
+      eapply le_trans. eapply big_sum_le_abs.
+      erewrite big_sum_ext.
+      2: { reflexivity. }
+      2:{ 
+        unfold eqfun.
+        intros.
+        rewrite neg_mult_distr_r.
+        rewrite <- mult_plus_distr_l.
+        rewrite plus_neg_distr.
+        rewrite plus_assoc.
+        rewrite <- plus_assoc with _ (discount * v1 x) _.
+        rewrite -> plus_comm with (discount * v1 x) _.
+        rewrite plus_assoc.
+        rewrite plus_neg_r.
+        rewrite plus_id_l.
+        rewrite neg_mult_distr_r.
+        rewrite <- mult_plus_distr_l.
+        rewrite abs_mult_pos_l.
+        {
+          rewrite abs_mult_pos_l; auto. 
+          rewrite mult_assoc. rewrite -> mult_comm with _ discount.
+          rewrite <- mult_assoc. 
+          reflexivity.
+        }
+        apply (trans_pos p_props).
+      }
+      rewrite -> big_sum_scalar.
+      apply mult_le_compat_l; auto.      
+      unfold value_dist.
+      unfold value_diff.
+      eapply le_trans.
+      { eapply big_sum_func_leq_max_l. intros. apply (trans_pos p_props). }
+      rewrite -> (trans_sum1 p_props).
+      rewrite mult_id_l. right. auto.
+    Qed.
+
+    Lemma step_value_diff_converge: forall (v : value_func _), 
+      value_dist _ (value_iteration_step _ discount v) converge_value_func <= 
+          discount * value_dist _ v converge_value_func.
+    Proof.
+      intros.
+      erewrite value_dist_ext_r.
+      2:{ intros. erewrite value_iteration_fixpoint. auto. }
+      apply value_iteration_contraction; auto.
+    Qed.
+
+    Lemma value_diff_eval_conv_ub: forall (v : value_func _), 
+      (1 + - discount ) * value_dist _ v (converge_eval_func (value_func_policy _ discount v)) <=
+        (1 + discount) * value_dist _ v converge_value_func.
+    Proof.
+      intros.
+      destruct discount_ok.
+      assert(0 <= 1 + - discount).
+      {
+        eapply plus_le_compat_r_reverse.
+        rewrite <- plus_assoc. erewrite plus_neg_l.
+        rewrite plus_comm. apply plus_le_compat_r.
+        left. auto.
+      }
+      rewrite plus_mult_distr_r.
+      rewrite mult_id_l.
+      eapply le_trans.
+      {
+        eapply plus_le_compat_r.
+        eapply value_dist_triangle2 with discount; auto.
+      }
+      eapply le_trans.
+      {
+        rewrite <- plus_assoc.
+        eapply plus_le_compat_r.
+        eapply plus_le_compat_l.
+        erewrite value_dist_comm.
+        eapply step_value_diff_converge.
+      }
+      rewrite <- mult_id_l with (value_dist _ v converge_value_func).
+      erewrite <- plus_mult_distr_r.
+      rewrite <- plus_id_r.
+      rewrite mult_id_l.
+      rewrite <- neg_mult_distr_l.
+      eapply plus_le_compat_l.
+      erewrite <- plus_neg_r.
+      eapply plus_le_compat_r.
+      erewrite value_dist_ext_r.
+      2: { intros. erewrite <- evaluate_policy_fixpoint. reflexivity. }
+            
+
+      eapply le_trans.
+      {
+        
+      {
+      erewrite 
+      
+      
+      
+
+        eapply mult_le_compat_l; auto.
+        eapply value_dist_triangle with discount; auto.
+      }
+      rewrite plus_mult_distr_r.
+      rewrite mult_id_l.
+      
+      eapply mult_le_compat_l.
+        auto.
+        
+
+         
+        destrict discount_ok.
+        rewrite plus_id_l.
+        SearchAbout le.
+        SearchAbout mult_id.
+        
+
+    Lemma value_diff_eval_conv_ub: forall (v : value_func _), 
+      value_dist _ v (converge_eval_func (value_func_policy _ discount v)) <=
+        (1 + discount + discount) * value_dist _ v (value_iteration_step _ discount v).
+    Proof.
+      intros.
+      repeat rewrite plus_mult_distr_r.
+      rewrite mult_id_l.
+      eapply le_trans.
+      { apply value_dist_triangle with discount; auto. }
+      rewrite <- plus_assoc.
+      apply plus_le_compat_l.
+      eapply le_trans.
+      { eapply value_dist_triangle with discount; auto. }
+      apply plus_le_compat.
+      {        
+        erewrite value_dist_ext_r.
+          eapply policy_eval_value_iteration_diff.
+        intros. reflexivity.
+      }
+      
+        2: { intros. rewrite <- evaluate_policy_fixpoint. reflexivity. }
+      }
+      destruct discount_ok.
+      rewrite <- mult_plus_distr_l. apply mult_le_compat_l; auto.
+      
+      
+
+        apply plus_le_compat;
+            apply value_dist_triangle with discount; auto.
+          apply 
+          apply plus_le_compat; apply value_dist_triangle with discount; auto.
+      }
+      
+          { apply value_dist_tra
+
+ apply value_dist_triangle with discount; auto.
+
+    Lemma value_diff_opt_eval_ub: forall (v : value_func _), value_dist _ v (converge_eval_func (value_func_policy _ discount v)) <=
+      (1 + discount + discount + discount) * value_dist _ v converge_value_func.
+    Proof.
+      intros.
+      eapply le_trans.
+      { apply value_dist_triangle with discount; auto. }
+      eapply le_trans.
+      {
+        apply plus_le_compat.
+        { apply value_dist_triangle with discount; auto. }
+        apply value_dist_triangle with discount; auto.
+      }
+      (**rewrite -> plus_comm with 1 _.**)
+      repeat rewrite -> plus_mult_distr_r.      
+      rewrite mult_id_l.
+      repeat rewrite plus_assoc.
+      apply plus_le_compat.
+      {
+        apply plus_le_compat.
+        {
+          apply plus_le_compat. right. reflexivity.
+          erewrite value_dist_comm.
+          apply step_value_diff_converge.
+        }
+        eapply policy_eval_value_iteration_diff.
+      }
+      erewrite value_dist_ext_r. 
+      { rewrite -> value_dist_comm with _ v _. apply evaluate_policy_contraction. auto. }
+      intros. rewrite <- evaluate_policy_fixpoint. 
+      apply evaluate_policy_step_ext.
+      intros.
+      
+
+ auto.
+      eapply le_trans.
+      {
+          apply evaluate_policy_contraction; auto.
+        intros. rewrite <- evaluate_policy_fixpoint. reflexivity.
+      }
+      
+      intros. rewrite <- evaluate_policy_fixpoint. auto.
+      2: { intros. rewrite <- evaluate_policy_fixpoint. reflexivity. }
+      eapply le_trans.
+       
+        apply step_value_diff_converge.
+      }
+      SearchAbout converge_value_func.
+      eapply le_trans.
+      2:{ eapply policy_eval_value_iteration_diff. }
+      rewrite <- value_iteration_step_policy_eval_same.
+      rewrite <- 
+          
+          rewrite <- value_iteration_fixpoint.
+
+ SearchAbout value_dist. 
+
+    Lemma value_iteration_diff_eval_policy_ub: forall (v : value_func _) (n : nat), 
+      (1 + - discount) * value_dist _ (converge_eval_func (value_func_policy _ discount (value_iteration_rec _ discount v n)))
+          (value_iteration_rec _ discount v n)  <= pow_nat discount n * value_dist _ v (value_iteration_step _ discount v).
+    Proof.
+      intros.
+      rewrite plus_mult_distr_r.
+      rewrite mult_id_l.
+      apply plus_le_compat_r_reverse with (discount * value_dist _ (converge_eval_func (value_func_policy _ discount
+        (value_iteration_rec _ discount v n))) (value_iteration_rec _ discount v n) ).
+      rewrite <- plus_assoc.
+      rewrite <- neg_mult_distr_l.
+      rewrite plus_neg_l.
+      rewrite plus_id_r.
+      eapply le_trans.
+      { eapply value_dist_triangle. apply discount_ok. }
+      eapply le_trans.
+      { eapply plus_le_compat_l. eapply value_iteration_converge_aux. auto. }
+      rewrite plus_comm.
+      rewrite value_dist_comm. eapply plus_le_compat_l.
+      erewrite value_dist_ext_r.
+      2:{ intros. rewrite value_iteration_rec_reverse. apply value_iteration_step_policy_eval_same. }
+      erewrite value_dist_ext_l.
+      2:{ intros. symmetry. apply evaluate_policy_fixpoint. }
+      apply evaluate_policy_contraction. auto.
+  Qed.
+
+
+  Lemma converge_eval_func_ext: forall (p1 p2 : policy p_props),
+    (forall s, p1 s = p2 s) -> (forall s, converge_eval_func p1 s = converge_eval_func p2 s).
+  Proof.
+    intros.
+    unfold converge_eval_func.
+    apply banach.fixpoint_unique.
+    intros. simpl.
+    erewrite evaluate_policy_step_pol_ext.
+    2:{ symmetry.  apply H. }
+    rewrite <- banach.rec_fixpoint. simpl.
+    auto.
+  Qed.
+
+  Lemma value_func_mapmax_ne_policy_tb: forall s, 
+    converge_value_func s  = mapmax_ne (l:=enumerate_policies _) 
+      (fun p => converge_eval_func (Enum_table.to_func (states_nonempty _) p) s) (policies_nonempty p_props).
+  Proof.
+    intros.
+    rewrite value_iteration_eval_limit_same.
+    symmetry. apply mapmax_ne_eq_const.
+    split; intros.
+      apply value_iteration_limit_opt.
+    eexists.
+    split.
+      unfold enumerate_policies. apply enum_table_total.
+    apply converge_eval_func_ext.
+    intros. unfold Enum_table.to_func. apply Enum_table.lookup_map.
+    apply (states_ok p_props).
+  Qed. 
+
+
+  Lemma policy_tb_eval_limit_opt_or_lt_aux: forall s : (state (p p_props)), exists x : R, 0 < x /\ forall (p : policy_table p_props), 
+    (converge_eval_func (Enum_table.to_func (states_nonempty _) p) s = converge_value_func s ) 
+    \/ (converge_eval_func (Enum_table.to_func (states_nonempty _) p) s + x <= converge_value_func s).
+  Proof.
+    intros.
+    destruct mapmax_ne_min_dist_max with R Numeric_R (policy_table p_props) 
+      (fun p => converge_eval_func (Enum_table.to_func (states_nonempty p_props) p) s) (enumerate_policies p_props) 
+      (policies_nonempty p_props).
+    destruct H.
+    exists x.
+    intros.
+    rewrite value_func_mapmax_ne_policy_tb.
+    split; auto. intros.
+    destruct H0 with p0; auto.
+      unfold enumerate_policies. apply enum_table_total. 
+  Qed.
+
+
+  Lemma policy_tb_eval_limit_opt_or_lt_aux': forall (T : Type) (P : T->R->Prop) (l : list T),
+    (forall (t : T), exists x, 0 < x /\ (forall y, y <= x -> P t y)) -> 
+      exists x : R, (0 < x /\ (forall (t : T) y, In t l -> y <= x -> P t y)).
+  Proof. 
+    intros.
+    induction l.
+    { 
+      exists 1.
+      split; auto.
+        apply plus_id_lt_mult_id.
+      intros. inversion H0.
+    }
+    destruct IHl.
+    destruct H0.
+    destruct H with a.
+    destruct H2.
+    exists (Numerics.min x x0).
+    split.
+    { unfold min. destruct (leb x x0); auto. }
+    intros.
+    inversion H4.
+    { 
+      rewrite <- H6. apply H3. 
+      apply le_trans with (min x x0); auto.
+      apply ge_min_r.
+    }
+    apply H1; auto.
+    apply le_trans with (min x x0); auto.
+    apply ge_min_l.
+  Qed.  
+  Lemma policy_tb_eval_limit_opt_or_lt: exists x : R, forall (s : (state (p p_props))) (pol : policy_table p_props), 
+    (converge_eval_func (Enum_table.to_func (states_nonempty _) pol) s = converge_value_func s ) 
+    \/ (converge_eval_func (Enum_table.to_func (states_nonempty _) pol) s + x <= converge_value_func s).
+  Proof.
+    destruct policy_tb_eval_limit_opt_or_lt_aux' with (state (p p_props))
+      (fun (s : state (p p_props)) x => forall (pol : policy_table p_props),
+        converge_eval_func (Enum_table.to_func (states_nonempty p_props) pol) s = converge_value_func s \/
+        converge_eval_func (Enum_table.to_func (states_nonempty p_props) pol) s + x <= converge_value_func s) 
+      (states p_props); intros.
+    {
+      destruct policy_tb_eval_limit_opt_or_lt_aux with t.
+      destruct H.
+      exists x.
+      split; auto.
+      intros.
+      destruct H0 with pol; auto.
+      right.
+      eapply le_trans.
+      2: apply H2.
+      apply plus_le_compat_l. auto.
+    }
+    destruct H.
+    exists x.
+    intros.
+    apply H0.
+    apply states_In. apply le_refl.
+  Qed.
+
+  
+    
+
 End mdp_R.
+
+
 
   
 
