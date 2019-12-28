@@ -96,7 +96,8 @@ def ask_weight_info():
                                  'Quantized'])
     ]
     weights_type = inquirer.prompt(questions)['weights_type'].lower()
-    bits = 16 if weights_type == 'float' else ask_bits()
+    # bits = 16 if weights_type == 'float' else ask_bits()
+    bits = 16 if weights_type == 'float' else 2
     return weights_type, bits
 
 # def ask_layer_info():

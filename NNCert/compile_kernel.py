@@ -215,7 +215,7 @@ Open Scope list_scope.
 Notation "\'i\' ( x )":=(NIn x) (at level 65).
 Notation "\'r\' ( x )":=(NReLU x) (at level 65).
 Notation "\'c\' ( x )":=(NComb x) (at level 65).
-Notation "\'V\' ( x )":=(@AxVec_of_list 16 _ x) (at level 65).
+Notation "\'V\' ( x )":=(@AxVec_of_list 0 _ x) (at level 65).
 Notation "\'T\'":=(true) (at level 65).
 Notation "\'F\'":=(false) (at level 65).
 """.format(IN, IN, NEURONS, NEURONS, OUT, OUT)
