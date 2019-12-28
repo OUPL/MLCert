@@ -215,7 +215,7 @@ Open Scope list_scope.
 Notation "\'i\' ( x )":=(NIn x) (at level 65).
 Notation "\'r\' ( x )":=(NReLU x) (at level 65).
 Notation "\'c\' ( x )":=(NComb x) (at level 65).
-Notation "\'V\' ( x )":=(@AxVec_of_list _ _ x) (at level 65).
+Notation "\'V\' ( x )":=(@AxVec_of_list 16 _ x) (at level 65).
 Notation "\'T\'":=(true) (at level 65).
 Notation "\'F\'":=(false) (at level 65).
 """.format(IN, IN, NEURONS, NEURONS, OUT, OUT)
@@ -255,8 +255,8 @@ Section tf_bound.
     (not_perfectly_learnable : 
       forall p : ParamsFin, 0 < expVal d m_gt0 accuracy p < 1).
 
-Lemma tf_main_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
-  tf_main d eps init (fun _ => 1) <= 
+Lemma tf_main_bound (eps:R) (eps_gt0 : 0 < eps) :
+  tf_main d eps (fun _ => 1) <= 
   INR (2 ^ (4 * 16 + """ + str(NEURONS) + " * " + str(IN) + " * 16 + " + str(NEURONS) + """ * 10 * 16)) * exp (-2%R * eps^2 * mR m).
 Proof.
   rewrite -CProof.card_bitvec16_EMNIST_10_KernelFinType; apply: Rle_trans; last first.
@@ -273,8 +273,8 @@ Section tf_holdout_bound.
     (not_perfectly_learnable : 
       forall p : ParamsFin, 0 < expVal d mtest_gt0 accuracy_holdout p < 1).
 
-Lemma tf_main_holdout_bound (eps:R) (eps_gt0 : 0 < eps) (init:ParamsFin) :
-  tf_main_holdout d eps init (fun _ => 1) <= exp (-2%R * eps^2 * mR mtest).
+Lemma tf_main_holdout_bound (eps:R) (eps_gt0 : 0 < eps) :
+  tf_main_holdout d eps (fun _ => 1) <= exp (-2%R * eps^2 * mR mtest).
 Proof. by apply: oracular_main_holdout_bound. Qed.
 End tf_holdout_bound.
 """
