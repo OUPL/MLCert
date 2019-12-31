@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import sys
 sys.path.insert(0, './tf')
@@ -328,7 +329,10 @@ def evaluate(gen_batches=None):
     with gzip.open('params.pkl.gz', 'rb') as f:
         weights = pickle.load(f, encoding='latin1')
 
+    # This only applies to train data batches, not test.
     num_batches = 2000 if load_pickled('pca.pkl') else 2400
+
+    batches_dir =  'extract/batches'
 
     # TODO: need to generate different batch data sometimes.. (PCA)
     # if not Path('extract/batches/batch_' + str(num_batches-1)).is_file():
@@ -341,20 +345,30 @@ def evaluate(gen_batches=None):
         ]
         gen_batches = inquirer.prompt(questions)['make_batches']
     if gen_batches:
+        questions = [
+            inquirer.List('batches_type',
+                          message = 'Train or test:',
+                          choices = ['Train',
+                                     'Test'])
+        ]
+        train_batches = inquirer.prompt(questions)['batches_type'].lower() \
+                        == 'train'
+        num_batches = num_batches if train_batches else 400
         call(['python3', 'tf/make_simple_data.py', str(num_batches),
-              str(pca), 'False', 'tf/emnist', 'extract/batches'])
+              str(pca), str(not train_batches), 'tf/emnist', batches_dir])
+
 
     # print('Batch data is missing. Generating it now..')
     # call(['python3', 'tf/make_simple_data.py', str(num_batches), 'False', 'tf'])
     # print('Done generating batches.')
 
-    call(['rm', 'extract/batch_test.mli'])
+    call(['rm', '-f', 'extract/batch_test.mli'])
     print('Compiling OCaml executable...')
     call(['ocamlopt', '-o', 'extract/batch_test', 'extract/batch_test.ml'])
     print('Running evaluation...')
     logfile = 'extract/log_' + str(time.time()) + '.txt'
     call(['extract/scripts/train_err', 'extract/batch_test', logfile,
-          'extract/batches', str(num_batches), '5'])
+          batches_dir, str(num_batches), '5'])
     call(['python3', 'extract/scripts/accuracy.py', str(num_batches)],
          stdin=open(logfile, 'r'))
 
