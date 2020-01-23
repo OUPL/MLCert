@@ -247,19 +247,22 @@ Section KernelPerceptronGeneralizationBudget.
     @accuracy01 A _ m Params (Learner.predict 
       (@KernelPerceptronBudget.Learner n m sv F K U) hypers).
 
-  Lemma Kcard_Params_Budget : INR #|Params| = 2 ^ ((32) + (sv*n*32) + (sv*32)).
+(*Lemma fun_thing : INR #| AxVec_finType sv [finType of 'I_m]| = 2 ^ (sv * m).
+  rewrite (@AxVec_card sv m).
+  - rewrite pow_INR. reflexivity.
+  - rewrite card_ord. Check AxVec_card_gen. Admitted.*)
+  Lemma Kcard_Params_Budget : INR #|Params| = (*2 ^ ((32) + (sv*n*32) + (sv*32))*)
+    INR ((2 ^ 32) * (m * (2 ^ (n * 32)) * 2)) ^ (S (sv)).
+    
   Proof.
-    unfold Params. 
-    (*(*rewrite !float32_arr_card.*)
-    rewrite /training_set. card_prod !float32_arr_card.
-    rewrite float32_card.
-    rewrite mult_INR !pow_INR.
-    rewrite mult_INR !pow_INR.
-    rewrite pow_add.
-    rewrite pow_add.
-    reflexivity.
-    (*rewrite mult_INR !pow_INR /= pow_add //.*)*)
-    Admitted.
+  SearchAbout INR.
+    unfold Params. unfold bsupport_vector. unfold Akb.
+    rewrite (@AxVec_card_gen (2 ^ 32 * (m * 2 ^ (n * 32) * 2)) (S sv)).
+    - rewrite pow_INR. auto.
+    - rewrite card_prod. rewrite float32_card.
+    rewrite card_prod. rewrite card_prod. rewrite card_ord.
+    rewrite float32_arr_card. rewrite card_bool. auto.
+    Qed.
 
   Variables 
     (not_perfectly_learnable : 
@@ -270,7 +273,7 @@ Section KernelPerceptronGeneralizationBudget.
     @main A B Params KernelPerceptronBudget.Hypers 
       (@KernelPerceptronBudget.Learner n m sv F K U)
       hypers m m_gt0 epochs d eps init (fun _ => 1) <=
-    2^((32) + (sv*n*32) + (sv*32)) * exp (-2%R * eps^2 * mR m).
+    INR ((2 ^ 32) * (m * (2 ^ (n * 32)) * 2)) ^ (S (sv)) * exp (-2%R * eps^2 * mR m).
   Proof.
     rewrite -Kcard_Params_Budget.
     apply: Rle_trans; first by apply: main_bound.
@@ -320,20 +323,21 @@ Section KPerceptronExtractionBudget.
   (*Variable m : nat. (*The number of training samples*)*)
   Variable epochs : nat.
 
-  Notation Params := (KernelParamsBudget sv)%type.
+  Notation Params := (KernelPerceptronBudget.Params n m sv)%type.
 
   Variable hypers : KernelPerceptronBudget.Hypers.
   Variable K : float32_arr n -> float32_arr n -> float32.
 
   Notation Q := (A * B)%type.
-  Notation Q' := ('I_sv * float32_arr n * B)%type.
-  Variable U : (@KernelPerceptronBudget.Params sv (seq.seq Q')) -> 
-     float32_arr n -> (@KernelPerceptronBudget.Params sv (seq.seq Q')).
+  Notation Q' := ('I_m * float32_arr n * B)%type.
+  Variable U : (@KernelPerceptronBudget.Params n m sv) -> 
+     Q -> (@KernelPerceptronBudget.Params n m sv).
   Check extractible_main.
+  Context `{F : Foldable Params (float32 * bsupport_vector n m)}.
   Definition kperceptronbudget (r:Type) := 
     @extractible_main
       A B Params KernelPerceptronBudget.Hypers
-      (@KernelPerceptronBudget.Learner n m sv (seq.seq Q') (list_Foldable Q') K U)
+      (@KernelPerceptronBudget.Learner n m sv F K U)
       hypers
       epochs
       (seq.seq Q)
