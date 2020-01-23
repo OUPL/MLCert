@@ -7,7 +7,6 @@ From mathcomp Require Import all_ssreflect.
 Require Import List. Import ListNotations.
 Require Import Reals Rpower.
 Require Import Extraction.
-Require Import Omega.
 
 (** Axioms. Extraction schemes are language specific, and can be
  found in files: 
