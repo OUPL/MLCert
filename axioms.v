@@ -38,7 +38,13 @@ Definition AxVec_of_list (n:nat) (t:Type) (l:list t) : AxVec (length l) t :=
 Axiom AxVec_finite : forall (n:nat) (t:finType), Finite.class_of (AxVec n t).
 Definition AxVec_finType (n:nat) (t:finType) : finType :=
   Finite.Pack (AxVec_finite n t) (AxVec n t).
-Axiom AxVec_card : forall m n (t:finType), #|t| = 2^n -> #|AxVec_finType m t| = 2^(m*n).
+Axiom AxVec_card_gen : forall a b (t:finType), #|t| = a -> #|AxVec_finType b t| = a ^ b.
+Lemma AxVec_card : forall m n (t:finType), #|t| = 2^n -> #|AxVec_finType m t| = 2^(m*n).
+  intros. rewrite (@AxVec_card_gen (2 ^ n) m).
+  - rewrite <- mult_comm. rewrite Nat.pow_mul_r. reflexivity. 
+  - assumption.
+  Qed.
+
 
 (*Axiom AxVec_map : forall (n:nat) (s t:Type), (s -> t) -> AxVec n s -> AxVec n t.
 Axiom AxVec_cons: forall (n:nat) (t:Type), t -> AxVec n t -> AxVec (S n) t.
