@@ -106,7 +106,7 @@ Module KernelPerceptronBudget.
     Notation A := (Ak n m).
     Notation B := Bk.
     Definition Params := bsupport_vectors n m (S sv).
-    Context `{F: Foldable (bsupport_vectors n m (S sv)) (float32 * bsupport_vector n m)}.   
+    Context `{F: Foldable Params (float32 * bsupport_vector n m)}.   
     Variable K : float32_arr n -> float32_arr n -> float32.
     Variable U : Params -> A*B -> Params. 
     
