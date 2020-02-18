@@ -1,4 +1,5 @@
 {-# LANGUAGE StandaloneDeriving #-}
+--must compile with flag -XTypeSynonymInstances
 
 module Main where
 
@@ -19,18 +20,15 @@ epochs = fromInt 5
 
 dist _ = -1.0 --not used in sampler below
 
---init_weights :: Float32_arr
---init_weights = take (fromNat m) $ repeat 0.0
+init_weights :: Float32_arr
+init_weights = take (fromNat n) $ repeat 0.0
 
---makeKernelParams :: [(Ak, Bk)] -> Params [(Ak, Bk)]
---makeKernelParams dataset = (dataset, init_weights)
+makeBudgetParamhelper :: Nat -> Params
+makeBudgetParamhelper O = []
+makeBudgetParamhelper (S sv) = (0.0, ((O, init_weights), False)) : (makeBudgetParamhelper sv)
 
 makeBudgetParams :: [((Ordinal, Float32_arr), Bk)] -> Params
-makeBudgetParams dataset = []
-
-{-makeFoldable :: KPerceptronBudget.Foldable Bsupport_vectors (Float32, Bsupport_vector)
-makeFoldable = KPerceptronBudget.MkFoldable (() -> (Monad Any) -> () -> ((Float32, Bsupport_vector) -> Any -> Any) -> Any -> Bsupport_vectors ->
-Any) (() -> (Monad Any) -> ((Float32,Bsupport_vector) -> Any) -> Bsupport_vectors -> Any)-}
+makeBudgetParams dataset = makeBudgetParamhelper (S sv)
 
 categorize :: Nat -> (,) Float32_arr Float32 -> [Float32] -> Bk
 categorize n p a =
@@ -81,12 +79,11 @@ training_set hyperplane n (S m)
 
 test_set = training_set
 
-print_generalization_err ::
-  [(Ak, Bk)] ->
-  Params ->
-  IO ()
-print_generalization_err test (model, training) =
-  let (train, params) = model in
+instance Show Ordinal where
+  show O = "0"
+  show (S n) = 'S' : show n
+
+print_generalization_err test (model, train) =
   let corrects dataset = 
         map (\(example, label) ->
                 if kernel_predict_specialized model example == label
@@ -97,8 +94,8 @@ print_generalization_err test (model, training) =
       percent_correct_test
         = fromIntegral (sum $ corrects test) / fromIntegral (fromNat m)
   in putStrLn
-     $ "Model: " ++ show params ++ "\n"
-       ++ "Training: " ++ show percent_correct_training ++ "\n"
+     $ "Model: " ++ show model ++ "\n" ++
+       "Training: " ++ show percent_correct_training ++ "\n"
        ++ "Test: " ++ show percent_correct_test ++ "\n"
        ++ "Generalization Error: "
        ++ show (abs (percent_correct_training - percent_correct_test))
