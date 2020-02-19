@@ -46,11 +46,11 @@ Section KernelClassifierBudget.
   Variable sv : nat. (*#support vectors*)
   Variable K: float32_arr n -> float32_arr n -> float32.
   
-  Definition Akb: Type := ('I_m * float32_arr n). (*examples*)
+  Definition Akb: Type := float32_arr n. (*examples*)
   Definition Bkb := bool. (*labels*)
 
   Definition bsupport_vector: Type := Akb * Bkb.
-  Definition bsupport_vectors: Type := AxVec sv (float32 * bsupport_vector).
+  Definition bsupport_vectors: Type := AxVec sv (float32 * (bsupport_vector)).
   Context `{Foldable bsupport_vectors (float32 * bsupport_vector)}.
   
   Section predict.
@@ -61,8 +61,7 @@ Section KernelClassifierBudget.
                (x: Akb) : Bkb :=
       foldable_foldM
         (fun wi_xi r =>
-           let: (_, x) := x in
-           let: (wi, ((_, xi), yi)) := wi_xi in 
+           let: (wi, (xi, yi)) := wi_xi in 
            r + (float32_of_bool yi) * wi * (K xi x))
         0 w > 0.
   End predict.
@@ -103,10 +102,10 @@ Module KernelPerceptronBudget.
     Variable n : nat. (*the dimensionality*)
     Variable m : nat. (*#examples*)
     Variable sv : nat. (*#support vectors - 1*)
-    Notation A := (Ak n m).
-    Notation B := Bk.
-    Definition Params := bsupport_vectors n m (S sv).
-    Context `{F: Foldable Params (float32 * bsupport_vector n m)}.   
+    Notation A := (Akb n).
+    Notation B := Bkb.
+    Definition Params := bsupport_vectors n (S sv).
+    Context `{F: Foldable Params (float32 * (A * B))}.   
     Variable K : float32_arr n -> float32_arr n -> float32.
     Variable U : Params -> A*B -> Params. 
     
@@ -125,42 +124,40 @@ Module KernelPerceptronBudget.
       end.
 
     (*Is x in s?*)
-    Set Printing All.
-    Definition existing (s : Params) (yj : A) : bool :=
-      let: (j, y) := yj in 
+    Definition existing (s : Params) (yj : A*B) : bool :=
+      let: (j, y) := yj in
       foldable_foldM
         (fun wi_xi r =>
-           let: (_, ((i, x), l)) := wi_xi
-           in (i == j) || r)
+          let: (_, (x, l)) := wi_xi in
+            (f32_arr_eq x j) || r)
         false s.
-       
+        
     Definition upd_weights (p: Params) (yj: A): Params :=
-      let: (j, y) := yj in 
       AxVec_map
-        (fun xi =>
-           let: (wi, ((i, x), li)) := xi in 
-           if i == j then (wi+1, ((i, x), li))
-           else xi)
+        (fun xi => 
+          let: (wi, (x, li)) := xi in
+          if f32_arr_eq x yj then (wi+1, (x, li))
+          else xi)
         p.
-
+        
     Definition add_new (p: Params) (yj: A*B): Params :=
       AxVec_cons (1, yj) (AxVec_tail p).
     
     Definition budget_update (p: Params) (yj: A*B): Params :=
-      if existing p yj.1 then upd_weights p yj.1
+      if existing p yj then upd_weights p yj.1
       else add_new p yj.
       
     Definition kernel_update 
       (K : float32_arr n -> float32_arr n -> float32)
           (h:Hypers) (example_label:A*B) (p:Params) : Params :=
-      let: ((i, example), label) := example_label in 
-      let: predicted_label := kernel_predict_budget K p (i, example) in
+      let: (example, label) := example_label in 
+      let: predicted_label := kernel_predict_budget K p example in
       if Bool.eqb predicted_label label then p
       else (U p example_label).
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
-        (fun _ => @kernel_predict_budget n m (S sv) K F)
+        (fun _ => @kernel_predict_budget n (S sv) K F)
         (kernel_update K).
   End Learner.
 End KernelPerceptronBudget.
@@ -221,7 +218,7 @@ Section KernelPerceptronGeneralizationBudget.
   Variable n : nat. (*The dimensionality*)
   Variable m : nat. (*#examples*)
   Variable sv : nat.
-  Notation A := [finType of 'I_m * float32_arr_finType n].
+  Notation A := (float32_arr_finType n).
   Notation B := bool_finType.
   Variable d : A * B -> R.
   Variable d_dist : big_sum (enum [finType of A * B]) d = 1.
@@ -237,25 +234,21 @@ Section KernelPerceptronGeneralizationBudget.
   Notation bsupport_vector := [finType of A * B].
   Notation Params := (AxVec_finType (S sv) [finType of (float32_finType * bsupport_vector)]).
   
-  Context `{F : Foldable (bsupport_vectors n m (S sv)) (float32 * bsupport_vector)}.
-  Variable U : bsupport_vectors n m (S sv) -> A * B -> bsupport_vectors n m (S sv).
+  Context `{F : Foldable (bsupport_vectors n (S sv)) (float32 * bsupport_vector)}.
+  Variable U : bsupport_vectors n (S sv) -> A * B -> bsupport_vectors n (S sv).
   Definition KaccuracyBudget := 
     @accuracy01 A _ m Params (Learner.predict 
-      (@KernelPerceptronBudget.Learner n m sv F K U) hypers).
+      (@KernelPerceptronBudget.Learner n sv F K U) hypers).
 
-(*Lemma fun_thing : INR #| AxVec_finType sv [finType of 'I_m]| = 2 ^ (sv * m).
-  rewrite (@AxVec_card sv m).
-  - rewrite pow_INR. reflexivity.
-  - rewrite card_ord. Check AxVec_card_gen. Admitted.*)
-  Lemma Kcard_Params_Budget : INR #|Params| = (*2 ^ ((32) + (sv*n*32) + (sv*32))*)
-    INR ((2 ^ 32) * (m * (2 ^ (n * 32)) * 2)) ^ (S (sv)).
+  Lemma Kcard_Params_Budget : INR #|Params| =
+    INR ((2 ^ 32) * ((2 ^ (n * 32)) * 2)) ^ (S (sv)).
     
   Proof.
     unfold Params. unfold bsupport_vector. unfold Akb.
-    rewrite (@AxVec_card_gen (2 ^ 32 * (m * 2 ^ (n * 32) * 2)) (S sv)).
+    rewrite (@AxVec_card_gen (2 ^ 32 * (2 ^ (n * 32) * 2)) (S sv)).
     - rewrite pow_INR. auto.
     - rewrite card_prod. rewrite float32_card.
-    rewrite card_prod. rewrite card_prod. rewrite card_ord.
+    rewrite card_prod.
     rewrite float32_arr_card. rewrite card_bool. auto.
     Qed.
 
@@ -266,9 +259,9 @@ Section KernelPerceptronGeneralizationBudget.
 
   Lemma Kperceptron_bound_budget eps (eps_gt0 : 0 < eps) init : 
     @main A B Params KernelPerceptronBudget.Hypers 
-      (@KernelPerceptronBudget.Learner n m sv F K U)
+      (@KernelPerceptronBudget.Learner n sv F K U)
       hypers m m_gt0 epochs d eps init (fun _ => 1) <=
-    INR ((2 ^ 32) * (m * (2 ^ (n * 32)) * 2)) ^ (S (sv)) * exp (-2%R * eps^2 * mR m).
+    INR ((2 ^ 32) * ((2 ^ (n * 32)) * 2)) ^ (S (sv)) * exp (-2%R * eps^2 * mR m).
   Proof.
     rewrite -Kcard_Params_Budget.
     apply: Rle_trans; first by apply: main_bound.
@@ -311,32 +304,31 @@ Section KPerceptronExtractionBudget.
   Variable n : nat. (*The dimensionality*)
   Variable m : nat. (*#examples*)
   Variable sv : nat.
-  Notation A := (Ak n m).
-  Notation B := Bk.
+  Notation A := (Akb n).
+  Notation B := Bkb.
   Variable d : A * B -> R.
 
   (*Variable m : nat. (*The number of training samples*)*)
   Variable epochs : nat.
 
-  Notation Params := (KernelPerceptronBudget.Params n m sv)%type.
+  Notation Params := (KernelPerceptronBudget.Params n sv)%type.
 
   Variable hypers : KernelPerceptronBudget.Hypers.
   Variable K : float32_arr n -> float32_arr n -> float32.
 
   Notation Q := (A * B)%type.
-  Notation Q' := ('I_m * float32_arr n * B)%type.
-  Variable U : (@KernelPerceptronBudget.Params n m sv) -> 
-     Q -> (@KernelPerceptronBudget.Params n m sv).
+  Variable U : (@KernelPerceptronBudget.Params n sv) -> 
+     Q -> (@KernelPerceptronBudget.Params n sv).
   
-  Context `{F : Foldable Params (float32 * bsupport_vector n m)}.
+  Context `{F : Foldable Params (float32 * bsupport_vector n)}.
   Definition kperceptronbudget (r:Type) := 
     @extractible_main
       A B Params KernelPerceptronBudget.Hypers
-      (@KernelPerceptronBudget.Learner n m sv F K U)
+      (@KernelPerceptronBudget.Learner n sv F K U)
       hypers
       epochs
-      (seq.seq Q')
-      (list_Foldable Q')
+      (seq.seq Q)
+      (list_Foldable Q)
       r
       (fun T => ret T).
 End KPerceptronExtractionBudget.

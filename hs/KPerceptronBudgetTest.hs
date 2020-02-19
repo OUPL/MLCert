@@ -1,5 +1,4 @@
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 
 module Main where
 
@@ -25,32 +24,30 @@ init_weights = take (fromNat n) $ repeat 0.0
 
 makeBudgetParamhelper :: Nat -> Params
 makeBudgetParamhelper O = []
-makeBudgetParamhelper (S sv) = (0.0, ((O, init_weights), False)) : (makeBudgetParamhelper sv)
+makeBudgetParamhelper (S sv) = (0.0, (init_weights, False)) : (makeBudgetParamhelper sv)
 
-makeBudgetParams :: [((Ordinal, Float32_arr), Bk)] -> Params
 makeBudgetParams dataset = makeBudgetParamhelper (S sv)
 
-categorize :: Nat -> (,) Float32_arr Float32 -> [Float32] -> Bk
+categorize :: Nat -> (,) Float32_arr Float32 -> [Float32] -> Bkb
 categorize n p a =
   case p of {
    (,) w b -> f32_gt (f32_add (f32_dot n w a) b) f32_0}
 
 print_training_set [] = return ()
-print_training_set (((i,xs),y) : t) =
+print_training_set ((xs,y) : t) =
   let print_xs [] = return ()
       print_xs (x : xs) = putStr (show x) >> putStr "," >> print_xs xs
   in
-  do { putStrLn (show $ fromNat i)
-     ; print_xs xs
+  do { print_xs xs
      ; putStrLn (show y)
      ; print_training_set t }
 
 kernel_predict_specialized ::
   Params ->
-  Ak ->
-  Bk
+  Akb ->
+  Bkb
 kernel_predict_specialized kparams ak =
-  kernel_predict_budget n m sv (KPerceptronBudget.linear_kernel n) list_Foldable kparams ak
+  kernel_predict_budget n sv (KPerceptronBudget.linear_kernel n) list_Foldable kparams ak
        
 sampler hyperplane _ f =
   do { t <- training_set hyperplane n m
@@ -66,7 +63,7 @@ training_example (S n) =
 training_row hyperplane i n = 
   do { example <- training_example n
      ; let label = categorize n (hyperplane, 0.0) example
-     ; return ((i, example), label) }
+     ; return (example, label) }
   where int2bool :: Int -> Bool
         int2bool 0 = False
         int2bool 1 = True
@@ -78,10 +75,6 @@ training_set hyperplane n (S m)
        ; return $ r : t }
 
 test_set = training_set
-
-instance Show Ordinal where
-  show O = "0"
-  show (S n) = 'S' : show n
 
 print_generalization_err test (model, train) =
   let corrects dataset = 
@@ -103,6 +96,6 @@ print_generalization_err test (model, train) =
 main = 
   do { hyperplane <- training_example n
      ; test <- test_set hyperplane n m
-     ; kperceptronbudget n m sv epochs (KPerceptronBudget.linear_kernel n) (budget_update n m sv list_Foldable) list_Foldable (sampler hyperplane) dist
+     ; kperceptronbudget n sv epochs (KPerceptronBudget.linear_kernel n) (budget_update n sv list_Foldable) list_Foldable (sampler hyperplane) dist
      makeBudgetParams (print_generalization_err test) }
          
