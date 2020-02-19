@@ -1,5 +1,5 @@
 {-# LANGUAGE StandaloneDeriving #-}
---must compile with flag -XTypeSynonymInstances
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Main where
 

@@ -26,7 +26,7 @@ Extract Constant AxVec "t" => "[t]".
 Extract Constant AxVec_to_list => "(\_ l -> l)".
 
 Extract Constant AxVec_map => "GHC.Base.const GHC.Base.fmap".
-Extract Constant AxVec_cons => "(\_ a b -> [a] Prelude.++ b)".
+Extract Constant AxVec_cons => "(\_ ->  (:))".
 Extract Constant AxVec_tail => "(\_ a -> Prelude.init a)".
 
 (*(*AxVec Tests*)*)
