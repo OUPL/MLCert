@@ -139,7 +139,8 @@ Module KernelPerceptronBudget.
           if f32_arr_eq x yj then (wi+1, (x, li))
           else xi)
         p.
-        
+      
+    (*This function requires that the Params be initialized with (S sv) support vectors*)  
     Definition add_new (p: Params) (yj: A*B): Params :=
       AxVec_cons (1, yj) (AxVec_init p).
     
