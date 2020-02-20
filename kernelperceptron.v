@@ -141,7 +141,7 @@ Module KernelPerceptronBudget.
         p.
         
     Definition add_new (p: Params) (yj: A*B): Params :=
-      AxVec_cons (1, yj) (AxVec_tail p).
+      AxVec_cons (1, yj) (AxVec_init p).
     
     Definition budget_update (p: Params) (yj: A*B): Params :=
       if existing p yj then upd_weights p yj.1
