@@ -241,8 +241,8 @@ Section KernelPerceptronGeneralizationBudget.
     @accuracy01 A _ m Params (Learner.predict 
       (@KernelPerceptronBudget.Learner n sv F K U) hypers).
 
-  Lemma Kcard_Params_Budget : INR #|Params| =
-    INR ((2 ^ 32) * ((2 ^ (n * 32)) * 2)) ^ (S (sv)).
+  Lemma Kcard_Params_Budget_size : INR #|Params| =
+    INR (((2 ^ 32) * ((2 ^ (n * 32)) * 2)) ^ (S (sv))).    
     
   Proof.
     unfold Params. unfold bsupport_vector. unfold Akb.
@@ -252,6 +252,28 @@ Section KernelPerceptronGeneralizationBudget.
     rewrite card_prod.
     rewrite float32_arr_card. rewrite card_bool. auto.
     Qed.
+    
+  Require Import Omega.
+  Lemma Kcard_Params_Budget_helper : INR (((2 ^ 32) * ((2 ^ (n * 32)) * 2)) ^ (S (sv)))
+  = INR 2^((32*(S sv) + ((1 + n * 32)*(S sv)))).
+  Proof.
+  assert (H: muln (Nat.pow 2 (muln n 32)) 2 = muln 2 (Nat.pow 2 (muln n 32))%coq_nat).
+    { rewrite <- multE. omega. } 
+  rewrite ->  H. 
+  assert (J: muln 2 (Nat.pow 2 (muln n 32)) = Nat.pow 2 (1 + (muln n 32))).
+    { rewrite Nat.pow_succ_r'. auto. }
+  rewrite -> J.
+  rewrite <- Nat.pow_add_r. rewrite <- Nat.pow_mul_r.
+  rewrite pow_INR. rewrite Nat.mul_add_distr_r. auto.
+  Qed.
+  
+  Lemma Kcard_Params_Budget : INR #| Params | = 
+      INR 2^((32*(S sv) + ((1 + n * 32)*(S sv)))).
+  Proof.
+  rewrite Kcard_Params_Budget_size.
+  rewrite Kcard_Params_Budget_helper.
+  auto.
+  Qed.
 
   Variables 
     (not_perfectly_learnable : 
@@ -262,7 +284,7 @@ Section KernelPerceptronGeneralizationBudget.
     @main A B Params KernelPerceptronBudget.Hypers 
       (@KernelPerceptronBudget.Learner n sv F K U)
       hypers m m_gt0 epochs d eps init (fun _ => 1) <=
-    INR ((2 ^ 32) * ((2 ^ (n * 32)) * 2)) ^ (S (sv)) * exp (-2%R * eps^2 * mR m).
+    INR 2^((32*(S sv) + ((1 + n * 32)*(S sv)))) * exp (-2%R * eps^2 * mR m).
   Proof.
     rewrite -Kcard_Params_Budget.
     apply: Rle_trans; first by apply: main_bound.
