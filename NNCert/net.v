@@ -5,7 +5,7 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import List Arith NArith String. Import ListNotations.
+Require Import List Arith NArith ZArith String. Import ListNotations.
 Require Import ProofIrrelevance.
 
 Require Import OUVerT.dyadic OUVerT.numerics OUVerT.vector OUVerT.compile.

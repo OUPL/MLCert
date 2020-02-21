@@ -23,7 +23,7 @@ make
 make install
 ```
 
-* To transfer neural networks trained in TensorFlow to Coq, follow the instructions in `MLCert/NNCert`. 
+* To transfer neural networks trained in TensorFlow to Coq, follow the instructions at the end of the README. 
 
 ## ORGANIZATION
 
@@ -137,4 +137,19 @@ These commands produce a new Haskell source file, `Perceptron.hs` in directory `
 
 ### From TensorFlow to Coq/MLCert
 
-See directory [MLCert/NNCert/] for additional directions on compiling to MLCert models learned in external tools like TensorFlow.
+We recommend using the helper script `cli.py` in `MLCert/NNCert/` to
+train a model using TensorFlow and extract it to Coq.
+
+First ensure that OUVerT is installed and the MLCert library is built
+(by running `make` in `MLCert/`). `cli.py` has been tested with the following pip dependencies:
+* `numpy-1.18.0`
+* `tensorflow-1.14.0`
+* `scipy-1.4.1`
+* `sklearn-0.0`
+* `inquirer-2.6.3`
+* `gitpython-3.0.5`.
+
+Navigate to `MLCert/NNCert` and run `cli.py`. The script will present
+options to train a model, compile it to Coq, extract to OCaml, or
+evaluate the extracted model. Use the arrow keys to select an option
+and press enter to confirm your selection.
