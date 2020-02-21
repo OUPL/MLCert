@@ -37,11 +37,10 @@ Section image_noise.
   
   (*A "salt-and-pepper" image noise model, with probability p corrupting index i to 
     either x_min or x_max (each with probability p*1/2)*)
-  
   Definition salt_and_pepper_index (p:D) (t:T) : NoiseM T :=
     corrupt <-- bernoulli_sampler p;
     if corrupt then
-      flip <-- bernoulli_sampler (Dmake 1 1);
+      flip <-- bernoulli_sampler (DD (Dmake 1 1));
       ret (if flip then T_min else T_max)
     else ret t.
   
