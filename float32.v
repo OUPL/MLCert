@@ -17,7 +17,7 @@ Require Import MLCert.axioms MLCert.extraction_hs.
 (*32-bit floating-point numbers*)
 Axiom float32 : Type. 
 Axiom float32_finite : Finite.class_of float32.
-Definition float32_finType : finType := Finite.Pack float32_finite float32.
+Definition float32_finType : finType := Finite.Pack float32_finite.
 Axiom float32_card : #|float32_finType| = 2^32.
 
 Extract Constant float32 => "Prelude.Float".
@@ -27,7 +27,7 @@ Definition float32_arr (n:nat) := AxVec n float32. (*size-indexed float32 arrays
 Lemma float32_arr_finite : forall n:nat, Finite.class_of (float32_arr n).
 Proof. move => n; rewrite /float32_arr; apply: (AxVec_finite n float32_finType). Defined.
 Definition float32_arr_finType (n:nat) : finType :=
-  Finite.Pack (float32_arr_finite n) (float32_arr n).
+  Finite.Pack (float32_arr_finite n) .
 Lemma float32_arr_card : forall n, #|float32_arr_finType n| = 2^(n*32).
 Proof. by move => n; move: (@AxVec_card n 32 float32_finType float32_card) => /= <-. Qed.
 
