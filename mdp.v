@@ -6,7 +6,7 @@ Require Import MLCert.float32.
 Require Import MLCert.extraction_ocaml.
 Require Import Coq.Logic.FunctionalExtensionality.
 **)
-Require Import MLCert.extraction_ocaml.
+(**Require Import MLCert.extraction_ocaml.**)
 Require Import List. Import ListNotations.
 Require Import QArith.
 Require Import OUVerT.extrema.
@@ -191,7 +191,7 @@ Module MDP.
 End MDP.
   
   
-Module MDP_algorithmns.
+Module MDP_algorithms.
 
   Section mdp_to_R.
     Context {Nt : Type} `{Nt_numeric : Numerics.Numeric Nt}.
@@ -958,7 +958,7 @@ Module MDP_algorithmns.
       unfold value_iteration_step.
       rewrite to_R_mapmax_ne.
       simpl.
-      apply Some_inj.
+      apply ssr.ssrfun.Some_inj.
       repeat rewrite <- mapmax_ne_ok.
       simpl.
       rewrite AEnum_same.
@@ -1343,7 +1343,9 @@ Module MDP_algorithmns.
       apply (s_enum_ok mdp); auto.
     apply le_refl.
   Qed.
-
+End policy_enumerable.
+End mdp_fin_dec_R.
+End MDP_algorithms.
 
 
 
@@ -1383,6 +1385,7 @@ Module MDP.
       actions_nonempty : (0 <> length actions)%nat;
     }.**)
   End mdp_numeric.
+  End policy_enumerable.
 End MDP.
 
 Module MDP_algorithmns.
