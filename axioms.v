@@ -54,7 +54,7 @@ Definition AxVec_map (n:nat) (s t:Type) : (s -> t) -> AxVec n s -> AxVec n t:=
   fun f a => Vector.map f a.
 Definition AxVec_cons (n:nat) (t:Type) : t -> AxVec n t -> AxVec (S n) t := 
   fun t' a => cons t t' n a.
-Definition AxVec_tail (n:nat) (t:Type) : AxVec (S n) t -> AxVec n t := 
+Definition AxVec_init (n:nat) (t:Type) : AxVec (S n) t -> AxVec n t := 
   fun a => Vector.shiftout a.
 
 Definition AxMat A n m := AxVec n (AxVec m A).

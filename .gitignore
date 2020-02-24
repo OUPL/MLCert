@@ -6,3 +6,10 @@
 *.cmi
 *.cmx
 *.o
+hs/*.hi
+hs/PerceptronTest
+hs/Perceptron.hs
+hs/KPerceptronTest
+hs/KPerceptron.hs
+hs/KPerceptronBudgetTest
+hs/KPerceptronBudget.hs
