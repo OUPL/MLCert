@@ -8,7 +8,7 @@ Require Import NArith.
 Require Import List. Import ListNotations.
 Require Import Extraction.
 
-Require Import MLCert.float32 MLCert.learners MLCert.extraction_hs MLCert.monads.
+Require Import MLCert.axioms MLCert.float32 MLCert.learners MLCert.extraction_hs MLCert.monads.
 
 Section KernelClassifier.
   Variable n : nat. (*the dimensionality*)
@@ -44,25 +44,26 @@ Section KernelClassifierBudget.
   Variable m : nat. (*#examples*)
   
   Variable sv : nat. (*#support vectors*)
-
-  Definition Akb := ('I_m * float32_arr n)%type. (*examples*)
+  Variable K: float32_arr n -> float32_arr n -> float32.
+  
+  Definition Akb: Type := float32_arr n. (*examples*)
   Definition Bkb := bool. (*labels*)
-  Context {support_vectors} `{Foldable support_vectors ('I_sv * float32_arr n * bool)}.
-  Definition KernelParamsBudget := (float32 *support_vectors * float32_arr sv)%type.
 
+  Definition bsupport_vector: Type := Akb * Bkb.
+  Definition bsupport_vectors: Type := AxVec sv (float32 * (bsupport_vector)).
+  Context `{Foldable bsupport_vectors (float32 * bsupport_vector)}.
+  
   Section predict.
     Open Scope f32_scope.
 
-    Definition kernel_predict_budget (K : float32_arr n -> float32_arr n -> float32) 
-        (w : KernelParamsBudget) (x : Akb) : Bkb :=
-      let (u, T) := w.1 in 
+    Definition kernel_predict_budget
+               (w: bsupport_vectors)
+               (x: Akb) : Bkb :=
       foldable_foldM
-        (fun xi_yi r =>
-           let: ((i, xi), yi) := xi_yi in
-           let: (j, xj) := x in 
-           let: wi := f32_get i w.2 in 
-           r + (float32_of_bool yi) * wi * (K xi xj))
-        0 T > 0.
+        (fun wi_xi r =>
+           let: (wi, (xi, yi)) := wi_xi in 
+           r + (float32_of_bool yi) * wi * (K xi x))
+        0 w > 0.
   End predict.
 End KernelClassifierBudget.
 
@@ -100,13 +101,13 @@ Module KernelPerceptronBudget.
   Section Learner.
     Variable n : nat. (*the dimensionality*)
     Variable m : nat. (*#examples*)
-    Variable sv : nat. (*#support vectors*)
-    Notation A := (Ak n m).
-    Notation B := Bk.
-    Context {support_vectors} `{F:Foldable support_vectors ('I_sv * float32_arr n * B)}.        
-    Definition Params := @KernelParamsBudget sv support_vectors.
+    Variable sv : nat. (*#support vectors - 1*)
+    Notation A := (Akb n).
+    Notation B := Bkb.
+    Definition Params := bsupport_vectors n (S sv).
+    Context `{F: Foldable Params (float32 * (A * B))}.   
     Variable K : float32_arr n -> float32_arr n -> float32.
-    Variable U : Params -> float32_arr n -> Params. 
+    Variable U : Params -> A*B -> Params. 
     
     Record Hypers : Type := mkHypers { }.
 
@@ -121,65 +122,43 @@ Module KernelPerceptronBudget.
       | O => f32_0
       | S x' => (nat_to_f32 x') + f32_1
       end.
-    
-    (*Definition of existing that doesn't work*)
-    (*Definition existing (s : support_vectors) (e : float32_arr n) : nat :=
+
+    (*Is x in s?*)
+    Definition existing (s : Params) (yj : A*B) : bool :=
+      let: (j, y) := yj in
       foldable_foldM
-        (fun x r =>
-          let: ((i, xi), l) := x in
-          let: y := f32_arr_eq xi e in
-          if y then i else r)
-          (S sv) s.*)
-    
-    Definition existing (s : support_vectors) (e : float32_arr n) : nat :=
-       O.
-       
-    Definition upd_weights  
-      (w : float32_arr sv) (s t : float32) : float32_arr sv :=       
-      if f32_eq t f32_0
-        then f32_upd_f32 s f32_0 w
-        else f32_upd_f32 s (f32_get_f32 s w + 1) w.
+        (fun wi_xi r =>
+          let: (_, (x, l)) := wi_xi in
+            (f32_arr_eq x j) || r)
+        false s.
+        
+    Definition upd_weights (p: Params) (yj: A): Params :=
+      AxVec_map
+        (fun xi => 
+          let: (wi, (x, li)) := xi in
+          if f32_arr_eq x yj then (wi+1, (x, li))
+          else xi)
+        p.
       
-    (*Definition of replace that doesn't work *)
-    (*Definition replace (s : support_vectors) (e : float32_arr n)
-        (t : float32) : support_vectors :=
-    foldable_mapM 
-      (fun x => 
-        let: ((i, x'),y) := x in
-        if f32_eq (nat_to_f32 i) t 
-          then ((i, e),y)
-          else ((i, x'),y))
-       s.*)
+    (*This function requires that the Params be initialized with (S sv) support vectors*)  
+    Definition add_new (p: Params) (yj: A*B): Params :=
+      AxVec_cons (1, yj) (AxVec_init p).
     
-    Definition replace (s : support_vectors) (e : float32_arr n)
-        (t : float32) : support_vectors := s.
-    
-    Definition index_update (i : float32) : float32 :=
-      if f32_eq (i + f32_1) (nat_to_f32 sv) 
-        then f32_0 else i + f32_1. 
-   
-    Definition budget_update (p : Params) (e : float32_arr n) : Params :=
-      let: (supports_index, weights) := p in
-      let: (index, supports) := supports_index in
-      let: t := existing supports e in
-      if t < (S sv) 
-        then (* increment existing support vector's weight*)
-        ((index,supports), upd_weights weights (nat_to_f32 t) f32_1)
-        else (* replace support vector at index with e*)
-        ((index_update index, replace supports e index), 
-           upd_weights weights index f32_0).
+    Definition budget_update (p: Params) (yj: A*B): Params :=
+      if existing p yj then upd_weights p yj.1
+      else add_new p yj.
       
     Definition kernel_update 
       (K : float32_arr n -> float32_arr n -> float32)
           (h:Hypers) (example_label:A*B) (p:Params) : Params :=
-      let: ((i, example), label) := example_label in 
-      let: predicted_label := kernel_predict_budget K p (i, example) in
+      let: (example, label) := example_label in 
+      let: predicted_label := kernel_predict_budget K p example in
       if Bool.eqb predicted_label label then p
-      else (U p example).
+      else (U p example_label).
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
-        (fun _ => @kernel_predict_budget n m sv support_vectors F K)
+        (fun _ => @kernel_predict_budget n (S sv) K F)
         (kernel_update K).
   End Learner.
 End KernelPerceptronBudget.
@@ -205,13 +184,13 @@ Section KernelPerceptronGeneralization.
   Variable K : float32_arr n -> float32_arr n -> float32.
 
   (*Represent the training set as a one-dimensional (flattened) float array.*)
-  Definition support_vectors := float32_arr_finType (m*n).
-  Context {H: Foldable support_vectors (A * B)}.
-
-  Notation Params := [finType of {:support_vectors * float32_arr_finType m}].
+  Definition KPsupport_vectors := float32_arr_finType (m*n).
+  Context {H: Foldable KPsupport_vectors (A * B)}.
+  
+  Notation Params := [finType of {:KPsupport_vectors * float32_arr_finType m}].
   Definition Kaccuracy := 
     @accuracy01 A _ m Params (Learner.predict 
-      (@KernelPerceptron.Learner n m support_vectors H K) hypers).
+      (@KernelPerceptron.Learner n m KPsupport_vectors H K) hypers).
 
   Lemma Kcard_Params : INR #|Params| = 2 ^ (m*n*32 + m*32).
   Proof.
@@ -226,7 +205,7 @@ Section KernelPerceptronGeneralization.
 
   Lemma Kperceptron_bound eps (eps_gt0 : 0 < eps) init : 
     @main A B Params KernelPerceptron.Hypers 
-      (@KernelPerceptron.Learner n m support_vectors H K)
+      (@KernelPerceptron.Learner n m KPsupport_vectors H K)
       hypers m m_gt0 epochs d eps init (fun _ => 1) <=
     2^(m*n*32 + m*32) * exp (-2%R * eps^2 * mR m).
   Proof.
@@ -240,7 +219,7 @@ Section KernelPerceptronGeneralizationBudget.
   Variable n : nat. (*The dimensionality*)
   Variable m : nat. (*#examples*)
   Variable sv : nat.
-  Notation A := [finType of 'I_m * float32_arr_finType n].
+  Notation A := (float32_arr_finType n).
   Notation B := bool_finType.
   Variable d : A * B -> R.
   Variable d_dist : big_sum (enum [finType of A * B]) d = 1.
@@ -253,27 +232,47 @@ Section KernelPerceptronGeneralizationBudget.
   Variable hypers : KernelPerceptronBudget.Hypers.
   Variable K : float32_arr n -> float32_arr n -> float32.
 
-  (*Represent the training set as a one-dimensional (flattened) float array.*)
-  Definition support_vectors_budget := float32_arr_finType (sv*n).
-  Context {H: Foldable support_vectors_budget ('I_sv * float32_arr n * B)}.
-
-  Notation Params := [finType of {:float32_finType * support_vectors_budget * float32_arr_finType sv}].
-  Variable U : Params -> float32_arr n -> Params.
+  Notation bsupport_vector := [finType of A * B].
+  Notation Params := (AxVec_finType (S sv) [finType of (float32_finType * bsupport_vector)]).
+  
+  Context `{F : Foldable (bsupport_vectors n (S sv)) (float32 * bsupport_vector)}.
+  Variable U : bsupport_vectors n (S sv) -> A * B -> bsupport_vectors n (S sv).
   Definition KaccuracyBudget := 
     @accuracy01 A _ m Params (Learner.predict 
-      (@KernelPerceptronBudget.Learner n m sv support_vectors_budget H K U) hypers).
+      (@KernelPerceptronBudget.Learner n sv F K U) hypers).
 
-  Lemma Kcard_Params_Budget : INR #|Params| = 2 ^ ((32) + (sv*n*32) + (sv*32)).
+  Lemma Kcard_Params_Budget_size : INR #|Params| =
+    INR (((2 ^ 32) * ((2 ^ (n * 32)) * 2)) ^ (S (sv))).    
+    
   Proof.
-    rewrite card_prod !float32_arr_card.
-    rewrite /training_set card_prod !float32_arr_card.
-    rewrite float32_card.
-    rewrite mult_INR !pow_INR.
-    rewrite mult_INR !pow_INR.
-    rewrite pow_add.
-    rewrite pow_add.
-    reflexivity.
-    (*rewrite mult_INR !pow_INR /= pow_add //.*)
+    unfold Params. unfold bsupport_vector. unfold Akb.
+    rewrite (@AxVec_card_gen (2 ^ 32 * (2 ^ (n * 32) * 2)) (S sv)).
+    - rewrite pow_INR. auto.
+    - rewrite card_prod. rewrite float32_card.
+    rewrite card_prod.
+    rewrite float32_arr_card. rewrite card_bool. auto.
+    Qed.
+    
+  Require Import Omega.
+  Lemma Kcard_Params_Budget_helper : INR (((2 ^ 32) * ((2 ^ (n * 32)) * 2)) ^ (S (sv)))
+  = INR 2^((32*(S sv) + ((1 + n * 32)*(S sv)))).
+  Proof.
+  assert (H: muln (Nat.pow 2 (muln n 32)) 2 = muln 2 (Nat.pow 2 (muln n 32))%coq_nat).
+    { rewrite <- multE. omega. } 
+  rewrite ->  H. 
+  assert (J: muln 2 (Nat.pow 2 (muln n 32)) = Nat.pow 2 (1 + (muln n 32))).
+    { rewrite Nat.pow_succ_r'. auto. }
+  rewrite -> J.
+  rewrite <- Nat.pow_add_r. rewrite <- Nat.pow_mul_r.
+  rewrite pow_INR. rewrite Nat.mul_add_distr_r. auto.
+  Qed.
+  
+  Lemma Kcard_Params_Budget : INR #| Params | = 
+      INR 2^((32*(S sv) + ((1 + n * 32)*(S sv)))).
+  Proof.
+  rewrite Kcard_Params_Budget_size.
+  rewrite Kcard_Params_Budget_helper.
+  auto.
   Qed.
 
   Variables 
@@ -283,9 +282,9 @@ Section KernelPerceptronGeneralizationBudget.
 
   Lemma Kperceptron_bound_budget eps (eps_gt0 : 0 < eps) init : 
     @main A B Params KernelPerceptronBudget.Hypers 
-      (@KernelPerceptronBudget.Learner n m sv support_vectors_budget H K U)
+      (@KernelPerceptronBudget.Learner n sv F K U)
       hypers m m_gt0 epochs d eps init (fun _ => 1) <=
-    2^((32) + (sv*n*32) + (sv*32)) * exp (-2%R * eps^2 * mR m).
+    INR 2^((32*(S sv) + ((1 + n * 32)*(S sv)))) * exp (-2%R * eps^2 * mR m).
   Proof.
     rewrite -Kcard_Params_Budget.
     apply: Rle_trans; first by apply: main_bound.
@@ -328,27 +327,27 @@ Section KPerceptronExtractionBudget.
   Variable n : nat. (*The dimensionality*)
   Variable m : nat. (*#examples*)
   Variable sv : nat.
-  Notation A := (Ak n m).
-  Notation B := Bk.
+  Notation A := (Akb n).
+  Notation B := Bkb.
   Variable d : A * B -> R.
 
   (*Variable m : nat. (*The number of training samples*)*)
   Variable epochs : nat.
 
-  Notation Params := (KernelParamsBudget sv)%type.
+  Notation Params := (KernelPerceptronBudget.Params n sv)%type.
 
   Variable hypers : KernelPerceptronBudget.Hypers.
   Variable K : float32_arr n -> float32_arr n -> float32.
 
   Notation Q := (A * B)%type.
-  Notation Q' := ('I_sv * float32_arr n * B)%type.
-  Variable U : (@KernelPerceptronBudget.Params sv (seq.seq Q')) -> 
-     float32_arr n -> (@KernelPerceptronBudget.Params sv (seq.seq Q')).
-  Check extractible_main.
+  Variable U : (@KernelPerceptronBudget.Params n sv) -> 
+     Q -> (@KernelPerceptronBudget.Params n sv).
+  
+  Context `{F : Foldable Params (float32 * bsupport_vector n)}.
   Definition kperceptronbudget (r:Type) := 
     @extractible_main
       A B Params KernelPerceptronBudget.Hypers
-      (@KernelPerceptronBudget.Learner n m sv (seq.seq Q') (list_Foldable Q') K U)
+      (@KernelPerceptronBudget.Learner n sv F K U)
       hypers
       epochs
       (seq.seq Q)

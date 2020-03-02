@@ -25,7 +25,9 @@ Extract Constant AxVec "t" => "[t]".
   Coq lists to Haskell lists (see the 'Extract Inductive list' directive above).*)
 Extract Constant AxVec_to_list => "(\_ l -> l)".
 
-Extract Constant AxVec_map => "const fmap".
+Extract Constant AxVec_map => "GHC.Base.const GHC.Base.fmap".
+Extract Constant AxVec_cons => "(\_ ->  (:))".
+Extract Constant AxVec_init => "(\_ -> Prelude.init)".
 
 (*(*AxVec Tests*)*)
 (* Require Import List. *)
