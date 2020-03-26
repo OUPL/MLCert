@@ -14,7 +14,7 @@ Definition bitvec (n:nat) := AxVec n bool.
 Lemma bitvec_finite : forall (n:nat), Finite.class_of (bitvec n).
 Proof. move => n; apply: AxVec_finite. Defined.
 
-Definition bitvec_finType (n:nat) : finType := Finite.Pack (bitvec_finite n) (bitvec n).
+Definition bitvec_finType (n:nat) : finType := Finite.Pack (bitvec_finite n) .
 
 Lemma bitvec_card m : #|bitvec_finType m| = 2^m.
 Proof.
