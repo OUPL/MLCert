@@ -80,11 +80,13 @@ Section KernelClassifierDes.
   Definition dsupport_vector: Type := Akd * Bkd.
   Definition dsupport_vectors: Type := AxVec des (float32 * (dsupport_vector)).
   Definition dparams: Type := float32 * dsupport_vectors.
-  Context `{Foldable dparams (float32 * dsupport_vector)}.
-  Context `{Foldable dsupport_vectors (float32 * dsupport_vector)}.
+  Context `{F:Foldable dparams (float32 * dsupport_vector)}.
+  Context `{F':Foldable dsupport_vectors (float32 * dsupport_vector)}.
   
   Section predict.
     Open Scope f32_scope.
+    Print Foldable.
+    Check accuracy.
 
     Definition kernel_predict_des
                (aw: dparams)
@@ -235,7 +237,7 @@ Module KernelPerceptronDes.
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
-        (fun _ => @kernel_predict_budget n (S des) K F')
+        (fun _ => @kernel_predict_des n (S des) K F)
         (@kernel_update K).
   End Learner.
 End KernelPerceptronDes.
