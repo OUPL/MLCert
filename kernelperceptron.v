@@ -67,6 +67,37 @@ Section KernelClassifierBudget.
   End predict.
 End KernelClassifierBudget.
 
+Section KernelClassifierDes.
+  Variable n : nat. (*the dimensionality*)
+  Variable m : nat. (*#examples*)
+  
+  Variable des : nat. (*#support vectors*)
+  Variable K: float32_arr n -> float32_arr n -> float32.
+  
+  Definition Akd: Type := float32_arr n. (*examples*)
+  Definition Bkd := bool. (*labels*)
+
+  Definition dsupport_vector: Type := Akd * Bkd.
+  Definition dsupport_vectors: Type := AxVec des (float32 * (dsupport_vector)).
+  Definition dparams: Type := float32 * dsupport_vectors.
+  Context `{Foldable dparams (float32 * dsupport_vector)}.
+  Context `{Foldable dsupport_vectors (float32 * dsupport_vector)}.
+  
+  Section predict.
+    Open Scope f32_scope.
+
+    Definition kernel_predict_des
+               (aw: dparams)
+               (x: Akd) : Bkd :=
+      let (a, w) := aw in
+      foldable_foldM
+        (fun wi_xi r =>
+           let: (wi, (xi, yi)) := wi_xi in 
+           r + (float32_of_bool yi) * wi * (K xi x))
+        0 w > 0.
+  End predict.
+End KernelClassifierDes.
+
 Module KernelPerceptron.
   Section Learner.
     Variable n : nat. (*the dimensionality*)
@@ -162,6 +193,52 @@ Module KernelPerceptronBudget.
         (kernel_update K).
   End Learner.
 End KernelPerceptronBudget.
+
+Module KernelPerceptronDes.
+  Section Learner.
+    Variable n : nat. (*the dimensionality*)
+    Variable m : nat. (*#examples*)
+    Variable des : nat. (*#support vectors - 1*)
+    Notation A := (Akd n).
+    Notation B := Bkd.
+    Definition DSup := dsupport_vectors n (S des).
+    
+    Definition Params := (float32 * DSup)%type.
+    Context `{F: Foldable Params (float32 * (A * B))}.
+    Context `{F': Foldable DSup (float32 * (A * B))}.   
+    Variable K : float32_arr n -> float32_arr n -> float32. 
+    
+    Record Hypers : Type := mkHypers { alpha : float32; }.
+
+    Open Scope f32_scope.
+    Definition f32_arr_eq (x y : float32_arr n) : bool :=
+      f32_fold2 true
+        (fun a b z => if (f32_eq a b) then z else false)
+        x y.
+    
+    Definition des_update (ap: Params) (yj: A*B): Params :=
+      (*if existing p yj then upd_weights p yj.1
+      else add_new p yj.*)
+      
+      let (a, p) := ap in
+      ((f32_add f32_1 a), (AxVec_cons (1, yj) (AxVec_init p))).
+      
+    Definition kernel_update 
+      (K : float32_arr n -> float32_arr n -> float32)
+          (h:Hypers) (example_label:A*B) (ap:Params) : Params :=
+      let: (example, label) := example_label in
+      let: (a, p) := ap in 
+      let: predicted_label := kernel_predict_des K ap example in
+      if Bool.eqb predicted_label label then ap
+      else if f32_eq a (alpha h) then ap
+           else des_update ap example_label.
+
+    Definition Learner : Learner.t A B Hypers Params :=
+      Learner.mk
+        (fun _ => @kernel_predict_budget n (S des) K F')
+        (@kernel_update K).
+  End Learner.
+End KernelPerceptronDes.
 
 Require Import Reals Fourier.
 Require Import OUVerT.bigops OUVerT.dist OUVerT.chernoff OUVerT.learning.
