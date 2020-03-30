@@ -85,8 +85,6 @@ Section KernelClassifierDes.
   
   Section predict.
     Open Scope f32_scope.
-    Print Foldable.
-    Check accuracy.
 
     Definition kernel_predict_des
                (aw: dparams)
@@ -218,10 +216,7 @@ Module KernelPerceptronDes.
         (fun a b z => if (f32_eq a b) then z else false)
         x y.
     
-    Definition des_update (ap: Params) (yj: A*B): Params :=
-      (*if existing p yj then upd_weights p yj.1
-      else add_new p yj.*)
-      
+    Definition des_update (ap: Params) (yj: A*B): Params :=      
       let (a, p) := ap in
       ((f32_add f32_1 a), (AxVec_cons (1, yj) (AxVec_init p))).
       
@@ -237,7 +232,7 @@ Module KernelPerceptronDes.
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
-        (fun _ => @kernel_predict_des n (S des) K F)
+        (fun _ => @kernel_predict_des n (S des) K F')
         (@kernel_update K).
   End Learner.
 End KernelPerceptronDes.
@@ -370,6 +365,83 @@ Section KernelPerceptronGeneralizationBudget.
     apply: Rle_refl.
   Qed.
 End KernelPerceptronGeneralizationBudget.
+
+Section KernelPerceptronGeneralizationDes.
+  Variable n : nat. (*The dimensionality*)
+  Variable m : nat. (*#examples*)
+  Variable des : nat.
+  Notation A := (float32_arr_finType n).
+  Notation B := bool_finType.
+  Variable d : A * B -> R.
+  Variable d_dist : big_sum (enum [finType of A * B]) d = 1.
+  Variable d_nonneg : forall x, 0 <= d x.
+
+  Variable m_gt0 : (0 < m)%nat.
+
+  Variable epochs : nat.
+
+  Variable hypers : KernelPerceptronDes.Hypers.
+  Variable K : float32_arr n -> float32_arr n -> float32.
+
+  Notation dsupport_vector := [finType of A * B].
+  Notation Params := [finType of float32_finType * 
+    (AxVec_finType (S des) [finType of (float32_finType * dsupport_vector)])].
+  
+  Context `{F : Foldable (dsupport_vectors n (S des)) (float32 * dsupport_vector)}.
+  Definition KaccuracyDes := 
+    @accuracy01 A _ m Params (Learner.predict 
+      (@KernelPerceptronDes.Learner n des F K) hypers).
+
+  Lemma Kcard_Params_Des_size : INR #|Params| =
+    INR (2 ^ 32 * (2 ^ 32 * ((2 ^ (n * 32)) * 2)) ^ (S (des))).    
+    
+  Proof.
+    unfold Params. rewrite card_prod. rewrite float32_card. unfold dsupport_vector. unfold Akb.
+    rewrite (@AxVec_card_gen (2 ^ 32 * (2 ^ (n * 32) * 2)) (S des)).
+    -  auto. (*rewrite pow_INR.*) 
+    - rewrite card_prod. rewrite float32_card.
+    rewrite card_prod.
+    rewrite float32_arr_card. rewrite card_bool. auto.
+    Qed.
+    
+  Require Import Omega.
+  Lemma Kcard_Params_Des_helper : INR (2 ^ 32 * (2 ^ 32 * ((2 ^ (n * 32)) * 2)) ^ (S (des)))
+  = INR 2 ^ (32 + ((32 * (S des)) + ((1 + n * 32) * (S des)))).
+  Proof.
+  assert (H: muln (Nat.pow 2 (muln n 32)) 2 = muln 2 (Nat.pow 2 (muln n 32))%coq_nat).
+    { rewrite <- multE. omega. } 
+  rewrite ->  H. 
+  assert (J: muln 2 (Nat.pow 2 (muln n 32)) = Nat.pow 2 (1 + (muln n 32))).
+    { rewrite Nat.pow_succ_r'. auto. }
+  rewrite -> J.
+  rewrite <- Nat.pow_add_r. rewrite <- Nat.pow_mul_r. rewrite <- Nat.pow_add_r.
+  rewrite pow_INR. rewrite Nat.mul_add_distr_r. auto.
+  Qed.
+  
+  Lemma Kcard_Params_Des : INR #| Params | = 
+      INR 2 ^ (32 + ((32 * (S des)) + ((1 + n * 32) * (S des)))).
+  Proof.
+  rewrite Kcard_Params_Des_size.
+  rewrite Kcard_Params_Des_helper.
+  auto.
+  Qed.
+
+  Variables 
+    (not_perfectly_learnable : 
+       forall p : Params, 0 < expVal d m_gt0 KaccuracyDes p < 1)
+    (mut_ind : forall p : Params, mutual_independence d (KaccuracyDes p)).
+
+  Lemma Kperceptron_bound_Des eps (eps_gt0 : 0 < eps) init : 
+    @main A B Params KernelPerceptronDes.Hypers 
+      (@KernelPerceptronDes.Learner n des F K)
+      hypers m m_gt0 epochs d eps init (fun _ => 1) <=
+    INR 2 ^ (32 + ((32 * (S des)) + ((1 + n * 32) * (S des)))) * exp (-2%R * eps^2 * mR m).
+  Proof.
+    rewrite -Kcard_Params_Des.
+    apply: Rle_trans; first by apply: main_bound.
+    apply: Rle_refl.
+  Qed.
+End KernelPerceptronGeneralizationDes.
 
 Section KPerceptronExtraction.
   Variable n : nat. (*The dimensionality*)
