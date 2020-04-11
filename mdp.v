@@ -152,7 +152,7 @@ Module MDP.
   Section mdp_numeric. 
     Context {Nt:Type} `{Numerics.Numeric Nt}.
     
-    Class mdp : Type :=
+    Record mdp : Type :=
     {
       St : Type;
       A : Type;
@@ -160,12 +160,19 @@ Module MDP.
       Reward : St->A->St->Nt;
     }.
 
+
     Class mdp_fin (t : mdp)  : Type :=
     {
-      SEnum : Enumerable St;
-      AEnum : Enumerable A;
+      SEnum : Enumerable (St t);
+      AEnum : Enumerable (A t);
       SEnum_nonempty : O <> length SEnum;
       AEnum_nonempty : O <> length AEnum;
+    }.
+
+    Class inf_trans_func {T : Type} (f : T-> Nt) : Type :=
+    {
+      InfTransSum1: forall (l : list T), NoDup l -> big_sum l f <= 1;
+      InfTransNonneg: forall x : T, 0 <= f x;
     }.
 
     Class enum_trans_func {T : Type} {T_enum : Enumerable T}  {T_enum_ok : @Enum_ok T T_enum}  (f : T->Nt)  : Type :=
@@ -174,19 +181,63 @@ Module MDP.
       TransNonneg: forall t : T, 0 <= f t
     }.
 
+
     Class mdp_dec (t : mdp)  : Type :=
     {
-      SDec : forall s1 s2 :St, {s1 = s2} + {s1 <> s2};
-      ADec : forall a1 a2 :A, {a1 = a2} + {a1 <> a2};
+      SDec : forall s1 s2 : (St t), {s1 = s2} + {s1 <> s2};
+      ADec : forall a1 a2 : (A t), {a1 = a2} + {a1 <> a2};
     }.
 
 
     Class mdp_fin_ok (t : mdp) {fin : mdp_fin t} :=
     {
-      AEnum_ok : @Enum_ok A AEnum;
-      SEnum_ok : @Enum_ok St SEnum;
-      TransEnumFunc : forall (s : St) (a : A), enum_trans_func (T_enum_ok := SEnum_ok) (Trans s a);
+      AEnum_ok : @Enum_ok (A t) AEnum;
+      SEnum_ok : @Enum_ok (St t) SEnum;
+      TransEnumFunc : forall s a, enum_trans_func (T_enum_ok := SEnum_ok) (Trans t s a);
     }.
+
+    Class pomdp (t : mdp) : Type :=
+    {
+      obs : Type;
+      obs_props : obs -> (St t) -> (A t) -> Nt;
+      pomdpTransFunc : forall s a, inf_trans_func (Trans t s a);
+    }.
+
+    Class pomdp_dec (t : mdp) {t_dec : mdp_dec t} {p : pomdp t}:=
+    {
+      ODec: forall o1 o2 : (@obs t p), {o1 = o2} + {o1 <> o2}
+    }.
+
+    Class pomdp_fin_ok (t : mdp) {fin : mdp_fin t} {p : pomdp t} :=
+    {
+      OEnum : Enumerable (@obs t p);
+      OEnum_nonempty : O <> length OEnum;
+      OEnum_ok : @Enum_ok (@obs t p) OEnum;
+    }.
+
+    Record sampler (t : mdp) :=
+    {
+      sample_state_t : Type;
+      sample : sample_state_t -> (St t) -> (A t) -> (sample_state_t * ((St t) * Nt))
+    }.
+
+
+    Program Definition enum_trans_func_to_inf_trans_func 
+        {Nt_props : @Numeric_Props Nt H} {T : Type} (f : T->Nt) `{trans_func : enum_trans_func T (f := f) } 
+        : inf_trans_func f := Build_inf_trans_func T f _ TransNonneg.
+    Next Obligation.
+      destruct (Enumerable_nodup_list_diff T_enum_ok H0).
+      eapply big_sum_perm with _ _ _ f in H1. 
+      rewrite big_sum_cat in H1.
+      eapply le_trans.
+      2:{  apply TransSum1. }
+      rewrite H1.
+      rewrite <- plus_id_r at 1.
+      apply plus_le_compat_l.
+      apply big_sum_ge0'.
+      apply TransNonneg.
+    Qed.
+
   End mdp_numeric.
 End MDP.
   
@@ -197,7 +248,7 @@ Module MDP_algorithms.
     Context {Nt : Type} `{Nt_numeric : Numerics.Numeric Nt}.
     Definition mdp_to_R  (mdp : @MDP.mdp Nt) : (@MDP.mdp R) :=
       @MDP.Build_mdp R (@MDP.St Nt mdp) (@MDP.A Nt mdp) (fun st a st' => Numerics.to_R (@MDP.Trans Nt mdp st a st')) 
-        (fun st a st' => Numerics.to_R (MDP.Reward st a st')).
+        (fun st a st' => Numerics.to_R (MDP.Reward mdp st a st')).
 
     Definition mdp_fin_to_R (mdp : @MDP.mdp Nt) (mdp_fin : @MDP.mdp_fin Nt mdp) 
         : (@MDP.mdp_fin R (mdp_to_R mdp)).
@@ -267,21 +318,28 @@ Module MDP_algorithms.
           _ _ _ _
       ).
     Defined.
-  End mdp_to_R_ok.
+  End mdp_to_R_ok.  
 
+  Section pomdp_algorithms.
+    Context {Nt:Type} `{Numeric_Nt : Numerics.Numeric Nt}.
+    Context (mdp : @MDP.mdp Nt)  {mdp_dec : MDP.mdp_dec mdp} {mdp_fin : MDP.mdp_fin mdp} 
+      {pomdp : MDP.pomdp mdp} {pomdp_fin : @MDP.pomdp_fin_ok Nt _ mdp _ _} {pomdp_dec : MDP.pomdp_dec mdp}.
+    Variable discount : Nt.
 
-  
+    Definition enum_belief_state := @Enum_table.table (MDP.St mdp) Nt (MDP.SEnum ).
+    
 
+  End pomdp_algorithms.
 
   Section mdp_fin_dec.
     Context {Nt:Type} `{Numerics.Numeric Nt}.
     Context (mdp : @MDP.mdp Nt) `{mdp_fin : @MDP.mdp_fin Nt mdp} `{mdp_dec : @MDP.mdp_dec Nt mdp}.
-    
     Variable discount : Nt.
     Definition St  : Type := (@MDP.St Nt mdp).
     Definition A  : Type := (@MDP.A Nt mdp).
     Definition policy := St->A.
     Definition value_func := St -> Nt.
+    Definition q_func := St -> A -> Nt.
     Definition s_enum := @enumerable_fun  St (@MDP.SEnum Nt mdp _).
     Definition a_enum := @enumerable_fun  A (@MDP.AEnum Nt mdp _).
     Definition trans := (@MDP.Trans Nt mdp).
@@ -292,7 +350,9 @@ Module MDP_algorithms.
     Definition s_enum_ok := @MDP.SEnum_ok Nt _ mdp _.
     Definition a_enum_ok := @MDP.AEnum_ok Nt _ mdp _.
 
+
     Definition value_table : Type := @Enum_table.table St Nt s_enum.
+    Definition q_table := @Enum_table.table (St*A) Nt (prodEnumerableInstance s_enum a_enum).
 
     Definition policy_table : Type := @Enum_table.table St A s_enum.
 
@@ -308,23 +368,23 @@ Module MDP_algorithms.
     Definition value_func_table_eq (vf : value_func) (vt : value_table) := vf =1 value_table_lookup vt.
     Definition policy_func_table_eq (vf : policy) (vt : policy_table) := vf =1 policy_table_lookup vt.
 
-    Definition discounted_reward (v : value_func) (s : St) (a : A) : Nt :=
+    Definition st_a_reward (v : value_func) (s : St) (a : A) : Nt :=
       big_sum s_enum (fun  s' =>  (trans s a s') * (reward  s a s' +  discount *  (v s'))).
 
     Definition value_func_policy (v: value_func) : policy :=
-      (fun s => argmax_ne (discounted_reward v s) a_enum_nonempty).
+      (fun s => argmax_ne (st_a_reward v s) a_enum_nonempty).
     
-    Definition discounted_reward_tb (v : value_table) (s : St) (a : A) : Nt :=
+    Definition st_a_reward_tb (v : value_table) (s : St) (a : A) : Nt :=
       big_sum s_enum (fun  s' =>  (trans s a s') * (reward  s a s' +  discount *  value_table_lookup v s')).
 
 
     Definition value_table_policy (v : value_table) : policy_table :=
       @Enum_table.map_to_table St A s_enum (fun s => 
-          (argmax_ne (fun a =>  discounted_reward_tb v s a) a_enum_nonempty )).
+          (argmax_ne (fun a =>  st_a_reward_tb v s a) a_enum_nonempty )).
 
     Definition value_iteration_step (v : value_func) : value_func := 
     (fun (s : St) => 
-      mapmax_ne (fun a => discounted_reward v s a) a_enum_nonempty
+      mapmax_ne (fun a => st_a_reward v s a) a_enum_nonempty
     ).
     
     Fixpoint value_iteration_rec (v : value_func) (n : nat):=
@@ -334,7 +394,7 @@ Module MDP_algorithms.
     end.
     
     Definition evaluate_policy_step (pol : policy) (v : value_func) : value_func :=
-      (fun s => discounted_reward v s (pol s)).
+      (fun s => st_a_reward v s (pol s)).
 
     Fixpoint evaluate_policy_rec (pol : policy) (v : value_func) (n : nat):=
     match n with
@@ -343,10 +403,10 @@ Module MDP_algorithms.
     end.
 
     Definition value_iteration_step_tb (v : value_table) : value_table := 
-       value_func_to_table (fun s => mapmax_ne (fun a : A => discounted_reward_tb v s a) a_enum_nonempty).
+       value_func_to_table (fun s => mapmax_ne (fun a : A => st_a_reward_tb v s a) a_enum_nonempty).
 
     Definition evaluate_policy_step_tb (pol : policy_table) (v : value_table) : value_table :=
-       value_func_to_table (fun s => discounted_reward_tb v s (policy_table_lookup pol s)).
+       value_func_to_table (fun s => st_a_reward_tb v s (policy_table_lookup pol s)).
  
     Fixpoint value_iteration_rec_tb (v : value_table) (n : nat):=
     match n with
@@ -368,6 +428,23 @@ Module MDP_algorithms.
       Hypothesis discount_lt_1: discount < 1.
       Context `{Nt_props : Numeric_Props Nt (numeric_t := H)}.
 
+
+
+
+      Program Definition to_pomdp : MDP.pomdp mdp := MDP.Build_pomdp mdp St _ _.
+      Next Obligation.
+        eapply MDP.enum_trans_func_to_inf_trans_func.
+        apply MDP.TransEnumFunc.
+      Defined.
+
+      Definition to_pomdp_dec : @MDP.pomdp_dec Nt _ mdp _ to_pomdp :=
+      MDP.Build_pomdp_dec mdp _ to_pomdp MDP.SDec.
+
+
+      Program Definition to_pomdp_fin_ok : @MDP.pomdp_fin_ok Nt _ mdp _ to_pomdp := 
+        MDP.Build_pomdp_fin_ok _ _ _ MDP.SEnum MDP.SEnum_nonempty MDP.SEnum_ok.
+        
+
       Lemma value_table_lookup_inv_to_table: forall (v : value_func) (s : St), value_table_lookup (value_func_to_table v) s = v s.
       Proof.
         intros.
@@ -377,20 +454,20 @@ Module MDP_algorithms.
         apply s_enum_ok. apply mdp_fin_ok.
       Qed.
 
-      Lemma discounted_reward_tb_same: forall (vf : value_func) (vt : value_table) (s : St) (a : A),
-        value_func_table_eq vf vt -> discounted_reward vf s a = discounted_reward_tb vt s a.
+      Lemma st_a_reward_tb_same: forall (vf : value_func) (vt : value_table) (s : St) (a : A),
+        value_func_table_eq vf vt -> st_a_reward vf s a = st_a_reward_tb vt s a.
       Proof.
         intros.
-        unfold discounted_reward.
-        unfold discounted_reward_tb.
+        unfold st_a_reward.
+        unfold st_a_reward_tb.
         apply big_sum_ext; auto. unfold value_func_table_eq in H0.
         unfold eqfun. intros.
         rewrite <- H0. auto.
       Qed.
 
-      Lemma discounted_reward_ext: forall v1 v2 : value_func, v1 =1 v2 -> forall s, discounted_reward v1 s =1 discounted_reward v2 s.
+      Lemma st_a_reward_ext: forall v1 v2 : value_func, v1 =1 v2 -> forall s, st_a_reward v1 s =1 st_a_reward v2 s.
       Proof.
-        unfold discounted_reward. unfold eqfun.
+        unfold st_a_reward. unfold eqfun.
         intros v1 v2 ext s a.
         apply big_sum_ext; auto.
         unfold eqfun.
@@ -404,7 +481,7 @@ Module MDP_algorithms.
         intros v1 v2 Heq s.
         unfold value_iteration_step.
         apply mapmax_ne_ext.
-        apply discounted_reward_ext.
+        apply st_a_reward_ext.
         auto.
       Qed.
 
@@ -413,7 +490,7 @@ Module MDP_algorithms.
         unfold eqfun.
         intros p1 p2 v1 v2 HeqP HeqV s.
         unfold evaluate_policy_step.
-        unfold discounted_reward.
+        unfold st_a_reward.
         apply big_sum_ext; auto.
         unfold eqfun.
         intros s'.
@@ -438,7 +515,7 @@ Module MDP_algorithms.
         unfold eqfun. intros s2.
         rewrite value_table_lookup_inv_to_table.
         unfold value_iteration_step.
-        apply mapmax_ne_ext. apply discounted_reward_ext. auto.
+        apply mapmax_ne_ext. apply st_a_reward_ext. auto.
       Qed.
 
       Definition value_diff  (v1 v2 : value_func) : value_func :=
@@ -476,7 +553,7 @@ Module MDP_algorithms.
         unfold value_dist.
         unfold value_diff.
         unfold evaluate_policy_step.
-        unfold discounted_reward.
+        unfold st_a_reward.
         apply mapmax_ne_le_const.
         intros s HIn.
         rewrite -> big_sum_ext with _ _ s_enum _ 
@@ -575,7 +652,7 @@ Module MDP_algorithms.
         }
         eapply le_trans.
           apply mapmax_ne_abs_dist_le.
-        unfold discounted_reward.
+        unfold st_a_reward.
         erewrite mapmax_ne_ext.
         2:{
           intros a.
@@ -701,9 +778,9 @@ Module MDP_algorithms.
         by right.
       intros s.
       unfold evaluate_policy_step. unfold value_iteration_step.
-      apply le_trans with (discounted_reward (value_iteration_rec v n) s (p s)).
+      apply le_trans with (st_a_reward (value_iteration_rec v n) s (p s)).
       {
-        unfold discounted_reward.
+        unfold st_a_reward.
         apply big_sum_le'.
         intros s'.
         apply mult_le_compat_l.
@@ -798,7 +875,7 @@ Module MDP_algorithms.
         unfold value_diff.
         rewrite value_iteration_step_policy_eval_same.
         unfold evaluate_policy_step.
-        unfold discounted_reward.
+        unfold st_a_reward.
         rewrite <- big_sum_nmul.
         rewrite <- big_sum_plus.
         eapply le_trans. eapply big_sum_le_abs.
@@ -859,6 +936,22 @@ Module MDP_algorithms.
 
     End mdp_fin_dec_proofs.
   End mdp_fin_dec.
+  Section exploration.
+    Context {Nt:Type} `{Numerics.Numeric Nt}.
+    Context (mdp : @MDP.mdp Nt) (sampler : @MDP.sampler Nt mdp).
+    Context {mdp_fin : @MDP.mdp_fin Nt mdp}.
+    Variable discount lr : Nt. 
+
+    Definition q_update s1 a s2 q : q_func :=
+      (fun  
+    
+
+    
+
+  End exploration.
+
+
+
   
   Section mdp_fin_dec_toR.
     Context {Nt:Type} `{Nt_Numeric : Numerics.Numeric Nt} `{Nt_Props : Numerics.Numeric_Props Nt}.
@@ -936,12 +1029,12 @@ Module MDP_algorithms.
       
 
     Hint Immediate s_enum_same.
-    Lemma discounted_reward_to_R: forall (v : value_func mdp) (s : St mdp) (a : A mdp),
-        to_R (discounted_reward mdp discount v s a) = 
-        discounted_reward (mdp_fin := Rmdp_fin) Rmdp  Rdiscount (value_func_to_R v) s a.
+    Lemma st_a_reward_to_R: forall (v : value_func mdp) (s : St mdp) (a : A mdp),
+        to_R (st_a_reward mdp discount v s a) = 
+        st_a_reward (mdp_fin := Rmdp_fin) Rmdp  Rdiscount (value_func_to_R v) s a.
     Proof.
       intros.
-      unfold discounted_reward.
+      unfold st_a_reward.
       rewrite <- to_R_big_sum.
       apply big_sum_ext; auto.
       unfold eqfun. intros.
@@ -958,13 +1051,16 @@ Module MDP_algorithms.
       unfold value_iteration_step.
       rewrite to_R_mapmax_ne.
       simpl.
-      apply ssr.ssrfun.Some_inj.
+      unfold A.
+      assert(some_eq : forall (T : Type) (x y : T), Some x = Some y -> x = y).
+        intros. inversion H. auto.
+      apply some_eq.
       repeat rewrite <- mapmax_ne_ok.
       simpl.
       rewrite AEnum_same.
       apply mapmax_ext.
       intros.
-      by rewrite discounted_reward_to_R.
+      by rewrite st_a_reward_to_R.
     Qed.
 
     Lemma policy_evaluate_step_to_R: forall (v : value_func mdp) (p : policy mdp),
@@ -974,7 +1070,7 @@ Module MDP_algorithms.
       unfold eqfun.
       unfold evaluate_policy_step.
       intros.
-      rewrite <- discounted_reward_to_R.
+      rewrite <- st_a_reward_to_R.
       unfold value_func_to_R.
       auto.
     Qed.
@@ -1097,7 +1193,7 @@ Module MDP_algorithms.
     Definition value_iteration_converge_policy := value_func_policy _ discount converge_value_func.
 
     Lemma reward_value_iteration_policy_same: forall s,
-       converge_value_func s = discounted_reward _ discount converge_value_func s (value_iteration_converge_policy s).
+       converge_value_func s = st_a_reward _ discount converge_value_func s (value_iteration_converge_policy s).
     Proof. 
       intros.
       rewrite <- value_iteration_fixpoint.
@@ -1403,12 +1499,12 @@ Module MDP_algorithmns.
 
     Variable discount : Nt.
     
-    Definition discounted_reward (v : value_func) (s : St) (a : A) : Nt :=
+    Definition st_a_reward (v : value_func) (s : St) (a : A) : Nt :=
       big_sum Slist (fun  s' =>  (MDP.trans mdp s a s') * (MDP.reward mdp s a s' +  discount *  (v s'))).
 
     Definition value_iteration_step (v : value_func) : value_func := 
     (fun (s : St) => 
-      mapmax_ne (fun a => discounted_reward v s a) (Alist_nonempty)
+      mapmax_ne (fun a => st_a_reward v s a) (Alist_nonempty)
     ).
 
     Fixpoint value_iteration_rec (v : value_func) (n : nat):=
@@ -1418,10 +1514,10 @@ Module MDP_algorithmns.
     end.
 
     Definition evaluate_policy_step (pol : policy) (v : value_func) : value_func :=
-      (fun s => discounted_reward v s (pol s)).
+      (fun s => st_a_reward v s (pol s)).
 
     Definition value_func_policy (v: value_func) : policy :=
-      (fun s => argmax_ne (discounted_reward v s) Alist_nonempty).
+      (fun s => argmax_ne (st_a_reward v s) Alist_nonempty).
 
   End mdp_numeric_func.
 
@@ -1569,24 +1665,24 @@ Module MDP_algorithmns.
   
 
 
-  Definition discounted_reward (v : value_func) (s : (state_t)) (a : (action_t)) : Nt :=
+  Definition st_a_reward (v : value_func) (s : (state_t)) (a : (action_t)) : Nt :=
     big_sum (states p_props) (fun  s' =>  (trans_f s a s') * ( reward_f s a s' +  discount *  (v s')))%Num.
   
 
 
   (** Should be O(|states|) assuming trans func and reward func are O(1) **)  
-  Definition discounted_reward_tb (v : value_table) (s : state_t) (a : action_t) : Nt :=
+  Definition st_a_reward_tb (v : value_table) (s : state_t) (a : action_t) : Nt :=
       big_sum ( Enum_table.zip_table v ) (fun x => (trans_f s a x.1) * (reward_f s a x.1 + discount * x.2)).
 
 
   Definition value_iteration_step (v : value_func) : value_func := 
     (fun (s : state_t) => 
-      mapmax_ne (fun a => discounted_reward v s a) (actions_nonempty p_props)
+      mapmax_ne (fun a => st_a_reward v s a) (actions_nonempty p_props)
   ).
 
   (**Should be O(|states|^2 * |actions|) **)
   Definition value_iteration_step_tb (v : value_table) : value_table := 
-   value_func_to_table (fun s => mapmax_ne (fun a : action_t => discounted_reward_tb v s a) (actions_nonempty p_props) ).
+   value_func_to_table (fun s => mapmax_ne (fun a : action_t => st_a_reward_tb v s a) (actions_nonempty p_props) ).
     
 
 
@@ -1611,12 +1707,12 @@ Module MDP_algorithmns.
   Definition policy_func_table_eq (pf : policy) (pt : policy_table) : Prop :=
     @Enum_table.eq_func _ _ _ (states_nonempty _) pt pf.
 
-  Lemma discounted_reward_tb_same: forall (vf : value_func) (vt : value_table) (s : state_t) (a : action_t),
-      value_func_table_eq vf vt -> discounted_reward vf s a = discounted_reward_tb vt s a.
+  Lemma st_a_reward_tb_same: forall (vf : value_func) (vt : value_table) (s : state_t) (a : action_t),
+      value_func_table_eq vf vt -> st_a_reward vf s a = st_a_reward_tb vt s a.
   Proof.
     intros.
-    unfold discounted_reward_tb.
-    unfold discounted_reward.
+    unfold st_a_reward_tb.
+    unfold st_a_reward.
     unfold value_func_table_eq in H0.
     unfold Enum_table.eq_func in H0.
     unfold value_table_lookup in H0.
@@ -1684,7 +1780,7 @@ Module MDP_algorithmns.
     unfold value_table_lookup in *.
     unfold value_func_to_table.
     rewrite -> Enum_table.lookup_map; auto.
-    { apply mapmax_ne_ext. intros. symmetry. apply discounted_reward_tb_same. auto. }
+    { apply mapmax_ne_ext. intros. symmetry. apply st_a_reward_tb_same. auto. }
     apply states_ok.
   Qed. 
   
@@ -1702,13 +1798,13 @@ Module MDP_algorithmns.
   end.
 
   Definition evaluate_policy_step (pol : policy) (v : value_func) : value_func :=
-  (fun s => discounted_reward v s (pol s)).
+  (fun s => st_a_reward v s (pol s)).
 
   Definition evaluate_policy_step_tb (pol : policy) (v : value_table) : value_table :=
-     value_func_to_table (fun s => discounted_reward_tb v s (pol s)).
+     value_func_to_table (fun s => st_a_reward_tb v s (pol s)).
 
   Definition evaluate_policy_tb_step_tb (pol : policy_table) (v : value_table) : value_table :=
-     value_func_to_table (fun s => discounted_reward_tb v s (policy_table_lookup pol s)).
+     value_func_to_table (fun s => st_a_reward_tb v s (policy_table_lookup pol s)).
 
 
   Lemma evaluate_policy_step_tb_same: forall (pol : policy) (vf : value_func) (vt : value_table),
@@ -1721,7 +1817,7 @@ Module MDP_algorithmns.
     unfold evaluate_policy_step_tb.
     unfold Enum_table.eq_func. intros.
     rewrite -> Enum_table.lookup_map; auto; auto.
-      symmetry. apply discounted_reward_tb_same. auto.
+      symmetry. apply st_a_reward_tb_same. auto.
     apply states_ok.
   Qed.
 
@@ -1748,7 +1844,7 @@ Module MDP_algorithmns.
 
 
   Definition value_func_policy (v: value_func) : policy :=
-  (fun s => argmax_ne (discounted_reward v s) a_ne).
+  (fun s => argmax_ne (st_a_reward v s) a_ne).
        
   Lemma head_action_correct: Some head_action = hd_error (actions p_props).
   Proof.
@@ -1780,7 +1876,7 @@ Module MDP_algorithmns.
     destruct discount_ok.
     apply mapmax_ne_le_const.
     intros.
-    unfold discounted_reward.
+    unfold st_a_reward.
     remember (reward_f n (pol n)) as r.
     remember (trans_f n (pol n)) as t.
     rewrite -> big_sum_ext with _ _ _ _ sts _  (fun s' => t s' * r s' + t s' * discount * v1 s'); auto.
@@ -1829,7 +1925,7 @@ Module MDP_algorithmns.
     unfold value_dist.
     unfold value_iteration_step.
     unfold value_diff.
-    unfold discounted_reward.
+    unfold st_a_reward.
     destruct discount_ok.
     apply le_trans with (mapmax_ne (fun s : state_t =>
       mapmax_ne (fun a : action_t => abs (
@@ -1913,7 +2009,7 @@ Module MDP_algorithmns.
     unfold value_iteration_step.
     apply mapmax_ne_ext.
     intros.
-    unfold discounted_reward.
+    unfold st_a_reward.
     apply big_sum_ext; auto.
     unfold eqfun.
     intros. rewrite H0. auto.
@@ -1924,7 +2020,7 @@ Module MDP_algorithmns.
   Proof.
     intros.
     unfold evaluate_policy_step.
-    unfold discounted_reward.
+    unfold st_a_reward.
     apply big_sum_ext; auto.
     unfold eqfun.
     intros.
@@ -1985,7 +2081,7 @@ Module MDP_algorithmns.
     unfold evaluate_policy_rec in *.
     simpl in *.
     unfold evaluate_policy_step.
-    unfold discounted_reward.
+    unfold st_a_reward.
     apply big_sum_ext; auto.
     unfold eqfun.
     intros.
@@ -2106,10 +2202,10 @@ Module MDP_algorithmns.
     simpl.    
     unfold evaluate_policy_step.
     unfold value_iteration_step.
-    apply le_trans with ( mapmax_ne  [eta discounted_reward (evaluate_policy_rec p0 v n) s] a_ne).
+    apply le_trans with ( mapmax_ne  [eta st_a_reward (evaluate_policy_rec p0 v n) s] a_ne).
     2:{ 
       apply mapmax_ne_le_ext. intros.
-      unfold discounted_reward.
+      unfold st_a_reward.
       apply big_sum_le.
       intros.
       apply mult_le_compat_l. apply trans_pos.
@@ -2163,7 +2259,7 @@ Module MDP_algorithmns.
     simpl.
     destruct discount_ok.
     unfold value_iteration_step.
-    unfold discounted_reward.
+    unfold st_a_reward.
     apply le_trans with (big_sum sts
      (fun s' : state_t =>
       trans_f s0 (p1 s0) s' *
@@ -2262,7 +2358,7 @@ Module MDP_algorithmns.
     rewrite to_R_mapmax_ne.
     apply mapmax_ne_ext.
     intros.
-    unfold discounted_reward.
+    unfold st_a_reward.
     rewrite <- to_R_big_sum.
     apply big_sum_ext; auto.
     unfold eqfun.
@@ -2424,7 +2520,7 @@ Module MDP_algorithmns.
     Definition value_iteration_converge_policy := value_func_policy _ discount converge_value_func.
 
     Lemma reward_value_iteration_policy_same: forall s : state (p p_props),
-       converge_value_func s = discounted_reward _ discount converge_value_func s (value_iteration_converge_policy s).
+       converge_value_func s = st_a_reward _ discount converge_value_func s (value_iteration_converge_policy s).
     Proof. 
       intros.
       rewrite <- value_iteration_fixpoint.
@@ -2485,7 +2581,7 @@ Module MDP_algorithmns.
       unfold value_diff.
       rewrite value_iteration_step_policy_eval_same.
       unfold evaluate_policy_step.
-      unfold discounted_reward.
+      unfold st_a_reward.
       rewrite <- big_sum_nmul.
       rewrite <- big_sum_plus.
       eapply le_trans. eapply big_sum_le_abs.
