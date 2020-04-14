@@ -1,8 +1,8 @@
-#Running Experimental Results using Criterion benchmarking
+# Running Experimental Results using Criterion benchmarking
 
 In order to evaluate the performance of the kernel perceptron family of algorithms on real and artificial datasets, there are several pieces of information that need to be captured: training error, testing error, generalization error, and timing data. So the Kernel Perceptron, Budget Kernel Perceptron, and Description Kernel Perceptron can be directly compared, the same training and testing sets should be used. My testing methodology has XX steps: creating data files containing training and testing data, developing Haskell drivers that can read from files and utilize Criterion benchmarking, and finally saving results to an Excel workbook.
 
-#Data Sets
+# Data Sets
 
 The three implementations will be tested against two real datasets (Iris and Mines vs. Rocks) as well as 20 generated data sets. 
 
@@ -12,7 +12,7 @@ The [Mines vs. Rocks dataset](https://archive.ics.uci.edu/ml/datasets/Connection
 
 The 20 artificial data sets consist of samples with three attributes, each between -1.0 and 1.0.
 
-#Reading from Files and Criterion Benchmarking
+# Reading from Files and Criterion Benchmarking
 
 Using file i/o, the dataset files will be read into the Haskell driver programs. I will need to learn how file i/o works in Haskell but it doesn't look too bad.
 
@@ -22,7 +22,7 @@ From these resources, I have designed the testing system in Haskell. For each of
 
 To run the testing systems, the Haskell executable should be run with the option --output and a filename with extension .html, as this option prints detailed statistical information, including graphs, into HTML. I plan to implement one testing file per implementation. If access to the lab computers is granted in future, each file can be run once to determine new timing results.
 
-#Storing Results
+# Storing Results
 
 Criterion benchmarking consists of timing analysis, which means that I will not be able to use Criterion to perform statistical analysis on the training, testing, and generalization error. To store my results, I plan to use an Excel workbook. Because my implementations are all deterministic and will generate the same model when run multiple times, I will record these results manually in the workbook. 
 

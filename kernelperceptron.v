@@ -413,7 +413,7 @@ Section KernelPerceptronGeneralizationDes.
   assert (J: muln 2 (Nat.pow 2 (muln n 32)) = Nat.pow 2 (1 + (muln n 32))).
     { rewrite Nat.pow_succ_r'. auto. }
   rewrite -> J.
-  (*rewrite <- Nat.pow_add_r.*) rewrite <- Nat.pow_mul_r. rewrite <- Nat.pow_add_r.
+  rewrite <- Nat.pow_mul_r. rewrite <- Nat.pow_add_r.
   rewrite pow_INR. auto.
   Qed.
   
