@@ -508,3 +508,37 @@ End KPerceptronExtractionBudget.
 
 Extraction Language Haskell.
 Extraction "hs/KPerceptronBudget.hs" kperceptronbudget linear_kernel quadratic_kernel KernelPerceptronBudget.budget_update.
+
+Section KPerceptronExtractionDes.
+  Variable n : nat. (*The dimensionality*)
+  Variable m : nat. (*#examples*)
+  Variable des : nat.
+  Notation A := (Akd n).
+  Notation B := Bkd.
+  Variable d : A * B -> R.
+
+  (*Variable m : nat. (*The number of training samples*)*)
+  Variable epochs : nat.
+
+  Notation Params := (KernelPerceptronDes.Params n des)%type.
+
+  Variable hypers : KernelPerceptronDes.Hypers.
+  Variable K : float32_arr n -> float32_arr n -> float32.
+
+  Notation Q := (A * B)%type.
+  
+  Context `{F : Foldable (KernelPerceptronDes.DSup n des) (dsupport_vector n)}.
+  Definition kperceptrondes (r:Type) := 
+    @extractible_main
+      A B Params KernelPerceptronDes.Hypers
+      (@KernelPerceptronDes.Learner n des F K)
+      hypers
+      epochs
+      (seq.seq Q)
+      (list_Foldable Q)
+      r
+      (fun T => ret T).
+End KPerceptronExtractionDes.
+
+Extraction Language Haskell.
+Extraction "hs/KPerceptronDes.hs" kperceptrondes linear_kernel quadratic_kernel.

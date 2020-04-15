@@ -13,3 +13,5 @@ hs/KPerceptronTest
 hs/KPerceptron.hs
 hs/KPerceptronBudgetTest
 hs/KPerceptronBudget.hs
+hs/KPerceptronDesTest
+hs/KPerceptronDes.hs
