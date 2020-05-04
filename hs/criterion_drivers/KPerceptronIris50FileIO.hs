@@ -6,15 +6,10 @@ import System.Random
 import System.IO
 import Data.List.Split
 import Data.Bool
-import Control.DeepSeq
-
-import Criterion.Main
+import System.CPUTime 
+import Text.Printf
 
 import KPerceptron
-
-instance NFData Nat where
- rnf O = () 
- rnf (S n) = rnf n
 
 fromInt 0 = O
 fromInt n | n > 0 = S (fromInt $ n - 1)
@@ -85,13 +80,41 @@ setupEnv trainfile testfile =
        let train = format_lines (lines train_file) in
        let test = format_lines (lines test_file) in
        return (test, train)}
+    
+trials trainfile testfile = do {
+    putStrLn trainfile;
+    (test, train) <- setupEnv trainfile testfile;
+    start <- getCPUTime;
+    kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist makeKernelParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist makeKernelParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist makeKernelParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist makeKernelParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist makeKernelParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    putStrLn "\n"
+}
        
-kperceptronhelper n m epochs train test =
-    (kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist
-       makeKernelParams (print_generalization_err test))
-       
-main = defaultMain [
-    env (setupEnv "../data/iris50train.dat" "../data/iris50test.dat") $ \ ~ (test, train) ->
-    bgroup "kpiris50" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test)]
-    ]
+main = do {
+    trials "../data/iris50train.dat" "../data/iris50test.dat"
+}
+         
+
          

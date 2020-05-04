@@ -6,15 +6,10 @@ import System.Random
 import System.IO
 import Data.List.Split
 import Data.Bool
-import Control.DeepSeq
-
-import Criterion.Main
+import System.CPUTime
+import Text.Printf
 
 import KPerceptron
-
-instance NFData Nat where
- rnf O = () 
- rnf (S n) = rnf n
 
 fromInt 0 = O
 fromInt n | n > 0 = S (fromInt $ n - 1)
@@ -85,70 +80,58 @@ setupEnv trainfile testfile =
        let train = format_lines (lines train_file) in
        let test = format_lines (lines test_file) in
        return (test, train)}
+
+trials trainfile testfile = do {
+    putStrLn trainfile;
+    (test, train) <- setupEnv trainfile testfile;
+    start <- getCPUTime;
+    kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist makeKernelParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist makeKernelParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist makeKernelParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist makeKernelParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist makeKernelParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    putStrLn "\n"
+}
        
-kperceptronhelper n m epochs train test =
-    (kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist
-       makeKernelParams (print_generalization_err test))
-       
-main = defaultMain [
-    env (setupEnv "../data/out1train.dat" "../data/out1test.dat") $ \ ~ (test, train) ->
-    bgroup "kp01" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test)],
-    
-    env (setupEnv "../data/out2train.dat" "../data/out2test.dat") $ \ ~ (test, train) ->
-    bgroup "kp02" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out3train.dat" "../data/out3test.dat") $ \ ~ (test, train) ->
-    bgroup "kp03" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out4train.dat" "../data/out4test.dat") $ \ ~ (test, train) ->
-    bgroup "kp04" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out5train.dat" "../data/out5test.dat") $ \ ~ (test, train) ->
-    bgroup "kp05" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out6train.dat" "../data/out6test.dat") $ \ ~ (test, train) ->
-    bgroup "kp06" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out7train.dat" "../data/out7test.dat") $ \ ~ (test, train) ->
-    bgroup "kp07" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out8train.dat" "../data/out8test.dat") $ \ ~ (test, train) ->
-    bgroup "kp08" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out9train.dat" "../data/out9test.dat") $ \ ~ (test, train) ->
-    bgroup "kp09" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out10train.dat" "../data/out10test.dat") $ \ ~ (test, train) ->
-    bgroup "kp10" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out11train.dat" "../data/out11test.dat") $ \ ~ (test, train) ->
-    bgroup "kp11" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out12train.dat" "../data/out12test.dat") $ \ ~ (test, train) ->
-    bgroup "kp12" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out13train.dat" "../data/out13test.dat") $ \ ~ (test, train) ->
-    bgroup "kp13" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out14train.dat" "../data/out14test.dat") $ \ ~ (test, train) ->
-    bgroup "kp14" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out15train.dat" "../data/out15test.dat") $ \ ~ (test, train) ->
-    bgroup "kp15" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out16train.dat" "../data/out16test.dat") $ \ ~ (test, train) ->
-    bgroup "kp16" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out17train.dat" "../data/out17test.dat") $ \ ~ (test, train) ->
-    bgroup "kp17" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out18train.dat" "../data/out18test.dat") $ \ ~ (test, train) ->
-    bgroup "kp18" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out19train.dat" "../data/out19test.dat") $ \ ~ (test, train) ->
-    bgroup "kp19" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ],
-    
-    env (setupEnv "../data/out20train.dat" "../data/out20test.dat") $ \ ~ (test, train) ->
-    bgroup "kp20" [ bench "KernelPerceptron" $ nfIO (kperceptronhelper n m epochs train test) ]
-    ]
+main = do {
+    trials "../data/out1train.dat" "../data/out1test.dat";
+    trials "../data/out2train.dat" "../data/out2test.dat";
+    trials "../data/out3train.dat" "../data/out3test.dat";
+    trials "../data/out4train.dat" "../data/out4test.dat";
+    trials "../data/out5train.dat" "../data/out5test.dat";
+    trials "../data/out6train.dat" "../data/out6test.dat";
+    trials "../data/out7train.dat" "../data/out7test.dat";
+    trials "../data/out8train.dat" "../data/out8test.dat";
+    trials "../data/out9train.dat" "../data/out9test.dat";
+    trials "../data/out10train.dat" "../data/out10test.dat";
+    trials "../data/out11train.dat" "../data/out11test.dat";
+    trials "../data/out12train.dat" "../data/out12test.dat";
+    trials "../data/out13train.dat" "../data/out13test.dat";
+    trials "../data/out14train.dat" "../data/out14test.dat";
+    trials "../data/out15train.dat" "../data/out15test.dat";
+    trials "../data/out16train.dat" "../data/out16test.dat";
+    trials "../data/out17train.dat" "../data/out17test.dat";
+    trials "../data/out18train.dat" "../data/out18test.dat";
+    trials "../data/out19train.dat" "../data/out19test.dat";
+    trials "../data/out20train.dat" "../data/out20test.dat"
+}
          

@@ -6,8 +6,8 @@ import System.Random
 import System.IO
 import Data.List.Split
 import Data.Bool
-
-import Criterion.Main
+import System.CPUTime 
+import Text.Printf
 
 import KPerceptronBudget
 
@@ -80,13 +80,43 @@ setupEnv trainfile testfile = do { train_file <- readFile trainfile;
         let test = format_lines (lines test_file) in
         return (test, train)
 }
-
-kperceptronbudgethelper n sv epochs train test = 
-    (kperceptronbudget n sv epochs (KPerceptronBudget.linear_kernel n) (budget_update n sv list_Foldable) list_Foldable (sampler train) dist
-     makeBudgetParams (print_generalization_err test))
-     
-main = defaultMain [
-    env (setupEnv "../data/iris75train.dat" "../data/iris25test.dat") $ \ ~ (test, train) ->
-    bgroup "kpbiris75" [ bench "BudgetKernelPerceptron" $ nfIO (kperceptronbudgethelper n sv epochs train test) ]
-    ]
          
+trials trainfile testfile = do {
+    putStrLn trainfile;
+    (test, train) <- setupEnv trainfile testfile;
+    start <- getCPUTime;
+    kperceptronbudget n sv epochs (KPerceptronBudget.linear_kernel n) (budget_update n sv list_Foldable) list_Foldable (sampler train) dist
+     makeBudgetParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptronbudget n sv epochs (KPerceptronBudget.linear_kernel n) (budget_update n sv list_Foldable) list_Foldable (sampler train) dist
+     makeBudgetParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptronbudget n sv epochs (KPerceptronBudget.linear_kernel n) (budget_update n sv list_Foldable) list_Foldable (sampler train) dist
+     makeBudgetParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptronbudget n sv epochs (KPerceptronBudget.linear_kernel n) (budget_update n sv list_Foldable) list_Foldable (sampler train) dist
+     makeBudgetParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptronbudget n sv epochs (KPerceptronBudget.linear_kernel n) (budget_update n sv list_Foldable) list_Foldable (sampler train) dist
+     makeBudgetParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    putStrLn "\n"
+}
+       
+main = do {
+    trials "../data/iris75train.dat" "../data/iris25test.dat"
+}

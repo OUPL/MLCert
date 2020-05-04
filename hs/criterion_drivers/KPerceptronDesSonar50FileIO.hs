@@ -6,8 +6,8 @@ import System.Random
 import System.IO
 import Data.List.Split
 import Data.Bool
-
-import Criterion.Main
+import System.CPUTime 
+import Text.Printf
 
 import KPerceptronDes
 
@@ -79,13 +79,43 @@ setupEnv trainfile testfile = do { train_file <- readFile trainfile;
         let test = format_lines (lines test_file) in
         return (test, train)
 }
-
-kperceptrondeshelper n des epochs hyper train test =
-    kperceptrondes n des epochs hyper (KPerceptronDes.linear_kernel n) list_Foldable (sampler train) dist
-    makeDesParams (print_generalization_err test)
-     
-main = defaultMain [
-    env (setupEnv "../data/sonar50train.dat" "../data/sonar50test.dat") $ \ ~ (test, train) ->
-    bgroup "kpdsonar50" [ bench "DescriptionKernelPerceptron" $ nfIO (kperceptrondeshelper n des epochs 11.0 train test) ]
-    ]
          
+trials trainfile testfile = do {
+    putStrLn trainfile;
+    (test, train) <- setupEnv trainfile testfile;
+    start <- getCPUTime;
+    kperceptrondes n des epochs 11.0 (KPerceptronDes.linear_kernel n) list_Foldable (sampler train) dist
+    makeDesParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptrondes n des epochs 11.0 (KPerceptronDes.linear_kernel n) list_Foldable (sampler train) dist
+    makeDesParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptrondes n des epochs 11.0 (KPerceptronDes.linear_kernel n) list_Foldable (sampler train) dist
+    makeDesParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptrondes n des epochs 11.0 (KPerceptronDes.linear_kernel n) list_Foldable (sampler train) dist
+    makeDesParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    start <- getCPUTime;
+    kperceptrondes n des epochs 11.0 (KPerceptronDes.linear_kernel n) list_Foldable (sampler train) dist
+    makeDesParams (print_generalization_err test);
+    end <- getCPUTime;
+    let diff = (fromIntegral (end - start)) / (10^12) in
+    printf "Training and Testing Time: %0.3f sec\n" (diff :: Double);
+    putStrLn "\n"
+}
+       
+main = do {
+    trials "../data/sonar50train.dat" "../data/sonar50test.dat"
+}
