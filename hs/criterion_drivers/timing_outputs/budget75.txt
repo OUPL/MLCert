@@ -1,0 +1,29 @@
+Script started on 2020-05-06 12:12:10-0400
+]0;ouroboros@ouroboros-X202E: ~/MLCert/hs/criterion_drivers[01;32mouroboros@ouroboros-X202E[00m:[01;34m~/MLCert/hs/criterion_drivers[00m$ ./KPerceptronBudget7[K75 [A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[K
+[K[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[KSonnar75FileIO 
+../data/sonar75normtrain.dat
+Training: 0.5414012738853503
+Test: 0.5098039215686274
+Generalization Error: 3.159735231672289e-2
+Training and Testing Time: 146.986 sec
+Training: 0.5414012738853503
+Test: 0.5098039215686274
+Generalization Error: 3.159735231672289e-2
+Training and Testing Time: 136.707 sec
+Training: 0.5414012738853503
+Test: 0.5098039215686274
+Generalization Error: 3.159735231672289e-2
+Training and Testing Time: 136.165 sec
+Training: 0.5414012738853503
+Test: 0.5098039215686274
+Generalization Error: 3.159735231672289e-2
+Training and Testing Time: 136.848 sec
+Training: 0.5414012738853503
+Test: 0.5098039215686274
+Generalization Error: 3.159735231672289e-2
+Training and Testing Time: 136.622 sec
+
+
+]0;ouroboros@ouroboros-X202E: ~/MLCert/hs/criterion_drivers[01;32mouroboros@ouroboros-X202E[00m:[01;34m~/MLCert/hs/criterion_drivers[00m$ exit
+
+Script done on 2020-05-06 12:24:26-0400

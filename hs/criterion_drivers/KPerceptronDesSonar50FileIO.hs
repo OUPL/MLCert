@@ -20,7 +20,7 @@ fromNat (S n) = 1 + fromNat n
 n = fromInt 60 --the number of dimensions
 m = fromInt 116 --the number of samples
 des = fromInt 10 --the number of support vectors
-epochs = fromInt 5
+epochs = fromInt 10000
 
 dist _ = -1.0 --not used in sampler below
 
@@ -117,5 +117,5 @@ trials trainfile testfile = do {
 }
        
 main = do {
-    trials "../data/sonar50train.dat" "../data/sonar50test.dat"
+    trials "../data/sonar50normtrain.dat" "../data/sonar50normtest.dat"
 }

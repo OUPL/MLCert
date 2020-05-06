@@ -1,0 +1,28 @@
+Script started on 2020-05-06 07:30:01-0400
+]0;ouroboros@ouroboros-X202E: ~/MLCert/hs/criterion_drivers[01;32mouroboros@ouroboros-X202E[00m:[01;34m~/MLCert/hs/criterion_drivers[00m$ ./KPerceptronSonar50FiileIO 
+../data/sonar50normtrain.dat
+Training: 1.0
+Test: 0.6956521739130435
+Generalization Error: 0.30434782608695654
+Training and Testing Time: 1044.636 sec
+Training: 1.0
+Test: 0.6956521739130435
+Generalization Error: 0.30434782608695654
+Training and Testing Time: 1046.609 sec
+Training: 1.0
+Test: 0.6956521739130435
+Generalization Error: 0.30434782608695654
+Training and Testing Time: 1047.802 sec
+Training: 1.0
+Test: 0.6956521739130435
+Generalization Error: 0.30434782608695654
+Training and Testing Time: 1046.586 sec
+Training: 1.0
+Test: 0.6956521739130435
+Generalization Error: 0.30434782608695654
+Training and Testing Time: 1043.563 sec
+
+
+]0;ouroboros@ouroboros-X202E: ~/MLCert/hs/criterion_drivers[01;32mouroboros@ouroboros-X202E[00m:[01;34m~/MLCert/hs/criterion_drivers[00m$ exit
+
+Script done on 2020-05-06 08:57:27-0400
