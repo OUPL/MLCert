@@ -211,10 +211,6 @@ Module KernelPerceptronDes.
     Record Hypers : Type := mkHypers { alpha : float32; }.
 
     Open Scope f32_scope.
-    (*Definition f32_arr_eq (x y : float32_arr n) : bool :=
-      f32_fold2 true
-        (fun a b z => if (f32_eq a b) then z else false)
-        x y.*)
     
     Definition des_update (ap: Params) (yj: A*B): Params :=      
       let (a, p) := ap in
