@@ -467,8 +467,8 @@ Section KPerceptronExtraction.
 End KPerceptronExtraction.
 
 Extraction Language Haskell.
-Extraction "hs/KPerceptron.hs" kperceptron linear_kernel quadratic_kernel.
-Extraction "hs/criterion_drivers/KPerceptron.hs" kperceptron linear_kernel quadratic_kernel.
+Extraction "hs/KernelPerceptron/KPerceptron.hs" kperceptron linear_kernel quadratic_kernel.
+Extraction "hs/KernelPerceptron/timing_drivers/KPerceptron.hs" kperceptron linear_kernel quadratic_kernel.
 
 Section KPerceptronExtractionBudget.
   Variable n : nat. (*The dimensionality*)
@@ -504,8 +504,8 @@ Section KPerceptronExtractionBudget.
 End KPerceptronExtractionBudget.
 
 Extraction Language Haskell.
-Extraction "hs/KPerceptronBudget.hs" kperceptronbudget linear_kernel quadratic_kernel KernelPerceptronBudget.budget_update.
-Extraction "hs/criterion_drivers/KPerceptronBudget.hs" kperceptronbudget linear_kernel quadratic_kernel KernelPerceptronBudget.budget_update.
+Extraction "hs/KernelPerceptron/KPerceptronBudget.hs" kperceptronbudget linear_kernel quadratic_kernel KernelPerceptronBudget.budget_update.
+Extraction "hs/KernelPerceptron/timing_drivers/KPerceptronBudget.hs" kperceptronbudget linear_kernel quadratic_kernel KernelPerceptronBudget.budget_update.
 
 Section KPerceptronExtractionDes.
   Variable n : nat. (*The dimensionality*)
@@ -539,5 +539,5 @@ Section KPerceptronExtractionDes.
 End KPerceptronExtractionDes.
 
 Extraction Language Haskell.
-Extraction "hs/KPerceptronDes.hs" kperceptrondes linear_kernel quadratic_kernel.
-Extraction "hs/criterion_drivers/KPerceptronDes.hs" kperceptrondes linear_kernel quadratic_kernel.
+Extraction "hs/KernelPerceptron/KPerceptronDes.hs" kperceptrondes linear_kernel quadratic_kernel.
+Extraction "hs/KernelPerceptron/timing_drivers/KPerceptronDes.hs" kperceptrondes linear_kernel quadratic_kernel.
