@@ -1,7 +1,8 @@
 #Python Implementation of the Budget Kernel Perceptron
 import time
+import numpy as np
 
-#File IO to read in dataset not timed
+#File IO to read in dataset
 def format_line(line):
     if line == []:
         return []
@@ -16,66 +17,43 @@ def format_label(y):
 
 def format_lines(lines):
     dataset = []
+    datalabels = []
     for line in lines:
         y = line.split(',')
-        dataset += [(format_line(y[1:-1]), format_label(y[-1]))]
-    return dataset
+        dataset += [format_line(y[1:-1])]
+        datalabels += [format_label(y[-1])]
+    return (np.array(dataset), np.array(datalabels)) #dataset now stored as two numpy arrays
 
 def setupEnv(trainfile, testfile):
     ftrain = open(trainfile, 'r')
     ftest = open(testfile, 'r')
-    train = format_lines(ftrain.readlines())
-    test = format_lines(ftest.readlines())
-    return (test, train)
+    train, trainl = format_lines(ftrain.readlines())
+    test, testl = format_lines(ftest.readlines())
+    return (test, testl, train, trainl)
 
 #Budget functions
-def init_weights(n):
-    weights = []
-    for i in range(n):
-        weights += [0.0]
-    return weights
-
 def makeBudgetParams(n, sv):
-    Params = []
-    for i in range(sv):
-        Params += [(0.0, (init_weights(n), False))]
-    return Params
+    return [np.zeros(sv), np.zeros(n*sv).reshape(sv, n), np.repeat(False, sv)]
 
 def linear_kernel(x, y):
-    dot = 0.0
-    for xi, yi in zip(x, y):
-        dot += xi * yi
-    return dot
-
-def float_of_bool(y):
-    if y:
-        return 1.0
-    else:
-        return -1.0
+    return np.dot(x, y)
 
 def kernel_predict_budget(kernel, Params, example):
-    ret = 0.0
-    for i in Params:
-        ret += float_of_bool(i[1][1]) * i[0] * kernel(example, i[1][0])
-    return (ret > 0.0)
+    d = Params[0]*linear_kernel(example,Params[1].T)
+    d[np.logical_not(Params[2])] *= -1
+    return np.sum(d) > 0.0
 
 def existing(Params, j):
-    xj = j[0]
-    for i in Params:
-        if xj == i[1][0]:
-            return True
-    return False
+    return (j[0]==Params[1]).all(1).any()
     
 def upd_weights(Params, j):
-    for i in range(len(Params)):
-        if Params[i][1][0] == j[0]:
-            new_index = Params[i][0] + 1
-            Params[i] = (new_index, j)
+    for i in range(len(Params[0])):
+        if np.equal(Params[1][i], j[0]).all():
+            Params[0][i] += 1
             return Params
 
 def add_new(Params, j):
-    #return ([(1.0, j)] + Params[:-1])
-    return (Params[1:] + [(1.0, j)])
+    return[np.append(Params[0][1:], 1.0), np.vstack((Params[1][1:], np.array(j[0]))), np.append(Params[2][1:], j[1])]
 
 def budget_update(Params, j):
     if existing(Params, j):
@@ -83,18 +61,14 @@ def budget_update(Params, j):
     else:
         return add_new(Params, j)
     
-def print_generalization_err(kernel, test, Params, train, m, mt):
+def print_generalization_err(kernel, test, testl, Params, train, trainl, m, mt):
     train_acc = 0
     test_acc = 0
-    for i in train:
-        example = i[0]
-        label = i[1]
+    for example, label in zip(train, trainl):
         if label == kernel_predict_budget(kernel, Params, example):
             train_acc += 1
     
-    for i in test:
-        example = i[0]
-        label = i[1]
+    for example, label in zip(test, testl):
         if label == kernel_predict_budget(kernel, Params, example):
             test_acc += 1
     
@@ -104,38 +78,37 @@ def print_generalization_err(kernel, test, Params, train, m, mt):
     print("Test: ", test_acc)
     print("Generalization Error: ", abs(train_acc - test_acc))
 
-def kperceptronbudget(n, sv, epochs, kernel, train, test, m, mt):
+def kperceptronbudget(n, sv, epochs, kernel, train, trainl, test, testl, m, mt):
     Params = makeBudgetParams(n, sv + 1)
     for i in range(epochs):
-        for j in train:
-            example = j[0]
-            label = j[1]
-            if label != kernel_predict_budget(kernel, Params, example):
-                Params = budget_update(Params, j)
-    print_generalization_err(kernel, test, Params, train, m, mt)
+        for example, label in zip(train, trainl):
+            predict = kernel_predict_budget(kernel, Params, example)
+            if label != predict:
+                Params = budget_update(Params, (example, label))
+    print_generalization_err(kernel, test, testl, Params, train, trainl, m, mt)
 
 #Timing
 def trials(trainfile, testfile, n, m, sv, epochs, mt):
     print(trainfile)
-    (test, train) = setupEnv(trainfile, testfile)
+    (test, testl, train, trainl) = setupEnv(trainfile, testfile)
     start = time.time()
-    kperceptronbudget(n, sv, epochs, linear_kernel, train, test, m, mt)
+    kperceptronbudget(n, sv, epochs, linear_kernel, train, trainl, test, testl, m, mt)
     end = time.time()
     print("Training and Testing Time: %1.3f"% (end - start))
     start = time.time()
-    kperceptronbudget(n, sv, epochs, linear_kernel, train, test, m, mt)
+    kperceptronbudget(n, sv, epochs, linear_kernel, train, trainl, test, testl, m, mt)
     end = time.time()
     print("Training and Testing Time: %1.3f"% (end - start))
     start = time.time()
-    kperceptronbudget(n, sv, epochs, linear_kernel, train, test, m, mt)
+    kperceptronbudget(n, sv, epochs, linear_kernel, train, trainl, test, testl, m, mt)
     end = time.time()
     print("Training and Testing Time: %1.3f"% (end - start))
     start = time.time()
-    kperceptronbudget(n, sv, epochs, linear_kernel, train, test, m, mt)
+    kperceptronbudget(n, sv, epochs, linear_kernel, train, trainl, test, testl, m, mt)
     end = time.time()
     print("Training and Testing Time: %1.3f"% (end - start))
     start = time.time()
-    kperceptronbudget(n, sv, epochs, linear_kernel, train, test, m, mt)
+    kperceptronbudget(n, sv, epochs, linear_kernel, train, trainl, test, testl, m, mt)
     end = time.time()
     print("Training and Testing Time: %1.3f"% (end - start))
 
