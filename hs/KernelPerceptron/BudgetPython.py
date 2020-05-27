@@ -138,6 +138,7 @@ def trials(trainfile, testfile, n, m, sv, epochs, mt):
     kperceptronbudget(n, sv, epochs, linear_kernel, train, test, m, mt)
     end = time.time()
     print("Training and Testing Time: %1.3f"% (end - start))
+    print("")
 
 def main():
     trials("data/out1train.dat", "data/out1test.dat", 3, 1000, 100, 5, 1000)
@@ -149,7 +150,7 @@ def main():
     trials("data/out7train.dat", "data/out7test.dat", 3, 1000, 100, 5, 1000)
     trials("data/out8train.dat", "data/out8test.dat", 3, 1000, 100, 5, 1000)
     trials("data/out9train.dat", "data/out9test.dat", 3, 1000, 100, 5, 1000)
-    trials("data/out10train.dat", "data/ou105test.dat", 3, 1000, 100, 5, 1000)
+    trials("data/out10train.dat", "data/out10test.dat", 3, 1000, 100, 5, 1000)
     trials("data/out11train.dat", "data/out11test.dat", 3, 1000, 100, 5, 1000)
     trials("data/out12train.dat", "data/out12test.dat", 3, 1000, 100, 5, 1000)
     trials("data/out13train.dat", "data/out13test.dat", 3, 1000, 100, 5, 1000)
