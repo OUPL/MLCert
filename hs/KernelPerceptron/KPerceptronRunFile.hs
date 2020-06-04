@@ -2,7 +2,9 @@
 
 module Main where
 
-import System.Random
+import System.IO
+import Data.List.Split
+import Data.Bool
 
 import KPerceptron
 
@@ -12,9 +14,9 @@ fromInt n | n > 0 = S (fromInt $ n - 1)
 fromNat O = 0
 fromNat (S n) = 1 + fromNat n
 
-n = fromInt 2 --the number of dimensions
-m = fromInt 4 --the number of samples
-epochs = fromInt 10
+n = fromInt 3 --the number of dimensions
+m = fromInt 1000 --the number of samples
+epochs = fromInt 5
 
 dist _ = -1.0 --not used in sampler below
 
@@ -24,27 +26,15 @@ init_weights = take (fromNat m) $ repeat 0.0
 makeKernelParams :: [(Ak, Bk)] -> KernelParams [(Ak, Bk)]
 makeKernelParams dataset = (dataset, init_weights)
 
-print_training_set [] = return ()
-print_training_set (((i,xs),y) : t) =
-  let print_xs [] = return ()
-      print_xs (x : xs) = putStr (show x) >> putStr "," >> print_xs xs
-  in
-  do { putStrLn (show $ fromNat i)
-     ; print_xs xs
-     ; putStrLn (show y)
-     ; print_training_set t }
-
 kernel_predict_specialized ::
   KernelParams [(Ak, Bk)] ->
   Ak ->
   Bk
 kernel_predict_specialized kparams ak =
-  kernel_predict n m list_Foldable (KPerceptron.quadratic_kernel n) kparams ak
-     
-sampler dataset _ f =
-    do { putStrLn "Training Set:"
-       ; print_training_set dataset
-       ; f dataset}
+  kernel_predict n m list_Foldable (KPerceptron.linear_kernel n) kparams ak
+       
+sampler hyperplane _ f =
+  do { f hyperplane }
 
 print_generalization_err ::
   [(Ak, Bk)] ->
@@ -67,13 +57,26 @@ print_generalization_err test (model, training) =
        ++ "Test: " ++ show percent_correct_test ++ "\n"
        ++ "Generalization Error: "
        ++ show (abs (percent_correct_training - percent_correct_test))
-    
-xor = [((O, [-1.0, -1.0]), Prelude.True), (((S O), [-1.0, 1.0]), Prelude.False),
-    (((S (S O)), [1.0, -1.0]), Prelude.False), (((S (S (S O))), [1.0, 1.0]), Prelude.True)]
+       
+format_line :: [[Char]] -> [Float32]
+format_line [] = []
+format_line (x : t) = 
+    [(read x :: Float32)] ++ (format_line t)
+
+format_label :: [Char] -> Bool
+format_label y = 
+    if y == "True" then True else False
+
+format_lines [] = []
+format_lines (x : t) = 
+    let y = (splitOn "," x) in
+        [((fromInt (read (head y) :: Int ),format_line (init (tail y))), format_label (last y))] ++ (format_lines t)
      
-main =
-    do { kperceptron n m epochs (KPerceptron.quadratic_kernel n) 
-         (sampler xor) dist makeKernelParams (print_generalization_err xor) }
-    
-    
+main = 
+  do { train_file <- readFile "data/out1train.dat";
+       test_file <- readFile "data/out1test.dat";
+       let train = format_lines (lines train_file) in
+       let test = format_lines (lines test_file) in
+       kperceptron n m epochs (KPerceptron.linear_kernel n) (sampler train) dist
+     makeKernelParams (print_generalization_err test) }
          

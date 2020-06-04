@@ -1,0 +1,465 @@
+Script started on 2020-05-04 16:47:13-0400
+]0;ouroboros@ouroboros-X202E: ~/MLCert/hs/criterion_drivers[01;32mouroboros@ouroboros-X202E[00m:[01;34m~/MLCert/hs/criterion_drivers[00m$ K[K./KPerceptron20FileIO  
+../data/out1train.dat
+Training: 0.966
+Test: 0.963
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 196.850 sec
+Training: 0.966
+Test: 0.963
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 200.581 sec
+Training: 0.966
+Test: 0.963
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 197.570 sec
+Training: 0.966
+Test: 0.963
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 198.813 sec
+Training: 0.966
+Test: 0.963
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 205.903 sec
+
+
+../data/out2train.dat
+Training: 1.0
+Test: 0.997
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 201.912 sec
+Training: 1.0
+Test: 0.997
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 200.987 sec
+Training: 1.0
+Test: 0.997
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 201.092 sec
+Training: 1.0
+Test: 0.997
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 199.391 sec
+Training: 1.0
+Test: 0.997
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 206.741 sec
+
+
+../data/out3train.dat
+Training: 0.994
+Test: 0.993
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 202.428 sec
+Training: 0.994
+Test: 0.993
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 200.622 sec
+Training: 0.994
+Test: 0.993
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 199.961 sec
+Training: 0.994
+Test: 0.993
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 199.999 sec
+Training: 0.994
+Test: 0.993
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 207.716 sec
+
+
+../data/out4train.dat
+Training: 0.989
+Test: 0.999
+Generalization Error: 1.0000000000000009e-2
+Training and Testing Time: 199.584 sec
+Training: 0.989
+Test: 0.999
+Generalization Error: 1.0000000000000009e-2
+Training and Testing Time: 199.628 sec
+Training: 0.989
+Test: 0.999
+Generalization Error: 1.0000000000000009e-2
+Training and Testing Time: 199.387 sec
+Training: 0.989
+Test: 0.999
+Generalization Error: 1.0000000000000009e-2
+Training and Testing Time: 199.640 sec
+Training: 0.989
+Test: 0.999
+Generalization Error: 1.0000000000000009e-2
+Training and Testing Time: 206.264 sec
+
+
+../data/out5train.dat
+Training: 0.967
+Test: 0.978
+Generalization Error: 1.100000000000001e-2
+Training and Testing Time: 202.048 sec
+Training: 0.967
+Test: 0.978
+Generalization Error: 1.100000000000001e-2
+Training and Testing Time: 199.581 sec
+Training: 0.967
+Test: 0.978
+Generalization Error: 1.100000000000001e-2
+Training and Testing Time: 198.762 sec
+Training: 0.967
+Test: 0.978
+Generalization Error: 1.100000000000001e-2
+Training and Testing Time: 202.233 sec
+Training: 0.967
+Test: 0.978
+Generalization Error: 1.100000000000001e-2
+Training and Testing Time: 207.436 sec
+
+
+../data/out6train.dat
+Training: 0.984
+Test: 0.989
+Generalization Error: 5.0000000000000044e-3
+Training and Testing Time: 201.118 sec
+Training: 0.984
+Test: 0.989
+Generalization Error: 5.0000000000000044e-3
+Training and Testing Time: 202.436 sec
+Training: 0.984
+Test: 0.989
+Generalization Error: 5.0000000000000044e-3
+Training and Testing Time: 199.796 sec
+Training: 0.984
+Test: 0.989
+Generalization Error: 5.0000000000000044e-3
+Training and Testing Time: 199.275 sec
+Training: 0.984
+Test: 0.989
+Generalization Error: 5.0000000000000044e-3
+Training and Testing Time: 206.305 sec
+
+
+../data/out7train.dat
+Training: 0.988
+Test: 0.986
+Generalization Error: 2.0000000000000018e-3
+Training and Testing Time: 199.591 sec
+Training: 0.988
+Test: 0.986
+Generalization Error: 2.0000000000000018e-3
+Training and Testing Time: 199.239 sec
+Training: 0.988
+Test: 0.986
+Generalization Error: 2.0000000000000018e-3
+Training and Testing Time: 197.910 sec
+Training: 0.988
+Test: 0.986
+Generalization Error: 2.0000000000000018e-3
+Training and Testing Time: 197.968 sec
+Training: 0.988
+Test: 0.986
+Generalization Error: 2.0000000000000018e-3
+Training and Testing Time: 205.271 sec
+
+
+../data/out8train.dat
+Training: 0.996
+Test: 0.996
+Generalization Error: 0.0
+Training and Testing Time: 200.324 sec
+Training: 0.996
+Test: 0.996
+Generalization Error: 0.0
+Training and Testing Time: 199.908 sec
+Training: 0.996
+Test: 0.996
+Generalization Error: 0.0
+Training and Testing Time: 198.839 sec
+Training: 0.996
+Test: 0.996
+Generalization Error: 0.0
+Training and Testing Time: 200.583 sec
+Training: 0.996
+Test: 0.996
+Generalization Error: 0.0
+Training and Testing Time: 207.621 sec
+
+
+../data/out9train.dat
+Training: 0.974
+Test: 0.973
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 201.124 sec
+Training: 0.974
+Test: 0.973
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 201.844 sec
+Training: 0.974
+Test: 0.973
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 199.870 sec
+Training: 0.974
+Test: 0.973
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 197.443 sec
+Training: 0.974
+Test: 0.973
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 206.527 sec
+
+
+../data/out10train.dat
+Training: 0.998
+Test: 0.999
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 202.562 sec
+Training: 0.998
+Test: 0.999
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 200.011 sec
+Training: 0.998
+Test: 0.999
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 200.402 sec
+Training: 0.998
+Test: 0.999
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 201.503 sec
+Training: 0.998
+Test: 0.999
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 208.253 sec
+
+
+../data/out11train.dat
+Training: 0.982
+Test: 0.977
+Generalization Error: 5.0000000000000044e-3
+Training and Testing Time: 199.746 sec
+Training: 0.982
+Test: 0.977
+Generalization Error: 5.0000000000000044e-3
+Training and Testing Time: 198.875 sec
+Training: 0.982
+Test: 0.977
+Generalization Error: 5.0000000000000044e-3
+Training and Testing Time: 198.366 sec
+Training: 0.982
+Test: 0.977
+Generalization Error: 5.0000000000000044e-3
+Training and Testing Time: 198.066 sec
+Training: 0.982
+Test: 0.977
+Generalization Error: 5.0000000000000044e-3
+Training and Testing Time: 205.204 sec
+
+
+../data/out12train.dat
+Training: 0.988
+Test: 0.982
+Generalization Error: 6.000000000000005e-3
+Training and Testing Time: 200.343 sec
+Training: 0.988
+Test: 0.982
+Generalization Error: 6.000000000000005e-3
+Training and Testing Time: 198.520 sec
+Training: 0.988
+Test: 0.982
+Generalization Error: 6.000000000000005e-3
+Training and Testing Time: 199.919 sec
+Training: 0.988
+Test: 0.982
+Generalization Error: 6.000000000000005e-3
+Training and Testing Time: 197.629 sec
+Training: 0.988
+Test: 0.982
+Generalization Error: 6.000000000000005e-3
+Training and Testing Time: 206.636 sec
+
+
+../data/out13train.dat
+Training: 0.98
+Test: 0.973
+Generalization Error: 7.000000000000006e-3
+Training and Testing Time: 200.139 sec
+Training: 0.98
+Test: 0.973
+Generalization Error: 7.000000000000006e-3
+Training and Testing Time: 201.385 sec
+Training: 0.98
+Test: 0.973
+Generalization Error: 7.000000000000006e-3
+Training and Testing Time: 197.294 sec
+Training: 0.98
+Test: 0.973
+Generalization Error: 7.000000000000006e-3
+Training and Testing Time: 197.214 sec
+Training: 0.98
+Test: 0.973
+Generalization Error: 7.000000000000006e-3
+Training and Testing Time: 206.362 sec
+
+
+../data/out14train.dat
+Training: 1.0
+Test: 0.994
+Generalization Error: 6.000000000000005e-3
+Training and Testing Time: 202.604 sec
+Training: 1.0
+Test: 0.994
+Generalization Error: 6.000000000000005e-3
+Training and Testing Time: 201.954 sec
+Training: 1.0
+Test: 0.994
+Generalization Error: 6.000000000000005e-3
+Training and Testing Time: 202.032 sec
+Training: 1.0
+Test: 0.994
+Generalization Error: 6.000000000000005e-3
+Training and Testing Time: 201.117 sec
+Training: 1.0
+Test: 0.994
+Generalization Error: 6.000000000000005e-3
+Training and Testing Time: 210.567 sec
+
+
+../data/out15train.dat
+Training: 0.997
+Test: 0.998
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 204.526 sec
+Training: 0.997
+Test: 0.998
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 202.242 sec
+Training: 0.997
+Test: 0.998
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 198.686 sec
+Training: 0.997
+Test: 0.998
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 198.700 sec
+Training: 0.997
+Test: 0.998
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 210.175 sec
+
+
+../data/out16train.dat
+Training: 0.945
+Test: 0.945
+Generalization Error: 0.0
+Training and Testing Time: 201.140 sec
+Training: 0.945
+Test: 0.945
+Generalization Error: 0.0
+Training and Testing Time: 199.529 sec
+Training: 0.945
+Test: 0.945
+Generalization Error: 0.0
+Training and Testing Time: 198.682 sec
+Training: 0.945
+Test: 0.945
+Generalization Error: 0.0
+Training and Testing Time: 200.472 sec
+Training: 0.945
+Test: 0.945
+Generalization Error: 0.0
+Training and Testing Time: 209.314 sec
+
+
+../data/out17train.dat
+Training: 0.988
+Test: 0.987
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 200.815 sec
+Training: 0.988
+Test: 0.987
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 196.990 sec
+Training: 0.988
+Test: 0.987
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 200.107 sec
+Training: 0.988
+Test: 0.987
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 197.420 sec
+Training: 0.988
+Test: 0.987
+Generalization Error: 1.0000000000000009e-3
+Training and Testing Time: 207.804 sec
+
+
+../data/out18train.dat
+Training: 0.997
+Test: 0.993
+Generalization Error: 4.0000000000000036e-3
+Training and Testing Time: 201.124 sec
+Training: 0.997
+Test: 0.993
+Generalization Error: 4.0000000000000036e-3
+Training and Testing Time: 201.456 sec
+Training: 0.997
+Test: 0.993
+Generalization Error: 4.0000000000000036e-3
+Training and Testing Time: 200.643 sec
+Training: 0.997
+Test: 0.993
+Generalization Error: 4.0000000000000036e-3
+Training and Testing Time: 200.159 sec
+Training: 0.997
+Test: 0.993
+Generalization Error: 4.0000000000000036e-3
+Training and Testing Time: 208.663 sec
+
+
+../data/out19train.dat
+Training: 1.0
+Test: 0.997
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 200.642 sec
+Training: 1.0
+Test: 0.997
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 199.833 sec
+Training: 1.0
+Test: 0.997
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 199.627 sec
+Training: 1.0
+Test: 0.997
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 199.624 sec
+Training: 1.0
+Test: 0.997
+Generalization Error: 3.0000000000000027e-3
+Training and Testing Time: 206.290 sec
+
+
+../data/out20train.dat
+Training: 0.989
+Test: 0.997
+Generalization Error: 8.000000000000007e-3
+Training and Testing Time: 202.236 sec
+Training: 0.989
+Test: 0.997
+Generalization Error: 8.000000000000007e-3
+Training and Testing Time: 200.640 sec
+Training: 0.989
+Test: 0.997
+Generalization Error: 8.000000000000007e-3
+Training and Testing Time: 198.093 sec
+Training: 0.989
+Test: 0.997
+Generalization Error: 8.000000000000007e-3
+Training and Testing Time: 200.082 sec
+Training: 0.989
+Test: 0.997
+Generalization Error: 8.000000000000007e-3
+Training and Testing Time: 206.975 sec
+
+
+]0;ouroboros@ouroboros-X202E: ~/MLCert/hs/criterion_drivers[01;32mouroboros@ouroboros-X202E[00m:[01;34m~/MLCert/hs/criterion_drivers[00m$ exit
+
+Script done on 2020-05-04 22:23:16-0400
