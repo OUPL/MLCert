@@ -1,3 +1,4 @@
+-- Description Kernel Perceptron Driver for Random Dataset Generation
 {-# LANGUAGE StandaloneDeriving #-}
 
 module Main where

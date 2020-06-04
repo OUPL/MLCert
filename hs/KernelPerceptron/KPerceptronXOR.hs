@@ -1,3 +1,4 @@
+-- Kernel Perceptron Driver for XOR Quadratic Kernel Validation
 {-# LANGUAGE StandaloneDeriving #-}
 
 module Main where

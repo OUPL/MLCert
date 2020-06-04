@@ -1,3 +1,4 @@
+-- Kernel Perceptron Timing Driver: Synthetic Trials
 {-# LANGUAGE StandaloneDeriving #-}
 
 module Main where

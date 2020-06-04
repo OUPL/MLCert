@@ -1,3 +1,4 @@
+-- Description Kernel Perceptron Timing Driver: Sonar 75/25 Split
 {-# LANGUAGE StandaloneDeriving #-}
 
 module Main where

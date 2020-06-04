@@ -1,3 +1,4 @@
+(* Coq Implementations of the Kernel Perceptron, Budget Kernel Perceptron, and Description Kernel Perceptron*)
 Set Implicit Arguments.
 Unset Strict Implicit.
 

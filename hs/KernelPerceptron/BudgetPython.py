@@ -1,4 +1,5 @@
-#Python Implementation of the Budget Kernel Perceptron
+#Python Implementation of the Budget Kernel Perceptron, Naive version
+#See KernelPerceptronBudgetPython.md for documentation
 import time
 
 #File IO to read in dataset not timed

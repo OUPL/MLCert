@@ -1,3 +1,4 @@
+-- Description Kernel Perceptron Timing Driver: Iris 50/50 Split
 {-# LANGUAGE StandaloneDeriving #-}
 
 module Main where

@@ -1,4 +1,5 @@
-#Python Implementation of the Budget Kernel Perceptron
+#Python Implementation of the Budget Kernel Perceptron using Numpy library and optimizations
+#See KernelPerceptronBudgetPython.md for documentation
 import time
 import numpy as np
 
