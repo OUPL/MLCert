@@ -55,15 +55,13 @@ There are three variants of the Kernel Perceptron algorithm implemented in MLCer
 
 There are four different kinds of training procedures: `XOR`, `Test`, `RunFile`, and `FileIO`. These form the end of the file name, and are each detailed in [Types of Haskell Driver Files](#types-of-haskell-driver-files).
 
-The `FileIO` drivers also contain strings in between the implementation name and `FileIO` procedure that denote the kind of dataset run by this file, such as `20` for the synthetic datasets.
-
 The data file naming conventions for the real and synthetic datasets denote the type of dataset and whether the specific file is a training set file or a test set file. There are three kinds of datasets in `MLCert/hs/KernelPerceptron/data/`: synthetic, iris, and sonar. For all three types of datasets, the file names end in either `train` or `test` to separate the training set from the test set.
 
 The synthetic dataset files all begin with `out` followed by the index of the synthetic dataset from 1-20. 
 
 The iris dataset files begin with `iris` and two datasets were created based on a roughly 50/50 split between training and test examples and a 75/25 split. `iris50train.dat` matches with `iris50test.dat`, and `iris75train.dat` is paired with `iris25test.dat`. 
 
-Like the iris dataset, the sonar dataset files were also used to create two datasets, one with a 50/50 split and another with a 75/25 split. The sonar dataset files all begin with `sonar`.
+Like the iris dataset, the sonar dataset files were also used to create two datasets, one with a 50/50 split and another with a 75/25 split. The sonar dataset files all begin with `sonar`. In addition to the original sonar dataset files, there are also normalized dataset files that in the range [-1, 1] instead of [0, 1]. The normalized files have `norm` in their file names.
 
 ## Types of Haskell Driver Files
 
@@ -91,7 +89,7 @@ This driver runs one specific dataset without any timing analysis.
 
 ### FileIO: Timing Analysis Drivers
 
-The `FileIO` drivers run one or more datasets and output the runtime for training and testing each dataset. There are a total of 15 `FileIO` drivers, 5 for each implementation. The drivers with `20` in their name run the timing analysis for all 20 synthetic datasets. The 2 iris and 2 sonar datasets must be run each by their own drivers because the global variables vary between the datasets, and are denoted by `Iris` or `Sonar` and `50` and `75` to differentiate between iris and sonar and 50/50 and 75/25 splits. 
+The `FileIO` drivers run one or more datasets and output the runtime for training and testing each dataset. There are a total of 3 `FileIO` drivers, 1 for each implementation. To run just one trial or dataset, one or more of the calls to `trials` can be commented out. The `FileIO` driver functions are modified from the `RunFile` drivers to remove all global variables for the dimensionality of the data and size of the dataset so multiple datasets can be read and timed in one execution of the script.
 
 File input is the same as for the `RunFile` drivers.
 
