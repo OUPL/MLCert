@@ -21,12 +21,12 @@ Class BasicSamplers (T : Type) : Type :=
       bernoulli_sampler_ok : 
         forall (s:T) (p:D) (f:bool -> R),
           bernoulli_sampler p s (fun bs' => let: (b,s') := bs' in f b) =
-          big_sum (enum bool_finType) (fun b => Bernoulli.t (Qreals.Q2R (D_to_Q p)) b * f b);
+          big_sum (enum bool_finType) (fun b => Bernoulli.t (Rdefinitions.Q2R (D_to_Q p)) b * f b)%R;
 
       uniform_sampler : forall (r:Type) (m:nat), StateT (M:=@Cont r) T 'I_m;
       uniform_sampler_ok :
         forall (s:T) (m:nat) (f:'I_m -> R),
           @uniform_sampler _ m s (fun rs' => let: (r,s') := rs' in f r) = 
-          big_sum (enum 'I_m) (fun x => (1 / mR m) * f x)
+          big_sum (enum 'I_m) (fun x => (1 / mR m) * f x)%R
     }.
       

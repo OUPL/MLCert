@@ -11,6 +11,8 @@ Require Import Extraction.
 
 Require Import MLCert.axioms MLCert.float32 MLCert.learners MLCert.extraction_hs MLCert.monads.
 
+Local Open Scope R_scope.
+
 Section KernelClassifier.
   Variable n : nat. (*the dimensionality*)
   Variable m : nat. (*#examples*)

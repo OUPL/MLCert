@@ -46,7 +46,7 @@ Module Perceptron.
       let: predicted_label := predict p example in
       if Bool.eqb predicted_label label then p
       else let: (w, b) := p in
-           (f32_map2 (fun x1 x2 => x1 + (alpha h)*label*x2) w example, b+label).
+           (f32_map2 (fun x1 x2 => x1 + (alpha h) * label * x2) w example, b+label).
 
     Definition Learner : Learner.t A B Hypers Params :=
       Learner.mk
@@ -57,6 +57,8 @@ End Perceptron.
 
 Require Import Reals Fourier.
 Require Import OUVerT.bigops OUVerT.dist OUVerT.chernoff OUVerT.learning.
+
+Local Open Scope R_scope.
 
 Section PerceptronGeneralization.
   Variable n : nat. (*The dimensionality*)

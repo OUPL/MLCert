@@ -4,6 +4,9 @@ Unset Strict Implicit.
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
+Require Import mathcomp.algebra.ssrnum.
+
+Import mc_1_10.Num.Theory. (* for ltrr and ler_eqVlt *)
 
 Import GRing.Theory Num.Def Num.Theory.
 

@@ -11,6 +11,8 @@ Require Import OUVerT.chernoff OUVerT.learning OUVerT.bigops OUVerT.dist OUVerT.
 
 Require Import MLCert.monads MLCert.noise MLCert.samplers.
 
+Local Open Scope R_scope.
+
 Module Learner.
   Record t (X Y Hypers Params : Type) :=
     mk { predict : Hypers -> Params -> X -> Y;
@@ -102,7 +104,7 @@ Section training_set.
   Global Instance semantic_TrainingSet
     : Foldable (semantic_training_set X Y) (X*Y) :=
     mkFoldable semantic_training_set_foldrM semantic_training_set_mapM.
-End training_set.             
+End training_set.
 
 Section semantics.
   Variables X Y Params : finType. 
