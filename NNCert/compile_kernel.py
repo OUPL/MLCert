@@ -124,6 +124,8 @@ Require Import OUVerT.dyadic OUVerT.compile.
 Require Import MLCert.axioms MLCert.bitvectors MLCert.learners MLCert.extraction_ocaml.
 Require Import net bitnet kernel print.
 
+Local Open Scope nat_scope.
+
 Module TheDimensionality <: BOUND. Definition n : nat := N.to_nat {}. 
 Lemma n_gt0 : (0 < N.to_nat {})%nat. by []. Qed. End TheDimensionality.
 Module Neurons <: BOUND. Definition n : nat := N.to_nat {}.
@@ -246,6 +248,7 @@ Notation accuracy := (@accuracy XFin [finType of Y] ParamsFin Hypers tf_learner 
 
 Require Import OUVerT.chernoff OUVerT.learning OUVerT.bigops OUVerT.dist.
 Require Import QArith Reals Rpower Ranalysis Fourier.
+Local Open Scope R_scope.
 
 Section tf_bound.
   Variables

@@ -15,6 +15,7 @@ Require Import MLCert.axioms MLCert.bitvectors.
 
 Require Import bitnet net print.
 
+Local Open Scope nat_scope.
 
 (** We could use flattened vectors instead of matrices I guess but
     compilation and extraction seem to be a bit faster this way. *)

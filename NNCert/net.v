@@ -260,7 +260,7 @@ Module Test1 := NetEval Test1Bound Test1Bound DPayload. Import Test1. Import NET
 Program Definition x : input_var := @InputEnv.Ix.mk 0 _.
 Program Definition p0 : param_var := @ParamEnv.Ix.mk 0 _.
 Program Definition p1 : param_var := @ParamEnv.Ix.mk 1 _.
-Definition rho : InputEnv.t := InputEnv.of_fun (fun _ => DRed.build (Dmake 8 1)).
+Definition rho : InputEnv.t := InputEnv.of_fun (fun _ => DRed.build (DD (Dmake 8 1))).
 Definition theta : ParamEnv.t :=
   ParamEnv.of_fun (fun i => match i with
                             | ParamEnv.Ix.mk i' _ =>
@@ -390,5 +390,3 @@ Module ForestMap (IN D OUT : BOUND) (T U : PAYLOAD).
            (fun ix => F (FT.NETEval.InputEnv.get (FU_to_FT_input_var ix) rho))).        
   End forest_map.
 End ForestMap.
-
-

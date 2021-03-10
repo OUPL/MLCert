@@ -10,6 +10,8 @@ Require Import List NArith ZArith ProofIrrelevance. Import ListNotations.
 Require Import OUVerT.dyadic OUVerT.numerics OUVerT.vector OUVerT.compile.
 Require Import net.
 
+Local Open Scope nat_scope.
+
 Inductive Bit : Type := BI | BO.
 
 Module BitPayload <: PAYLOAD.
@@ -94,12 +96,12 @@ Module DyadicFloat (N : BOUND) (EXPONENT_BITS : BOUND) (OFFSET : BOUND).
   Local Open Scope D_scope.
 
   Definition dyadic_of_significand_bit (ix : Ix.t) (b_ix : Bit) : D :=
-    if b_ix then Dmake 1 (match ix with Ix.mk n _ => 
-                                        match (exponent_start-n)%N with
-                                        | N0 => 1%positive (*bogus--can't occur*)
-                                        | Npos p => p
-                                        end
-                          end)
+    if b_ix then DD (Dmake 1 (match ix with Ix.mk n _ => 
+                                            match (exponent_start-n)%N with
+                                            | N0 => 1%positive (*bogus--can't occur*)
+                                            | Npos p => p
+                                            end
+                              end))
     else D0.
 
   Definition Z_of_exponent_bit (ix : Ix.t) (b_ix : Bit) : Z :=
@@ -121,8 +123,8 @@ Module DyadicFloat (N : BOUND) (EXPONENT_BITS : BOUND) (OFFSET : BOUND).
   Definition two_pow (z : Z) : D :=
     match z with
     | Z0 => D1
-    | Zpos p => Dmake (2 * (Zpower.two_power_pos p)) 1%positive
-    | Zneg n => Dmake 1%Z n
+    | Zpos p => DD (Dmake (2 * (Zpower.two_power_pos p)) 1%positive)
+    | Zneg n => DD (Dmake 1%Z n)
     end.
 
   Definition exponent (b : t) : D := two_pow (exponent_Z b - Z.of_nat OFFSET.n).
